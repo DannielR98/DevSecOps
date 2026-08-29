@@ -18,7 +18,7 @@
 
 
 
-## Feature slices (vertikala, prioritetsordning föreslagen)
+## Feature slices
 
 1. Användare kan registrera konto och logga in
 
