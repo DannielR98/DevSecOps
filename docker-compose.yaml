@@ -1,8 +1,4 @@
 services:
-  # =========================
-  # FRONTEND
-  # =========================
-
   frontend:
     container_name: quiz-container-frontend
     build:
@@ -17,10 +13,6 @@ services:
     environment:
       - CHOKIDAR_USEPOLLING=true
 
-  # =========================
-  # BACKEND
-  # =========================
-
   backend:
     container_name: quiz-container-backend
     build:
@@ -34,10 +26,6 @@ services:
       - quiz-volume-backend:/app/node_modules
     environment:
       - CHOKIDAR_USEPOLLING=true
-
-# =========================
-# NAMED VOLUMES
-# =========================
 
 volumes:
   quiz-volume-frontend:
