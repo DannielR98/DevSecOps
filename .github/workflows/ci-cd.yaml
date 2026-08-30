@@ -39,11 +39,52 @@ jobs:
         working-directory: frontend/quiz
         run: npm run build
 
+      - name: Run fontend Test
+        working-directory: frontend/quiz
+        run: npm test
+
       # =========================
       # BACKEND
       # =========================
 
-      - name: Check backend
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Build backend
+        working-directory: backend
+        run: npm run build
+
+      - name: Run backend Test
+        working-directory: backend
+        run: npm test
+
+      # =========================
+      # DOCKER
+      # =========================
+
+      - name: Build frontend Docker image
+        run: docker build -t quiz-img-frontend ./frontend/quiz
+
+      - name: Build backend Docker image
+        run: docker build -t quiz-img-backend ./backend
+
+
+      # =========================
+      # LIST FILES
+      # =========================
+
+      - name: List frontend and backend files
         run: |
-          echo "Backend is currently empty"
+          echo "===== FRONTEND ====="
+          ls -la frontend/quiz
+
+          echo "===== BACKEND ====="
           ls -la backend
+
+      # =========================
+      # SUCCESS
+      # =========================
+
+      - name: CI completed successfully
+        run: echo "CI completed successfully!"

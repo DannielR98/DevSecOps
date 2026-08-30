@@ -1,0 +1,44 @@
+services:
+  # =========================
+  # FRONTEND
+  # =========================
+
+  frontend:
+    container_name: quiz-container-frontend
+    build:
+      context: ./frontend/quiz
+      dockerfile: Dockerfile
+    image: quiz-img-frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/quiz:/app
+      - quiz-volume-frontend:/app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+
+  # =========================
+  # BACKEND
+  # =========================
+
+  backend:
+    container_name: quiz-container-backend
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    image: quiz-img-backend
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+      - quiz-volume-backend:/app/node_modules
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+
+# =========================
+# NAMED VOLUMES
+# =========================
+
+volumes:
+  quiz-volume-frontend:
+  quiz-volume-backend:
