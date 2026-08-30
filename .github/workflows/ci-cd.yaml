@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - main
+      - dev
+
+  pull_request:
+    branches:
+      - main
+      - dev
+
+jobs:
+  build:
+    name: Build Application
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/quiz/package-lock.json
+
+      # =========================
+      # FRONTEND
+      # =========================
+
+      - name: Install frontend dependencies
+        working-directory: frontend/quiz
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend/quiz
+        run: npm run build
+
+      # =========================
+      # BACKEND
+      # =========================
+
+      - name: Check backend
+        run: |
+          echo "Backend is currently empty"
+          ls -la backend
