@@ -6,7 +6,7 @@ import createJWT from "../../../middleware/jwt.js";
 
 const router = express.Router();
 
-router.post("/login", async (req, res) => {
+router.post("/login-user", async (req, res) => {
   try {
     const transformName = (name, toLower = false) => {
       if (typeof name !== "string") {
