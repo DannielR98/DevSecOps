@@ -115,3 +115,54 @@ Feature: Utmana en vän
     And utmaningens resultat ska kunna jämföras mellan oss två
 ```
 
+```
+DevSecOps/
+├── backend/
+│   ├── Api/
+│   │   └── Routes/
+│   │       ├── auth/
+│   │       │   ├── registerUser.js    # POST /api/auth/register
+│   │       │   ├── loginUser.js       # POST /api/auth/login
+│   │       │   └── getUser.js         # GET /api/auth/me
+│   │       └── groups/
+│   │           ├── createGroup.js     # POST /api/groups
+│   │           ├── getGroups.js       # GET /api/groups
+│   │           ├── getGroupById.js    # GET /api/groups/:id
+│   │           └── deleteGroup.js     # DELETE /api/groups/:id
+│   ├── database/
+│   │   ├── database.js                # 
+│   │   └── schemas/
+│   │       ├── userSchema.js          # Users tabell
+│   │       ├── groupSchema.js         # Groups tabell
+│   │       ├── quizSchema.js          # Quizzes tabell
+│   │       └── quizResultSchema.js    # Quiz results tabell
+│   ├── middleware/
+│   │   ├── jwt.js                     # JWT token generator
+│   │   └── verifyJWT.js               # JWT verifiering middleware
+│   ├── app.js                         # Express app entry point
+│   ├── package.json
+│   └── Dockerfile
+│
+├── frontend/quiz/
+│   ├── src/
+│   │   ├── page/
+│   │   │   ├── Login/                 # Login-sida
+│   │   │   ├── Register/              # Register-sida
+│   │   │   └── home/                  # Startsida
+│   │   ├── store/
+│   │   │   ├── reduxSlice/            # Redux slices
+│   │   │   ├── reduxSaga/             # Redux sagas
+│   │   │   └── store.tsx              # Redux store konfig
+│   │   ├── utilities/
+│   │   │   └── interfaces.ts          # TypeScript interfaces
+│   │   ├── App.tsx                    # Huvudkomponent
+│   │   └── main.tsx                   # Entry point
+│   ├── package.json
+│   ├── vite.config.ts
+│   └── Dockerfile
+│
+├── .github/workflows/
+│   └── ci-cd.yaml                     # GitHub Actions CI/CD
+├── docker-compose.yaml                # Docker compose konfiguration
+└── README.md
+```
