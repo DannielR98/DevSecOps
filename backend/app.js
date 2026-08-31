@@ -9,6 +9,13 @@ import registerUserRoute from "./Api/Routes/auth/registerUser.js";
 import loginUserRoute from "./Api/Routes/auth/loginUser.js";
 import getUsersRoute from "./Api/Routes/auth/getUser.js";
 
+// import groups routes
+import createGroup from "./Api/Routes/Groups/createGroup.js";
+import getGroups from "./Api/Routes/Groups/getGroups.js";
+import getGroupById from "./Api/Routes/Groups/getGroupById.js";
+import deleteGroup from "./Api/Routes/Groups/deleteGroup.js";
+
+
 //
 dotenv.config();
 await db.sync();
@@ -24,6 +31,10 @@ const PORT = process.env.PORT || 5001;
 app.use("/api", getUsersRoute);
 app.use("/api", registerUserRoute);
 app.use("/api", loginUserRoute);
+app.use("/api", createGroup);
+app.use("/api", getGroups);
+app.use("/api", getGroupById);
+app.use("/api", deleteGroup);
 
 ////
 app.listen(PORT, () => {
