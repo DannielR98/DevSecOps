@@ -5,7 +5,7 @@ import User from "../../../database/schemas/userSchema.js";
 
 const router = express.Router();
 
-router.post("/register", async (req, res) => {
+router.post("/register-user", async (req, res) => {
   try {
     const transformName = (name, toLower = false) => {
       if (typeof name !== "string") {
