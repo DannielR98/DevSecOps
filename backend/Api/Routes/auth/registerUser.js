@@ -43,7 +43,7 @@ router.post("/register-user", async (req, res) => {
     }
 
     // All fields are empty
-    if (emptyFields.length === 4) {
+    if (emptyFields.length === 6) {
       return res.status(400).json({
         sms: ["Please fill all fields"],
         emptyFields: Object.keys(fields),
