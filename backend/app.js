@@ -10,7 +10,6 @@ import deleteUser from "./Api/Routes/auth/deleteUser.js";
 import updateUser from "./Api/Routes/auth/updateUser.js";
 import syncUserRoute from "./Api/Routes/auth/syncUser.js";
 
-// import groups routes
 import createGroup from "./Api/Routes/Groups/createGroup.js";
 import getGroups from "./Api/Routes/Groups/getGroups.js";
 import getGroupById from "./Api/Routes/Groups/getGroupById.js";
@@ -31,7 +30,6 @@ import leaveGroup from "./Api/Routes/GroupMember/leaveGroup.js";
 
 //
 dotenv.config();
-await db.sync();
 
 const app = express();
 
@@ -72,3 +70,5 @@ app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
   console.log("Database connected successfully");
 });
+
+export default app;
