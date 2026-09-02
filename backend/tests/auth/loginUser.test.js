@@ -2,12 +2,16 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { createTestApp } from "../helpers/testApp.js";
 
-// Mock dependencies so login tests do not depend on a live database or JWT.
-const findOneMock = vi.fn();
-const compareMock = vi.fn();
-const jwtMock = vi.fn();
+// Keep these mock handles in a hoisted object so Vitest can safely register the module mocks
+// before the route imports execute. This avoids the Temporal Dead Zone issue that can happen when
+// using plain const variables with vi.mock factories.
+const { findOneMock, compareMock, jwtMock } = vi.hoisted(() => ({
+  findOneMock: vi.fn(),
+  compareMock: vi.fn(),
+  jwtMock: vi.fn(),
+}));
 
-// Mock bcrypt compare so we can simulate correct and incorrect passwords.
+// Simulate bcrypt password verification results so the route can be tested without a real hash.
 vi.mock("bcrypt", () => ({
   default: {
     compare: compareMock,
