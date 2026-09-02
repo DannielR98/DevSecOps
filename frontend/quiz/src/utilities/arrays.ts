@@ -1,21 +1,25 @@
-import type { LoginInputType, RegisterInputType } from "./interfaces";
+import type {
+  LoginInputType,
+  RegisterInputType,
+  UpdateUserInputType,
+} from "./interfaces";
 
 export const registerInputs: RegisterInputType[] = [
   {
     name: "firstname",
     type: "text",
-    label: "firstName",
+    label: "FirstName",
   },
 
   {
     name: "surname",
     type: "text",
-    label: "surName",
+    label: "SurName",
   },
   {
     name: "username",
     type: "text",
-    label: "userName",
+    label: "UserName",
   },
   {
     name: "email",
@@ -44,7 +48,7 @@ export const logInputs: LoginInputType[] = [
   {
     name: "username",
     type: "text",
-    label: "userName",
+    label: "UserName",
   },
 
   {
@@ -56,3 +60,32 @@ export const logInputs: LoginInputType[] = [
   ...inp,
   placeholder: `Please Enter Your ${inp.label}`,
 }));
+
+export const updateUserInputs: UpdateUserInputType[] = [
+  {
+    name: "firstname",
+    type: "text",
+    label: "FirstName",
+  },
+
+  {
+    name: "surname",
+    type: "text",
+    label: "SurName",
+  },
+  {
+    name: "username",
+    type: "text",
+    label: "UserName",
+  },
+  {
+    name: "email",
+    type: "email",
+    label: "Email",
+  },
+  {
+    name: "password",
+    type: "password",
+    label: "Password",
+  },
+];

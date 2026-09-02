@@ -35,33 +35,10 @@ router.put("/update-user/:userId", verifyJWT, async (req, res) => {
       password,
     };
 
-    for (const [key, value] of Object.entries(fields)) {
-      if (!value) {
-        sms.push(`Please fill ${key}`);
-        emptyFields.push(key);
-      }
-    }
-
-    // All fields are empty
-    if (emptyFields.length === Object.keys(fields).length) {
-      return res.status(400).json({
-        sms: ["Please fill all fields"],
-        emptyFields: Object.keys(fields),
-      });
-    }
-
-    // Some fields are empty
-    if (emptyFields.length > 0) {
-      return res.status(400).json({
-        sms,
-        emptyFields,
-      });
-    }
-
     // User can only update their own account
     if (req.user.id !== userId) {
       return res.status(403).json({
-        message: "You can only update your own account",
+        sms: ["You can only update your own account"],
       });
     }
 
@@ -69,7 +46,7 @@ router.put("/update-user/:userId", verifyJWT, async (req, res) => {
 
     if (!findUser) {
       return res.status(404).json({
-        message: "User not found",
+        sms: ["User not found"],
       });
     }
     // Check username and email
@@ -88,16 +65,18 @@ router.put("/update-user/:userId", verifyJWT, async (req, res) => {
       }
       return res.status(409).json({ sms });
     }
-    const hashedPassword = await bcrypt.hash(password, 10);
+    //const hashedPassword = await bcrypt.hash(password, 10);
 
     const updated = {
       firstname,
       surname,
       username,
       email,
-      password: hashedPassword,
     };
 
+    if (password) {
+      updated.password = await bcrypt.hash(password, 10);
+    }
     await User.update(updated, {
       where: {
         id: userId,
@@ -107,7 +86,7 @@ router.put("/update-user/:userId", verifyJWT, async (req, res) => {
     const updatedUser = await User.findByPk(userId);
 
     return res.status(200).json({
-      sms: "User successfully updated",
+      sms: ["User successfully updated"],
       user: updatedUser,
     });
   } catch (error) {
