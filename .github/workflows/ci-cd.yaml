@@ -35,6 +35,10 @@ jobs:
         working-directory: frontend/quiz
         run: npm ci
 
+      - name: Audit frontend dependencies
+        working-directory: frontend/quiz
+        run: npm audit --audit-level=high
+
       - name: Build frontend
         working-directory: frontend/quiz
         run: npm run build
@@ -50,6 +54,10 @@ jobs:
       - name: Install backend dependencies
         working-directory: backend
         run: npm ci
+
+      - name: Audit backend dependencies
+        working-directory: backend
+        run: npm audit --audit-level=high
 
       - name: Build backend
         working-directory: backend
