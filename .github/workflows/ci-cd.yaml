@@ -38,13 +38,15 @@ jobs:
         working-directory: frontend/quiz
         run: npm audit --audit-level=high
 
+      - name: Run fontend Test
+        working-directory: frontend/quiz
+        run: npm test
+        
       - name: Build frontend
         working-directory: frontend/quiz
         run: npm run build
 
-      - name: Run fontend Test
-        working-directory: frontend/quiz
-        run: npm test
+      
 
       # =========================
       # BACKEND
@@ -58,13 +60,15 @@ jobs:
         working-directory: backend
         run: npm audit --audit-level=high
 
+      - name: Run backend Test
+        working-directory: backend
+        run: npm test
+        
       - name: Build backend
         working-directory: backend
         run: npm run build
 
-      - name: Run backend Test
-        working-directory: backend
-        run: npm test
+
 
       # =========================
       # DOCKER
