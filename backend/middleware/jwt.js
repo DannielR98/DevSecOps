@@ -7,7 +7,7 @@ const createJWT = (user) => {
       username: user.username,
       email: user.email,
     },
-    process.env.JWT_SECRET,
+    process.env.JWT_SECRET || "dev_jwt_secret_key_12345",
     {
       expiresIn: "1h",
     },

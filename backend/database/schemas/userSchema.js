@@ -10,30 +10,34 @@ const User = sequelize.define(
       autoIncrement: true,
     },
 
+    auth0_id: {
+      type: DataTypes.STRING,
+      allowNull: true,
+      unique: true,
+    },
+
     firstname: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
 
     surname: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
     },
     username: {
       type: DataTypes.TEXT,
-      allowNull: false,
-      unique: true,
+      allowNull: true,
     },
 
     email: {
       type: DataTypes.TEXT,
       allowNull: false,
-      unique: true,
     },
 
     password: {
       type: DataTypes.TEXT,
-      allowNull: false,
+      allowNull: true,
     },
 
     createdAt: {

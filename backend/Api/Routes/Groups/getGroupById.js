@@ -1,10 +1,10 @@
 import express from "express";
 import Group from "../../../database/schemas/groupSchema.js";
-import verifyJWT from "../../../middleware/verifyJWT.js";
+import { checkJwt } from "../../../middleware/auth0.js";
 
 const router = express.Router();
 
-router.get("/groups/:id", verifyJWT, async (req, res) => {
+router.get("/groups/:id", checkJwt, async (req, res) => {
   try {
     const groupId = parseInt(req.params.id);
 

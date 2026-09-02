@@ -1,33 +1,50 @@
 import express from "express";
 import Group from "../../../database/schemas/groupSchema.js";
-import verifyJWT from "../../../middleware/verifyJWT.js";
+import GroupMember from "../../../database/schemas/groupMemberSchema.js";
+import User from "../../../database/schemas/userSchema.js";
+import { checkJwt } from "../../../middleware/auth0.js";
 
 const router = express.Router();
 
-router.post("/groups", verifyJWT, async (req, res) => {
+router.post("/groups", checkJwt, async (req, res) => {
   try {
     const { name } = req.body;
 
-    // Validate input
     if (!name || name.trim() === "") {
       return res.status(400).json({
         sms: ["Please provide group name"],
       });
     }
 
-    // Get owner_id from JWT token
-    const ownerId = req.user.id;
+    const auth0Id = req.auth.payload.sub;
+    let user = await User.findOne({ where: { auth0_id: auth0Id } });
 
-    // Create group
+    if (!user) {
+      user = await User.create({
+        auth0_id: auth0Id,
+        email: `${auth0Id}@auth0.user`,
+      });
+    }
+
+    const inviteCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
     const newGroup = await Group.create({
       name: name.trim(),
-      owner_id: ownerId,
+      invite_code: inviteCode,
+      owner_id: user.id,
+    });
+
+    await GroupMember.create({
+      group_id: newGroup.id,
+      user_id: user.id,
+      role: "owner",
     });
 
     return res.status(201).json({
       group: {
         id: newGroup.id,
         name: newGroup.name,
+        invite_code: newGroup.invite_code,
         owner_id: newGroup.owner_id,
       },
       sms: ["Grupp skapad"],

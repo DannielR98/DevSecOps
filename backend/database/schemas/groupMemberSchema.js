@@ -1,26 +1,23 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../database.js";
 
-const Group = sequelize.define(
-  "Group",
+const GroupMember = sequelize.define(
+  "GroupMember",
   {
     id: {
       type: DataTypes.INTEGER,
       primaryKey: true,
       autoIncrement: true,
     },
-
-    name: {
-      type: DataTypes.STRING,
+    group_id: {
+      type: DataTypes.INTEGER,
       allowNull: false,
+      references: {
+        model: "groups",
+        key: "id",
+      },
     },
-
-    invite_code: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-
-    owner_id: {
+    user_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
@@ -28,16 +25,19 @@ const Group = sequelize.define(
         key: "id",
       },
     },
-
+    role: {
+      type: DataTypes.STRING,
+      defaultValue: "member",
+    },
     createdAt: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
     },
   },
   {
-    tableName: "groups",
+    tableName: "group_members",
     timestamps: false,
   },
 );
 
-export default Group;
+export default GroupMember;

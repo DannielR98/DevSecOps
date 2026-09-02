@@ -1,26 +1,23 @@
 import { DataTypes } from "sequelize";
 import sequelize from "../database.js";
 
-const Group = sequelize.define(
-  "Group",
+const QuizResult = sequelize.define(
+  "QuizResult",
   {
     id: {
       type: DataTypes.INTEGER,
       primaryKey: true,
       autoIncrement: true,
     },
-
-    name: {
-      type: DataTypes.STRING,
+    quiz_id: {
+      type: DataTypes.INTEGER,
       allowNull: false,
+      references: {
+        model: "quizzes",
+        key: "id",
+      },
     },
-
-    invite_code: {
-      type: DataTypes.STRING,
-      allowNull: true,
-    },
-
-    owner_id: {
+    user_id: {
       type: DataTypes.INTEGER,
       allowNull: false,
       references: {
@@ -28,16 +25,23 @@ const Group = sequelize.define(
         key: "id",
       },
     },
-
+    score: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
+    total_questions: {
+      type: DataTypes.INTEGER,
+      allowNull: false,
+    },
     createdAt: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
     },
   },
   {
-    tableName: "groups",
+    tableName: "quiz_results",
     timestamps: false,
   },
 );
 
-export default Group;
+export default QuizResult;
