@@ -1,2 +1,7 @@
 .env
+*.env
+*.db
+quiz.db
+database/*.db
 node_modules/
+
