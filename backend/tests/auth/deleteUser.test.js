@@ -2,10 +2,12 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { createTestApp } from "../helpers/testApp.js";
 
-// Mock the User model so delete tests don't hit the database.
-const findByPkMock = vi.fn();
+// Use a hoisted mock for the User model so Vitest can wire the mock before the route module loads.
+const { findByPkMock } = vi.hoisted(() => ({
+  findByPkMock: vi.fn(),
+}));
 
-// Mock auth middleware to simulate an authenticated user with id 1.
+// The delete route expects a valid JWT payload with the authenticated user id attached to req.user.
 vi.mock("../../middleware/verifyJWT.js", () => ({
   default: (req, res, next) => {
     req.user = { id: 1 };

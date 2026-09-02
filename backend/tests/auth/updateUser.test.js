@@ -2,13 +2,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { createTestApp } from "../helpers/testApp.js";
 
-// Mock the model methods used by the update route.
-const findByPkMock = vi.fn();
-const findOneMock = vi.fn();
-const updateMock = vi.fn();
-const hashMock = vi.fn();
+// Hoist the model and crypto mocks so they are available while Vitest hoists the vi.mock factory calls.
+const { findByPkMock, findOneMock, updateMock, hashMock } = vi.hoisted(() => ({
+  findByPkMock: vi.fn(),
+  findOneMock: vi.fn(),
+  updateMock: vi.fn(),
+  hashMock: vi.fn(),
+}));
 
-// Mock bcrypt hashing so update tests can simulate password encryption.
+// Mock bcrypt hashing so update tests can simulate successful and failing password encryption.
 vi.mock("bcrypt", () => ({
   default: {
     hash: hashMock,
@@ -102,7 +104,10 @@ describe("Auth > update user", () => {
       });
 
       expect(res.status).toBe(409);
-      expect(res.body.error).toBe("Username or email already exists");
+      expect(res.body.sms).toEqual([
+        "Username is already exist. Please try another username.",
+        "Email is already exist. Please try another email.",
+      ]);
     });
   });
 

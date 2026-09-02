@@ -2,11 +2,15 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { createTestApp } from "../helpers/testApp.js";
 
-const findOneMock = vi.fn();
-const createMock = vi.fn();
-const hashMock = vi.fn();
+// Hoist the mock functions so Vitest can safely resolve them when it executes each vi.mock factory.
+// This keeps the tests deterministic and prevents the route from depending on a real database.
+const { findOneMock, createMock, hashMock } = vi.hoisted(() => ({
+  findOneMock: vi.fn(),
+  createMock: vi.fn(),
+  hashMock: vi.fn(),
+}));
 
-// Mock bcrypt so we can simulate password hashing success/failure
+// Mock bcrypt hashing so we can trigger both success and failure paths in the registration flow.
 vi.mock("bcrypt", () => ({
   default: {
     hash: hashMock,
