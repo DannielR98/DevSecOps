@@ -1,5 +1,5 @@
 import { useParams } from "react-router-dom";
-import type { RootState } from "../../store/store";
+import type { RootState } from "../../../store/store";
 import { useDispatch, useSelector } from "react-redux";
 import { useEffect } from "react";
 import { createUseStyles } from "react-jss";

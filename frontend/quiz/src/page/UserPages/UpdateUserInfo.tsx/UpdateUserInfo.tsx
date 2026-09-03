@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from "react";
-import { updateUserInputs } from "../../utilities/arrays";
+import { updateUserInputs } from "../../../utilities/arrays";
 import { useDispatch, useSelector } from "react-redux";
-import type { RootState } from "../../store/store";
-import type { UpdaterUserType } from "../../utilities/interfaces";
+import type { RootState } from "../../../store/store";
+import type { UpdaterUserType } from "../../../utilities/interfaces";
 import EditSection from "./childComponent/EditSection";
 
 export default function UpdateUserInfo() {
