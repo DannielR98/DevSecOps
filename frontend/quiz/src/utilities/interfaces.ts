@@ -33,3 +33,17 @@ export interface LoginInputType {
   label: string;
   placeholder: string;
 }
+
+export interface UpdateUserInputType {
+  name: string;
+  type: string;
+  label: string;
+}
+
+export interface UpdaterUserType {
+  firstname: string;
+  surname: string;
+  username: string;
+  email: string;
+  password: string;
+}
