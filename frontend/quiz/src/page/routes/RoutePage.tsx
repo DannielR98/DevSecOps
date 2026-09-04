@@ -2,7 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import HomePage from "../home/HomePage";
 import RegisterPage from "../UserPages/Register/RegisterPage";
 import LoginPage from "../UserPages/Login/LoginPage";
-import Navigation from "../Navigation/Navigation";
+import Navbar from "../../components/Navbar";
 import UpdateUserInfo from "../UserPages/UpdateUserInfo.tsx/UpdateUserInfo";
 import UserInfoPage from "../UserPages/UserInfoPage/UserInfoPage";
 import { createUseStyles } from "react-jss";
@@ -18,7 +18,7 @@ export default function RouterPage() {
   const classes = useStyles();
   return (
     <Router>
-      <Navigation />
+      <Navbar />
       <div className={classes.mainWrapper}>
         <Routes>
           <Route path="/" element={<HomePage />} />

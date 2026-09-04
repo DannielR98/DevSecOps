@@ -12,6 +12,9 @@ services:
       - quiz-volume-frontend:/app/node_modules
     environment:
       - CHOKIDAR_USEPOLLING=true
+      - VITE_AUTH0_DOMAIN=dev-oz2aw2gea6l10gab.us.auth0.com
+      - VITE_AUTH0_CLIENT_ID=nozbtl9zVfqFJPeVZE6XfnjTAsOchVsy
+      - VITE_AUTH0_AUDIENCE=https://quiz-api.dev
 
   backend:
     container_name: quiz-container-backend
@@ -26,6 +29,10 @@ services:
       - quiz-volume-backend:/app/node_modules
     environment:
       - CHOKIDAR_USEPOLLING=true
+      - PORT=5000
+      - JWT_SECRET=dev_jwt_secret_key_12345
+      - AUTH0_AUDIENCE=https://quiz-api.dev
+      - AUTH0_ISSUER_BASE_URL=https://dev-oz2aw2gea6l10gab.us.auth0.com/
 
 volumes:
   quiz-volume-frontend:
