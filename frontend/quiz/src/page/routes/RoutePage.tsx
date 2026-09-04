@@ -1,11 +1,12 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import HomePage from "../home/HomePage";
-import RegisterPage from "../Register/RegisterPage";
-import LoginPage from "../Login/LoginPage";
+import RegisterPage from "../UserPages/Register/RegisterPage";
+import LoginPage from "../UserPages/Login/LoginPage";
 import Navigation from "../Navigation/Navigation";
-import UpdateUserInfo from "../UpdateUserInfo.tsx/UpdateUserInfo";
-import UserInfoPage from "../UserInfoPage/UserInfoPage";
+import UpdateUserInfo from "../UserPages/UpdateUserInfo.tsx/UpdateUserInfo";
+import UserInfoPage from "../UserPages/UserInfoPage/UserInfoPage";
 import { createUseStyles } from "react-jss";
+import Footer from "../../utilities/commonSection/Footer";
 
 const useStyles = createUseStyles({
   mainWrapper: {
@@ -27,6 +28,7 @@ export default function RouterPage() {
           <Route path="/user-info/:id" element={<UserInfoPage />} />
         </Routes>
       </div>
+      <Footer />
     </Router>
   );
 }

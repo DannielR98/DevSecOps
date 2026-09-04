@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { registerInputs } from "../../utilities/arrays";
-import type { RegisterUserType } from "../../utilities/interfaces";
+import { logInputs } from "../../../utilities/arrays";
+import type { LoginUserType } from "../../../utilities/interfaces";
+import type { RootState } from "../../../store/store";
 import { useDispatch, useSelector } from "react-redux";
-import type { RootState } from "../../store/store";
 import { createUseStyles } from "react-jss";
 
 const useStyles = createUseStyles({
@@ -121,29 +121,28 @@ const useStyles = createUseStyles({
   },
 });
 
-export default function RegisterPage() {
+export default function LoginPage() {
   const classes = useStyles();
+
+  const [loginInputValue, setLoginInputValue] = useState<LoginUserType>({
+    username: "",
+    password: "",
+  });
+
+  const { user } = useSelector((state: RootState) => state.userSlice);
 
   const { isSuccess } = useSelector((state: RootState) => state.loadingSlice);
 
-  const [registerInputValue, setRegisterInputValue] =
-    useState<RegisterUserType>({
-      firstname: "",
-      surname: "",
-      username: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-    });
-
   const dispatch = useDispatch();
+
+  console.log("user", user);
 
   /* ================= FUNCTION ================= */
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
 
-    setRegisterInputValue((prev) => ({
+    setLoginInputValue((prev) => ({
       ...prev,
       [name]: value,
     }));
@@ -153,37 +152,29 @@ export default function RegisterPage() {
     e.preventDefault();
 
     dispatch({
-      type: "Fetch-REGISTER-USERS",
-      payload: registerInputValue,
+      type: "Fetch-LOGIN-USERS",
+      payload: loginInputValue,
     });
   };
 
   useEffect(() => {
     if (isSuccess) {
-      setRegisterInputValue({
-        firstname: "",
-        surname: "",
+      setLoginInputValue({
         username: "",
-        email: "",
         password: "",
-        confirmPassword: "",
       });
     }
   }, [isSuccess]);
 
-  /* ================= JSX ================= */
-
   return (
     <div className={classes.page}>
       <div className={classes.card}>
-        <h1 className={classes.title}>Create Account</h1>
+        <h1 className={classes.title}>Login</h1>
 
-        <p className={classes.subtitle}>
-          Register a new account to get started
-        </p>
+        <p className={classes.subtitle}>Login to your account to continue</p>
 
         <form className={classes.form} onSubmit={handleSubmit}>
-          {registerInputs?.map((inp, ind) => (
+          {logInputs?.map((inp, ind) => (
             <label className={classes.field} htmlFor={inp.label} key={ind}>
               <span className={classes.label}>{inp.label}</span>
 
@@ -192,7 +183,7 @@ export default function RegisterPage() {
                 type={inp.type}
                 id={inp.label}
                 name={inp.name}
-                value={registerInputValue[inp.name as keyof RegisterUserType]}
+                value={loginInputValue[inp.name as keyof LoginUserType]}
                 onChange={handleChange}
                 placeholder={`Enter ${inp.label.toLowerCase()}`}
               />
@@ -200,7 +191,7 @@ export default function RegisterPage() {
           ))}
 
           <button className={classes.button} type="submit">
-            Register
+            Login
           </button>
         </form>
       </div>

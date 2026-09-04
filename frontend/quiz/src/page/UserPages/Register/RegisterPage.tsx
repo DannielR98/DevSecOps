@@ -1,22 +1,14 @@
-import type {
-  UpdaterUserType,
-  UpdateUserInputType,
-} from "../../../utilities/interfaces";
+import { useEffect, useState } from "react";
+import { registerInputs } from "../../../utilities/arrays";
+import type { RegisterUserType } from "../../../utilities/interfaces";
+import { useDispatch, useSelector } from "react-redux";
+import type { RootState } from "../../../store/store";
 import { createUseStyles } from "react-jss";
-
-interface PropsType {
-  isEdit: boolean;
-  updateUserInputs: UpdateUserInputType[];
-  updateInputValue: UpdaterUserType;
-  handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
-  handleEdit: () => void;
-  handleSave: () => void;
-}
 
 const useStyles = createUseStyles({
   page: {
     minHeight: "100vh",
-    padding: "100px 20px 40px",
+    padding: "100px 20px 100px",
     background: "#f5f7fb",
     display: "flex",
     justifyContent: "center",
@@ -82,8 +74,8 @@ const useStyles = createUseStyles({
     transition: "border-color 0.2s, box-shadow 0.2s",
 
     "&:focus": {
-      borderColor: "#222",
-      boxShadow: "0 0 0 3px rgba(34, 34, 34, 0.12)",
+      borderColor: "#6366f1",
+      boxShadow: "0 0 0 3px rgba(99, 102, 241, 0.12)",
     },
 
     "&::placeholder": {
@@ -91,18 +83,13 @@ const useStyles = createUseStyles({
     },
   },
 
-  buttons: {
-    display: "flex",
-    gap: 12,
-    marginTop: 8,
-  },
-
   button: {
-    flex: 1,
+    marginTop: 8,
+    width: "100%",
     height: 48,
     border: "none",
     borderRadius: 8,
-    background: "#222",
+    background: "#3b3b3b",
     color: "#fff",
     fontSize: 16,
     fontWeight: 600,
@@ -110,7 +97,7 @@ const useStyles = createUseStyles({
     transition: "background 0.2s, transform 0.1s",
 
     "&:hover": {
-      background: "#444",
+      background: "#5c5c5c",
     },
 
     "&:active": {
@@ -131,32 +118,72 @@ const useStyles = createUseStyles({
     title: {
       fontSize: 24,
     },
-
-    buttons: {
-      flexDirection: "column",
-    },
   },
 });
 
-export default function EditSection({
-  isEdit,
-  updateUserInputs,
-  updateInputValue,
-  handleChange,
-  handleEdit,
-  handleSave,
-}: PropsType) {
+export default function RegisterPage() {
   const classes = useStyles();
+
+  const { isSuccess } = useSelector((state: RootState) => state.loadingSlice);
+
+  const [registerInputValue, setRegisterInputValue] =
+    useState<RegisterUserType>({
+      firstname: "",
+      surname: "",
+      username: "",
+      email: "",
+      password: "",
+      confirmPassword: "",
+    });
+
+  const dispatch = useDispatch();
+
+  /* ================= FUNCTION ================= */
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const { name, value } = e.target;
+
+    setRegisterInputValue((prev) => ({
+      ...prev,
+      [name]: value,
+    }));
+  };
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+
+    dispatch({
+      type: "Fetch-REGISTER-USERS",
+      payload: registerInputValue,
+    });
+  };
+
+  useEffect(() => {
+    if (isSuccess) {
+      setRegisterInputValue({
+        firstname: "",
+        surname: "",
+        username: "",
+        email: "",
+        password: "",
+        confirmPassword: "",
+      });
+    }
+  }, [isSuccess]);
+
+  /* ================= JSX ================= */
 
   return (
     <div className={classes.page}>
       <div className={classes.card}>
-        <h1 className={classes.title}>Edit User</h1>
+        <h1 className={classes.title}>Create Account</h1>
 
-        <p className={classes.subtitle}>Update your account information</p>
+        <p className={classes.subtitle}>
+          Register a new account to get started
+        </p>
 
-        <div className={classes.form}>
-          {updateUserInputs?.map((inp, ind) => (
+        <form className={classes.form} onSubmit={handleSubmit}>
+          {registerInputs?.map((inp, ind) => (
             <label className={classes.field} htmlFor={inp.label} key={ind}>
               <span className={classes.label}>{inp.label}</span>
 
@@ -165,25 +192,17 @@ export default function EditSection({
                 type={inp.type}
                 id={inp.label}
                 name={inp.name}
-                value={updateInputValue[inp.name as keyof UpdaterUserType]}
+                value={registerInputValue[inp.name as keyof RegisterUserType]}
                 onChange={handleChange}
                 placeholder={`Enter ${inp.label.toLowerCase()}`}
               />
             </label>
           ))}
 
-          <div className={classes.buttons}>
-            {!isEdit ? (
-              <button className={classes.button} onClick={handleEdit}>
-                Edit
-              </button>
-            ) : (
-              <button className={classes.button} onClick={handleSave}>
-                Save
-              </button>
-            )}
-          </div>
-        </div>
+          <button className={classes.button} type="submit">
+            Register
+          </button>
+        </form>
       </div>
     </div>
   );
