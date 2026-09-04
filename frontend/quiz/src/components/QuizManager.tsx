@@ -34,7 +34,7 @@ export default function QuizManager() {
 
   // Form State
   const [title, setTitle] = useState("");
-  const [category, setCategory] = useState("DevSecOps");
+  const [category] = useState("DevSecOps");
   const [selectedGroupId, setSelectedGroupId] = useState<number | "">("");
   const [questions, setQuestions] = useState<QuestionItem[]>([
     { question: "", options: ["", "", "", ""], correctAnswer: 0 },
@@ -199,7 +199,7 @@ export default function QuizManager() {
                 backgroundColor: "#f9fafb",
                 display: "flex",
                 flexDirection: "column",
-                justify: "space-between",
+                justifyContent: "space-between",
               }}
             >
               <div>
