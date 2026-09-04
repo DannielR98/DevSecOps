@@ -1,9 +1,17 @@
-import { useEffect, useState } from "react";
-import { logInputs } from "../../utilities/arrays";
-import type { LoginUserType } from "../../utilities/interfaces";
-import type { RootState } from "../../store/store";
-import { useDispatch, useSelector } from "react-redux";
+import type {
+  UpdaterUserType,
+  UpdateUserInputType,
+} from "../../../utilities/interfaces";
 import { createUseStyles } from "react-jss";
+
+interface PropsType {
+  isEdit: boolean;
+  updateUserInputs: UpdateUserInputType[];
+  updateInputValue: UpdaterUserType;
+  handleChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  handleEdit: () => void;
+  handleSave: () => void;
+}
 
 const useStyles = createUseStyles({
   page: {
@@ -74,8 +82,8 @@ const useStyles = createUseStyles({
     transition: "border-color 0.2s, box-shadow 0.2s",
 
     "&:focus": {
-      borderColor: "#6366f1",
-      boxShadow: "0 0 0 3px rgba(99, 102, 241, 0.12)",
+      borderColor: "#222",
+      boxShadow: "0 0 0 3px rgba(34, 34, 34, 0.12)",
     },
 
     "&::placeholder": {
@@ -83,13 +91,18 @@ const useStyles = createUseStyles({
     },
   },
 
-  button: {
+  buttons: {
+    display: "flex",
+    gap: 12,
     marginTop: 8,
-    width: "100%",
+  },
+
+  button: {
+    flex: 1,
     height: 48,
     border: "none",
     borderRadius: 8,
-    background: "#3b3b3b",
+    background: "#222",
     color: "#fff",
     fontSize: 16,
     fontWeight: 600,
@@ -97,7 +110,7 @@ const useStyles = createUseStyles({
     transition: "background 0.2s, transform 0.1s",
 
     "&:hover": {
-      background: "#5c5c5c",
+      background: "#444",
     },
 
     "&:active": {
@@ -118,63 +131,32 @@ const useStyles = createUseStyles({
     title: {
       fontSize: 24,
     },
+
+    buttons: {
+      flexDirection: "column",
+    },
   },
 });
 
-export default function LoginPage() {
+export default function EditSection({
+  isEdit,
+  updateUserInputs,
+  updateInputValue,
+  handleChange,
+  handleEdit,
+  handleSave,
+}: PropsType) {
   const classes = useStyles();
-
-  const [loginInputValue, setLoginInputValue] = useState<LoginUserType>({
-    username: "",
-    password: "",
-  });
-
-  const { user } = useSelector((state: RootState) => state.userSlice);
-
-  const { isSuccess } = useSelector((state: RootState) => state.loadingSlice);
-
-  const dispatch = useDispatch();
-
-  console.log("user", user);
-
-  /* ================= FUNCTION ================= */
-
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const { name, value } = e.target;
-
-    setLoginInputValue((prev) => ({
-      ...prev,
-      [name]: value,
-    }));
-  };
-
-  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    dispatch({
-      type: "Fetch-LOGIN-USERS",
-      payload: loginInputValue,
-    });
-  };
-
-  useEffect(() => {
-    if (isSuccess) {
-      setLoginInputValue({
-        username: "",
-        password: "",
-      });
-    }
-  }, [isSuccess]);
 
   return (
     <div className={classes.page}>
       <div className={classes.card}>
-        <h1 className={classes.title}>Login</h1>
+        <h1 className={classes.title}>Edit User</h1>
 
-        <p className={classes.subtitle}>Login to your account to continue</p>
+        <p className={classes.subtitle}>Update your account information</p>
 
-        <form className={classes.form} onSubmit={handleSubmit}>
-          {logInputs?.map((inp, ind) => (
+        <div className={classes.form}>
+          {updateUserInputs?.map((inp, ind) => (
             <label className={classes.field} htmlFor={inp.label} key={ind}>
               <span className={classes.label}>{inp.label}</span>
 
@@ -183,17 +165,25 @@ export default function LoginPage() {
                 type={inp.type}
                 id={inp.label}
                 name={inp.name}
-                value={loginInputValue[inp.name as keyof LoginUserType]}
+                value={updateInputValue[inp.name as keyof UpdaterUserType]}
                 onChange={handleChange}
                 placeholder={`Enter ${inp.label.toLowerCase()}`}
               />
             </label>
           ))}
 
-          <button className={classes.button} type="submit">
-            Login
-          </button>
-        </form>
+          <div className={classes.buttons}>
+            {!isEdit ? (
+              <button className={classes.button} onClick={handleEdit}>
+                Edit
+              </button>
+            ) : (
+              <button className={classes.button} onClick={handleSave}>
+                Save
+              </button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );
