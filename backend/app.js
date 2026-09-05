@@ -2,7 +2,7 @@ import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import db from "./database/database.js";
-
+import "./database/associations.js";
 // import routes
 
 import registerUserRoute from "./Api/Routes/auth/registerUser.js";
@@ -25,6 +25,12 @@ import updateGroup from "./Api/Routes/Groups/updateGroup.js";
 import createQuiz from "./Api/Routes/Quizzes/createQuiz.js";
 import getQuizzes from "./Api/Routes/Quizzes/getQuizzes.js";
 import takeQuiz from "./Api/Routes/Quizzes/takeQuiz.js";
+
+// import group remember
+import joinGroupMember from "./Api/Routes/GroupMember/joinGroup.js";
+import getGroupMembers from "./Api/Routes/GroupMember/getGroupMembers.js";
+import getGroupMemberById from "./Api/Routes/GroupMember/getGroupMemberById.js";
+import leaveGroup from "./Api/Routes/GroupMember/leaveGroup.js";
 
 //
 dotenv.config();
@@ -61,6 +67,11 @@ app.use("/api", createQuiz);
 app.use("/api", getQuizzes);
 app.use("/api", takeQuiz);
 
+// api group remember
+app.use("/api", joinGroupMember);
+app.use("/api", getGroupMembers);
+app.use("/api", getGroupMemberById);
+app.use("/api", leaveGroup);
 ////
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
