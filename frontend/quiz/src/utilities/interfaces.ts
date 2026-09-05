@@ -1,4 +1,5 @@
 export interface UserType {
+  auth0_id: string;
   id?: number;
   firstname: string;
   surname: string;

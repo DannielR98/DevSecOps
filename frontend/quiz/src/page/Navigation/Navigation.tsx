@@ -193,6 +193,8 @@ export default function Navigation() {
     };
   }, []);
 
+  
+
   return (
     <nav className={classes.navbar}>
       <Link className={classes.home} to="/">
