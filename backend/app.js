@@ -4,9 +4,6 @@ import cors from "cors";
 import db from "./database/database.js";
 import "./database/associations.js";
 // import routes
-
-import registerUserRoute from "./Api/Routes/auth/registerUser.js";
-import loginUserRoute from "./Api/Routes/auth/loginUser.js";
 import getUsersRoute from "./Api/Routes/auth/getUser.js";
 import getUserByIdRoute from "./Api/Routes/auth/getUserId.js";
 import deleteUser from "./Api/Routes/auth/deleteUser.js";
@@ -48,8 +45,6 @@ const PORT = process.env.PORT || 5000;
 // api user
 app.use("/api", syncUserRoute);
 app.use("/api", getUsersRoute);
-app.use("/api", registerUserRoute);
-app.use("/api", loginUserRoute);
 app.use("/api", getUserByIdRoute);
 app.use("/api", deleteUser);
 app.use("/api", updateUser);

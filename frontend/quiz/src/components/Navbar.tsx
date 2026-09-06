@@ -151,7 +151,7 @@ export default function Navbar() {
  */
 
 import { useAuth0 } from "@auth0/auth0-react";
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import { useDispatch, useSelector } from "react-redux";
 
@@ -165,8 +165,104 @@ import {
 } from "../store/reduxSlice/userSlice/authSlice";
 
 import { apiRequest } from "../utilities/HeaderFunction";
+import { createUseStyles } from "react-jss";
+
+const useStyles = createUseStyles({
+  profileButton: {
+    width: 42,
+    height: 42,
+    borderRadius: "50%",
+    border: "none",
+    background: "#fff",
+    color: "#222",
+    fontSize: 16,
+    fontWeight: "bold",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    textTransform: "uppercase",
+
+    "&:hover": {
+      opacity: 0.85,
+    },
+  },
+
+  dropdown: {
+    position: "absolute",
+    top: 52,
+
+    width: 190,
+    background: "#222",
+    borderRadius: 8,
+    padding: 8,
+    boxShadow: "0 5px 20px rgba(0,0,0,0.3)",
+    display: "flex",
+    flexDirection: "column",
+    gap: 4,
+    left: "0px",
+    zIndex: "1000",
+  },
+
+  dropdownLink: {
+    color: "#fff",
+    textDecoration: "none",
+    padding: "10px 12px",
+    borderRadius: 5,
+
+    "&:hover": {
+      background: "#444",
+    },
+  },
+
+  dropdownButton: {
+    width: "100%",
+    border: "none",
+    background: "transparent",
+    color: "#fff",
+    textAlign: "left",
+    padding: "10px 12px",
+    borderRadius: 5,
+    fontSize: 15,
+    cursor: "pointer",
+
+    "&:hover": {
+      background: "#444",
+    },
+  },
+
+  delete: {
+    color: "#ff6b6b",
+
+    "&:hover": {
+      background: "#441f1f",
+    },
+  },
+
+  "@media (max-width: 500px)": {
+    navbar: {
+      padding: "0 12px",
+    },
+
+    home: {
+      fontSize: 18,
+    },
+
+    dropdown: {
+      right: -5,
+      width: 170,
+    },
+
+    link: {
+      padding: "8px 10px",
+    },
+  },
+});
 
 export default function Navbar() {
+  const classes = useStyles();
+  const dropDownContainer = useRef<HTMLDivElement>(null);
+
   const {
     isAuthenticated,
     user: auth0User,
@@ -177,7 +273,7 @@ export default function Navbar() {
   } = useAuth0();
 
   const dispatch = useDispatch();
-
+  const [menuOpen, setMenuOpen] = useState(false);
   const { users, userOne } = useSelector((state: RootState) => state.userSlice);
 
   const { isAuth, token, userStorage } = useSelector(
@@ -281,6 +377,35 @@ export default function Navbar() {
       },
     });
   };
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        dropDownContainer.current &&
+        !dropDownContainer.current.contains(event.target as Node)
+      ) {
+        setMenuOpen(false);
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+/*   const handleDeleteUser = () => {
+   
+    if (!userOne?.id) {
+      console.log("User not loaded:", userOne);
+      return;
+    }
+
+    dispatch({
+      type: "Fetch-DELETE-USER",
+      payload: userOne.id,
+    });
+  }; */
 
   return (
     <nav
@@ -335,22 +460,24 @@ export default function Navbar() {
               display: "flex",
               alignItems: "center",
               gap: "1rem",
+              position: "relative",
             }}
+            ref={dropDownContainer}
           >
             {userStorage.picture && (
-              <Link to={userOne?.id ? `/user-info/${userOne.id}` : "/"}>
-                <img
-                  src={userStorage.picture}
-                  alt={userStorage.name}
-                  style={{
-                    width: "36px",
-                    height: "36px",
-                    borderRadius: "50%",
-                    border: "2px solid #3b82f6",
-                    objectFit: "cover",
-                  }}
-                />
-              </Link>
+              <img
+                src={userStorage.picture}
+                alt={userStorage.name}
+                style={{
+                  width: "36px",
+                  height: "36px",
+                  borderRadius: "50%",
+                  border: "2px solid #3b82f6",
+                  objectFit: "cover",
+                  cursor: "pointer",
+                }}
+                onClick={() => setMenuOpen(true)}
+              />
             )}
 
             <span
@@ -378,10 +505,26 @@ export default function Navbar() {
             >
               Log Out
             </button>
+            <div>
+              {menuOpen && (
+                <div className={classes.dropdown} ref={dropDownContainer}>
+                  <Link
+                    className={classes.dropdownLink}
+                    to={userOne?.id ? `/user-info/${userOne.id}` : "/"}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    User Info
+                  </Link>
+                  <button
+                    className={`${classes.dropdownButton} ${classes.delete}`}
+                  >
+                    Delete
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         ) : (
-          /* ================= LOGGED OUT ================= */
-
           <div
             style={{
               display: "flex",

@@ -168,21 +168,15 @@ const userSlice = createSlice({
         state.userOne = findUser;
       }
     },
-
-    /*  old */
-
-    setRegisterUser: (state, action: PayloadAction<UserType>) => {
-      state.users.push(action.payload);
-    },
-    setLoginUser: (state, action: PayloadAction<StoragedUserType>) => {
-      state.user = action.payload;
-      localStorage.setItem("user", JSON.stringify(action.payload));
-    },
     setDeleteUser: (state, action: PayloadAction<number>) => {
       state.users = state.users.filter(
         (u) => Number(u.id) !== Number(action.payload),
       );
     },
+
+    /*  old */
+
+ 
     setUpdateUser: (
       state,
       action: PayloadAction<{ data: UserType; id: number }>,
@@ -217,14 +211,7 @@ const userSlice = createSlice({
         );
       }
     },
-    logoutUser: (state) => {
-      state.user = {
-        userStoraged: null,
-        token: null,
-      };
 
-      localStorage.removeItem("user");
-    },
 
     /*  */
   },
@@ -232,9 +219,6 @@ const userSlice = createSlice({
 
 export const {
   setUsers,
-  setRegisterUser,
-  setLoginUser,
-  logoutUser,
   setDeleteUser,
   setUpdateUser,
   setUser,
