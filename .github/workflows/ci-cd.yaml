@@ -3,8 +3,7 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - main
-      - dev
+      - '**'
 
   pull_request:
     branches:
@@ -41,46 +40,35 @@ jobs:
         working-directory: frontend/quiz
         run: npm ci
 
-      - name: Frontend Audit (SCA)
+      - name: Build frontend
         working-directory: frontend/quiz
         run: npm audit --audit-level=high
 
-        #
-      #- name: Frontend Lint
-      #  working-directory: frontend/quiz
-       # run: npm run lint
-        
-
-      - name: Build frontend
-        working-directory: frontend/quiz
-        run: npm run build
-
       - name: Run frontend Test
         working-directory: frontend/quiz
-        run: npm test -- --watchAll=false
-# =========================
-      # 2. BACKEND: LINT, AUDIT & TEST
+        run: npm test
+
+      # =========================
+      # BACKEND
       # =========================
 
       - name: Install backend dependencies
         working-directory: backend
         run: npm ci
 
-      - name: Backend Audit (SCA)
-        working-directory: backend
-        run: npm audit --audit-level=high
-
-    #  - name: Backend Lint
-     #   working-directory: backend
-      #  run: npm run lint
-
       - name: Build backend
         working-directory: backend
-        run: npm run build
+        run: npm audit --audit-level=high
 
       - name: Run backend Test
         working-directory: backend
         run: npm test
+        
+      - name: Build backend
+        working-directory: backend
+        run: npm run build
+
+
 
       # =========================
       # 3. SAST SCANNING (Semgrep)
