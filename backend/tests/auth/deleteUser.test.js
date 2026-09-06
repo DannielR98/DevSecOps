@@ -2,74 +2,98 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { createTestApp } from "../helpers/testApp.js";
 
-// Use a hoisted mock for the User model so Vitest can wire the mock before the route module loads.
-const { findByPkMock } = vi.hoisted(() => ({
-  findByPkMock: vi.fn(),
+// Mock the local user lookup, owned-group lookup, and membership deletion calls.
+const { findOneMock, findAllMock, destroyMock } = vi.hoisted(() => ({
+  findOneMock: vi.fn(),
+  findAllMock: vi.fn(),
+  destroyMock: vi.fn(),
 }));
 
-// The delete route expects a valid JWT payload with the authenticated user id attached to req.user.
-vi.mock("../../middleware/verifyJWT.js", () => ({
-  default: (req, res, next) => {
-    req.user = { id: 1 };
+// Provide the Auth0 subject expected by the route without requiring a real token.
+vi.mock("../../middleware/auth0.js", () => ({
+  checkJwt: (req, res, next) => {
+    req.auth = { payload: { sub: "auth0|test-user" } };
     next();
   },
 }));
 
-// Mock the User model used by the delete route.
 vi.mock("../../database/schemas/userSchema.js", () => ({
-  default: {
-    findByPk: findByPkMock,
-  },
+  // The delete route identifies the local user through the Auth0 subject.
+  default: { findOne: findOneMock },
+}));
+
+vi.mock("../../database/schemas/groupSchema.js", () => ({
+  // The route loads groups owned by the user before deleting the account.
+  default: { findAll: findAllMock },
+}));
+
+vi.mock("../../database/schemas/groupMemberSchema.js", () => ({
+  // The route removes memberships before destroying the user.
+  default: { destroy: destroyMock },
 }));
 
 import deleteUserRoute from "../../Api/Routes/auth/deleteUser.js";
 
-// Build a tiny Express app that mounts only the delete route.
 const app = createTestApp(deleteUserRoute);
 
 describe("Auth > delete user", () => {
-  // Reset mocks before each test.
+  // Clear calls and configured behavior so each scenario starts independently.
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  describe("authorization", () => {
-    // Should block attempts to delete another user's account.
-    it("returns 403 when deleting another user's account", async () => {
-      const res = await request(app).delete("/api/delete-user/2");
+  // A valid user may delete only the account associated with their own ID.
+  it("returns 403 when deleting another user's account", async () => {
+    findOneMock.mockResolvedValue({ id: 1, auth0_id: "auth0|test-user" });
 
-      expect(res.status).toBe(403);
-      expect(res.body.message).toBe("You can only delete your own account");
-    });
+    const res = await request(app).delete("/api/delete-user/2");
+
+    expect(res.status).toBe(403);
+    expect(res.body.sms).toEqual(["You can only delete your own account"]);
   });
 
-  describe("missing resource", () => {
-    // Should return 404 when the requested user cannot be found.
-    it("returns 404 when user does not exist", async () => {
-      findByPkMock.mockResolvedValue(null);
+  // No local user for the Auth0 subject means there is nothing to delete.
+  it("returns 404 when user does not exist", async () => {
+    findOneMock.mockResolvedValue(null);
 
-      const res = await request(app).delete("/api/delete-user/1");
+    const res = await request(app).delete("/api/delete-user/1");
 
-      expect(res.status).toBe(404);
-      expect(res.body.message).toBe("User not found");
-    });
+    expect(res.status).toBe(404);
+    expect(res.body.sms).toEqual(["User not found"]);
   });
 
-  describe("server errors", () => {
-    // Should return 500 if deleting the user throws unexpectedly.
-    it("returns 500 when destroy throws", async () => {
-      findByPkMock.mockResolvedValue({
-        id: 1,
-        firstname: "Alice",
-        username: "alice",
-        email: "alice@example.com",
-        destroy: vi.fn().mockRejectedValue(new Error("destroy failed")),
-      });
-
-      const res = await request(app).delete("/api/delete-user/1");
-
-      expect(res.status).toBe(500);
-      expect(res.body.error).toBe("destroy failed");
+  // Unexpected failure while destroying the user is converted to a 500 response.
+  it("returns 500 when destroy throws", async () => {
+    findOneMock.mockResolvedValue({
+      id: 1,
+      auth0_id: "auth0|test-user",
+      destroy: vi.fn().mockRejectedValue(new Error("destroy failed")),
     });
+    findAllMock.mockResolvedValue([]);
+    destroyMock.mockResolvedValue(undefined);
+
+    const res = await request(app).delete("/api/delete-user/1");
+
+    expect(res.status).toBe(500);
+    expect(res.body.error).toBe("destroy failed");
+  });
+
+  // With no owned groups and successful database calls, deletion completes with 200.
+  it("returns 200 when user is deleted", async () => {
+    const user = {
+      id: 1,
+      auth0_id: "auth0|test-user",
+      destroy: vi.fn().mockResolvedValue(undefined),
+    };
+
+    findOneMock.mockResolvedValue(user);
+    findAllMock.mockResolvedValue([]);
+    destroyMock.mockResolvedValue(undefined);
+
+    const res = await request(app).delete("/api/delete-user/1");
+
+    expect(res.status).toBe(200);
+    expect(res.body.sms).toEqual(["User successfully deleted"]);
+    expect(user.destroy).toHaveBeenCalledOnce();
   });
 });

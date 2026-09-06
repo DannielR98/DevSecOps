@@ -10,6 +10,8 @@ const { findByPkMock, findOneMock, updateMock, hashMock } = vi.hoisted(() => ({
   hashMock: vi.fn(),
 }));
 
+// These mocks isolate user lookup, conflict lookup, persistence, and password hashing.
+
 // Mock bcrypt hashing so update tests can simulate successful and failing password encryption.
 vi.mock("bcrypt", () => ({
   default: {
@@ -20,16 +22,18 @@ vi.mock("bcrypt", () => ({
 // Mock the User model used by the update route.
 vi.mock("../../database/schemas/userSchema.js", () => ({
   default: {
+    // The route reads the current user, checks conflicts, and writes the update.
     findByPk: findByPkMock,
     findOne: findOneMock,
     update: updateMock,
   },
 }));
 
-// Mock auth middleware so the route sees an authenticated user with id 1.
-vi.mock("../../middleware/verifyJWT.js", () => ({
-  default: (req, res, next) => {
+// Mock Auth0 middleware so the route receives the subject of an authenticated user.
+vi.mock("../../middleware/auth0.js", () => ({
+  checkJwt: (req, res, next) => {
     req.user = { id: 1 };
+    req.auth = { payload: { sub: "auth0|test-user" } };
     next();
   },
 }));
@@ -57,7 +61,7 @@ describe("Auth > update user", () => {
       });
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toBe("You can only update your own account");
+      expect(res.body.sms).toEqual(["You can only update your own account"]);
     });
   });
 
@@ -75,13 +79,18 @@ describe("Auth > update user", () => {
       });
 
       expect(res.status).toBe(404);
-      expect(res.body.message).toBe("User not found");
+      expect(res.body.sms).toEqual(["User not found"]);
     });
   });
 
   describe("conflicts", () => {
     // Should return 409 if another user already has the requested username/email.
     it("returns 409 when username or email already exists", async () => {
+      findOneMock.mockResolvedValue({
+        id: 2,
+        username: "johndoe",
+        email: "john@example.com",
+      });
       findByPkMock.mockResolvedValueOnce({
         id: 1,
         firstname: "John",
@@ -89,12 +98,6 @@ describe("Auth > update user", () => {
         username: "johndoe",
         email: "john@example.com",
       });
-      findOneMock.mockResolvedValue({
-        id: 2,
-        username: "johndoe",
-        email: "john@example.com",
-      });
-
       const res = await request(app).put("/api/update-user/1").send({
         firstname: "John",
         surname: "Doe",
@@ -111,9 +114,43 @@ describe("Auth > update user", () => {
     });
   });
 
+  describe("successful updates", () => {
+    // The complete update path returns the refreshed user after persistence.
+    it("returns 200 when the user is updated", async () => {
+      const updatedUser = {
+        id: 1,
+        firstname: "John",
+        surname: "Doe",
+        username: "johndoe2",
+        email: "john2@example.com",
+      };
+
+      findOneMock.mockResolvedValue(null);
+      findByPkMock
+        .mockResolvedValueOnce({ id: 1 })
+        .mockResolvedValueOnce(updatedUser);
+      hashMock.mockResolvedValue("hashed-password");
+      updateMock.mockResolvedValue([1]);
+
+      const res = await request(app).put("/api/update-user/1").send({
+        firstname: "John",
+        surname: "Doe",
+        username: "johndoe2",
+        email: "john2@example.com",
+        password: "secret123",
+      });
+
+      expect(res.status).toBe(200);
+      expect(res.body.sms).toEqual(["User successfully updated"]);
+      expect(res.body.user).toEqual(updatedUser);
+      expect(updateMock).toHaveBeenCalledOnce();
+    });
+  });
+
   describe("server errors", () => {
     // Should return 500 if the update operation fails unexpectedly.
     it("returns 500 when update fails", async () => {
+      findOneMock.mockResolvedValue(null);
       findByPkMock.mockResolvedValueOnce({
         id: 1,
         firstname: "John",
@@ -121,7 +158,6 @@ describe("Auth > update user", () => {
         username: "johndoe",
         email: "john@example.com",
       });
-      findOneMock.mockResolvedValue(null);
       hashMock.mockResolvedValue("hashed-password");
       updateMock.mockRejectedValue(new Error("update failed"));
 
