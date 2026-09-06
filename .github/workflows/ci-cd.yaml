@@ -3,7 +3,8 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - '**'
+      - main
+      - dev
 
   pull_request:
     branches:
@@ -40,25 +41,39 @@ jobs:
         working-directory: frontend/quiz
         run: npm ci
 
-      - name: Build frontend
+      - name: Frontend Audit (SCA)
         working-directory: frontend/quiz
         run: npm audit --audit-level=high
 
+        #
+      #- name: Frontend Lint
+      #  working-directory: frontend/quiz
+       # run: npm run lint
+        
       - name: Run frontend Test
         working-directory: frontend/quiz
-        run: npm test
+        run: npm test -- --watchAll=false
+        
+      - name: Build frontend
+        working-directory: frontend/quiz
+        run: npm run build
 
+      
       # =========================
-      # BACKEND
+      # 2. BACKEND: LINT, AUDIT & TEST
       # =========================
 
       - name: Install backend dependencies
         working-directory: backend
         run: npm ci
 
-      - name: Build backend
+      - name: Backend Audit (SCA)
         working-directory: backend
         run: npm audit --audit-level=high
+
+    #  - name: Backend Lint
+     #   working-directory: backend
+      #  run: npm run lint
 
       - name: Run backend Test
         working-directory: backend
@@ -67,7 +82,6 @@ jobs:
       - name: Build backend
         working-directory: backend
         run: npm run build
-
 
 
       # =========================
