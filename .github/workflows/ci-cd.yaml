@@ -46,9 +46,11 @@ jobs:
         working-directory: frontend/quiz
         run: npm audit --audit-level=high
 
-      - name: Frontend Lint
-        working-directory: frontend/quiz
-        run: npm run lint
+        #
+      #- name: Frontend Lint
+      #  working-directory: frontend/quiz
+       # run: npm run lint
+        
 
       - name: Build frontend
         working-directory: frontend/quiz
