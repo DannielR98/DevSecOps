@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "main": "app.js",
   "type": "module",
-"scripts": {
+  "scripts": {
     "test": "echo \"No tests yet\"",
     "build": "echo \"Backend build successful\"",
     "start": "node app.js",
@@ -24,6 +24,7 @@
     "sqlite3": "^6.0.1"
   },
   "devDependencies": {
+    "eslint": "^10.10.0",
     "nodemon": "^3.1.14"
   }
 }
