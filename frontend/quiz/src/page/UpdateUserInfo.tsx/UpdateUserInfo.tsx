@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { updateUserInputs } from "../../utilities/arrays";
 import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "../../store/store";
@@ -8,7 +8,6 @@ import EditSection from "./childComponent/EditSection";
 export default function UpdateUserInfo() {
   const { user } = useSelector((state: RootState) => state.userSlice);
   const [isEdit, setIsEdit] = useState(false);
-  const { isSuccess } = useSelector((state: RootState) => state.loadingSlice);
   const [updateInputValue, setUpdateInputValue] = useState<UpdaterUserType>({
     firstname: "",
     surname: "",
@@ -35,6 +34,7 @@ export default function UpdateUserInfo() {
       password: "",
     });
   };
+
   const handleSave = () => {
     const id = user?.userStoraged?.id;
     if (!id) return;
@@ -43,21 +43,22 @@ export default function UpdateUserInfo() {
       type: "Fetch-UPDATE-USER",
       payload: { id: Number(id), data: updateInputValue },
     });
+    
     setIsEdit(false);
+    
+    // Clear the inputs right here upon saving
+    setUpdateInputValue({
+      firstname: "",
+      surname: "",
+      username: "",
+      email: "",
+      password: "",
+    });
   };
-  useEffect(() => {
-    if (isSuccess) {
-      setUpdateInputValue({
-        firstname: "",
-        surname: "",
-        username: "",
-        email: "",
-        password: "",
-      });
-    }
-  }, [isSuccess]);
+
   console.log("updateInputValue", updateInputValue);
   console.log("user", user);
+
   return (
     <div>
       <EditSection
