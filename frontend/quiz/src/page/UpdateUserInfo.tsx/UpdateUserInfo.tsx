@@ -47,7 +47,6 @@ export default function UpdateUserInfo() {
   };
   useEffect(() => {
     if (isSuccess) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setUpdateInputValue({
         firstname: "",
         surname: "",

@@ -160,7 +160,6 @@ export default function RegisterPage() {
 
   useEffect(() => {
     if (isSuccess) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setRegisterInputValue({
         firstname: "",
         surname: "",
