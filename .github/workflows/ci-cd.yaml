@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - dev
+      - cicd-pipeline
 
   pull_request:
     branches:
