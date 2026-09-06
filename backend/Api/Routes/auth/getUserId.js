@@ -1,14 +1,14 @@
 import express from "express";
-import verifyJWT from "../../../middleware/verifyJWT.js";
 import User from "../../../database/schemas/userSchema.js";
+import { checkJwt } from "../../../middleware/auth0.js";
 
 const router = express.Router();
 
-router.get("/user/:userId", verifyJWT, async (req, res) => {
+router.get("/user/:userId", checkJwt, async (req, res) => {
   try {
     const userId = Number(req.params.userId);
     const user = await User.findByPk(userId);
-     if (!user) {
+    if (!user) {
       return res.status(404).json({
         sms: ["User not found"],
       });

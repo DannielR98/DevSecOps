@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { logoutUser } from "../../store/reduxSlice/userSlice/UserSlice";
 import type { RootState } from "../../store/store";
 import { useDispatch, useSelector } from "react-redux";
 import { createUseStyles } from "react-jss";
@@ -171,7 +170,6 @@ export default function Navigation() {
   };
 
   const handleLogOut = () => {
-    dispatch(logoutUser());
     setMenuOpen(false);
     window.location.href = "/";
   };

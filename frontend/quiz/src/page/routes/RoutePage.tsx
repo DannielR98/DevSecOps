@@ -1,7 +1,5 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import HomePage from "../home/HomePage";
-import RegisterPage from "../UserPages/Register/RegisterPage";
-import LoginPage from "../UserPages/Login/LoginPage";
 import Navbar from "../../components/Navbar";
 import UpdateUserInfo from "../UserPages/UpdateUserInfo.tsx/UpdateUserInfo";
 import UserInfoPage from "../UserPages/UserInfoPage/UserInfoPage";
@@ -22,8 +20,6 @@ export default function RouterPage() {
       <div className={classes.mainWrapper}>
         <Routes>
           <Route path="/" element={<HomePage />} />
-          <Route path="/register" element={<RegisterPage />} />
-          <Route path="/login" element={<LoginPage />} />
           <Route path="/update-user" element={<UpdateUserInfo />} />
           <Route path="/user-info/:id" element={<UserInfoPage />} />
         </Routes>
