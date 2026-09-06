@@ -17,12 +17,30 @@ const useStyles = createUseStyles({
     minHeight: "100vh",
     overflowX: "hidden",
   },
+  loadingContainer: {
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    minHeight: "60vh",
+    fontSize: "18px",
+    color: "#4b5563",
+  },
 });
 
 export default function HomePage() {
-  const { isAuthenticated, user } = useAuth0();
+  const { isAuthenticated, user, isLoading } = useAuth0();
   const classes = useStyles();
 
+  // VIKTIGT: Vänta tills Auth0 har laddat klart vid sidomåladdning (F5)
+  if (isLoading) {
+    return (
+      <main className={classes.page}>
+        <div className={classes.loadingContainer}>
+          <p>Laddar inloggningsstatus...</p>
+        </div>
+      </main>
+    );
+  }
   return (
     <main className={classes.page}>
       {isAuthenticated && user ? (

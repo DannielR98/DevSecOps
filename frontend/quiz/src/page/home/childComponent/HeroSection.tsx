@@ -159,7 +159,7 @@ export default function HeroSection() {
 
           <div className={classes.actions}>
             <button className={classes.primaryButton} onClick={scrollToHowWork}>
-              Hur fungerar
+              Hur det fungerar
             </button>
 
             <button className={classes.secondaryButton} onClick={scrollToRole}>
