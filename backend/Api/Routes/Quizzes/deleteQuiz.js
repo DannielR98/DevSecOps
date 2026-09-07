@@ -1,5 +1,6 @@
 import express from "express";
 import Quiz from "../../../database/schemas/quizSchema.js";
+import QuizResult from "../../../database/schemas/quizResultSchema.js";
 import User from "../../../database/schemas/userSchema.js";
 import { checkJwt } from "../../../middleware/auth0.js";
 
@@ -27,6 +28,7 @@ router.delete("/quizzes/:id", checkJwt, async (req, res) => {
       return res.status(403).json({ message: "Only the quiz creator can delete this quiz." });
     }
 
+    await QuizResult.destroy({ where: { quiz_id: id } });
     await quiz.destroy();
 
     return res.status(200).json({
