@@ -1,5 +1,7 @@
 import { useAuth0 } from "@auth0/auth0-react";
 import { useState, useEffect } from "react";
+import { useSelector } from "react-redux";
+import type { RootState } from "../store/store";
 import { apiRequest } from "../utilities/HeaderFunction";
 
 interface GroupItem {
@@ -11,8 +13,29 @@ interface GroupItem {
   createdAt: string;
 }
 
-export default function GroupDashboard() {
+interface GroupDashboardProps {
+  onGroupChange?: () => void;
+}
+
+export default function GroupDashboard({ onGroupChange }: GroupDashboardProps) {
   const { isAuthenticated, getAccessTokenSilently } = useAuth0();
+  const { isAuth, token: reduxToken } = useSelector(
+    (state: RootState) => state.authSlice,
+  );
+
+  const isLoggedIn = isAuthenticated || isAuth;
+
+  const getToken = async (): Promise<string> => {
+    try {
+      if (isAuthenticated) {
+        return await getAccessTokenSilently();
+      }
+      return reduxToken || "";
+    } catch {
+      return reduxToken || "";
+    }
+  };
+
   const [groups, setGroups] = useState<GroupItem[]>([]);
   const [groupName, setGroupName] = useState("");
   const [joinCode, setJoinCode] = useState("");
@@ -22,12 +45,24 @@ export default function GroupDashboard() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  const getErrorMessage = (err: unknown): string => {
+    if (typeof err === "object" && err !== null && "response" in err) {
+      const res = (err as { response?: { data?: { message?: string; error?: string; sms?: string[] } } }).response;
+      if (res?.data?.message) return res.data.message;
+      if (res?.data?.error) return res.data.error;
+      if (res?.data?.sms && res.data.sms.length > 0) return res.data.sms[0];
+    }
+    if (err instanceof Error) return err.message;
+    return "Ett fel uppstod. Försök igen.";
+  };
+
   const fetchGroups = async () => {
-    if (!isAuthenticated) return;
+    if (!isLoggedIn) return;
     setLoading(true);
     setError("");
     try {
-      const token = await getAccessTokenSilently();
+      const token = await getToken();
+      if (!token) return;
       const data = await apiRequest({
         api: "groups",
         method: "GET",
@@ -36,9 +71,7 @@ export default function GroupDashboard() {
       setGroups(data.groups || []);
     } catch (err: unknown) {
       console.error("Error loading groups:", err);
-      if (err instanceof Error) {
-        setError(err.message);
-      }
+      setError(getErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -46,7 +79,7 @@ export default function GroupDashboard() {
 
   useEffect(() => {
     fetchGroups();
-  }, [isAuthenticated]);
+  }, [isAuthenticated, isAuth]);
 
   const handleCreateGroup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -55,7 +88,7 @@ export default function GroupDashboard() {
     setSuccess("");
 
     try {
-      const token = await getAccessTokenSilently();
+      const token = await getToken();
       await apiRequest({
         api: "groups",
         method: "POST",
@@ -63,12 +96,11 @@ export default function GroupDashboard() {
         body: { name: groupName.trim() },
       });
       setGroupName("");
-      setSuccess("Group created successfully!");
-      fetchGroups();
+      setSuccess("Gruppen har skapats!");
+      await fetchGroups();
+      onGroupChange?.();
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      }
+      setError(getErrorMessage(err));
     }
   };
 
@@ -79,7 +111,7 @@ export default function GroupDashboard() {
     setSuccess("");
 
     try {
-      const token = await getAccessTokenSilently();
+      const token = await getToken();
       const res = await apiRequest({
         api: "groups/join",
         method: "POST",
@@ -87,19 +119,18 @@ export default function GroupDashboard() {
         body: { invite_code: joinCode.trim() },
       });
       setJoinCode("");
-      setSuccess(res.message || "Joined group successfully!");
-      fetchGroups();
+      setSuccess(res.message || "Gick med i gruppen!");
+      await fetchGroups();
+      onGroupChange?.();
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      }
+      setError(getErrorMessage(err));
     }
   };
 
   const handleEditGroup = async (groupId: number) => {
     if (!editName.trim()) return;
     try {
-      const token = await getAccessTokenSilently();
+      const token = await getToken();
       await apiRequest({
         api: "groups",
         endpoint: `/${groupId}`,
@@ -109,32 +140,36 @@ export default function GroupDashboard() {
       });
       setEditingGroupId(null);
       setEditName("");
-      fetchGroups();
+      await fetchGroups();
+      onGroupChange?.();
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      }
+      setError(getErrorMessage(err));
     }
   };
 
-  const handleDeleteGroup = async (id: number) => {
+  const handleDeleteGroup = async (id: number, groupName: string) => {
+    const confirmed = window.confirm(
+      `Detta kommer att ta bort alla kopplade quiz i gruppen "${groupName}". Är du säker på att du vill ta bort gruppen?`
+    );
+    if (!confirmed) return;
+
     try {
-      const token = await getAccessTokenSilently();
+      const token = await getToken();
       await apiRequest({
         api: "groups",
         endpoint: `/${id}`,
         method: "DELETE",
         token,
       });
-      fetchGroups();
+      setSuccess("Gruppen har tagits bort!");
+      await fetchGroups();
+      onGroupChange?.();
     } catch (err: unknown) {
-      if (err instanceof Error) {
-        setError(err.message);
-      }
+      setError(getErrorMessage(err));
     }
   };
 
-  if (!isAuthenticated) return null;
+  if (!isLoggedIn) return null;
 
   return (
     <div
@@ -150,7 +185,7 @@ export default function GroupDashboard() {
       }}
     >
       <h2 style={{ fontSize: "1.5rem", marginBottom: "1rem", color: "#111827" }}>
-        📚 My Quiz Groups (Circles)
+        📚 Mina Quizgrupper
       </h2>
 
       {error && (
@@ -184,11 +219,11 @@ export default function GroupDashboard() {
       {/* Forms: Create Group & Join Group */}
       <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.5rem" }}>
         <form onSubmit={handleCreateGroup} style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-          <label style={{ fontWeight: 600, fontSize: "0.9rem", color: "#374151" }}>Create New Group</label>
+          <label style={{ fontWeight: 600, fontSize: "0.9rem", color: "#374151" }}>Skapa ny grupp</label>
           <div style={{ display: "flex", gap: "0.5rem" }}>
             <input
               type="text"
-              placeholder="Group Name..."
+              placeholder="Gruppnamn..."
               value={groupName}
               onChange={(e) => setGroupName(e.target.value)}
               style={{
@@ -211,17 +246,17 @@ export default function GroupDashboard() {
                 cursor: "pointer",
               }}
             >
-              + Create
+              + Skapa
             </button>
           </div>
         </form>
 
         <form onSubmit={handleJoinGroup} style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-          <label style={{ fontWeight: 600, fontSize: "0.9rem", color: "#374151" }}>Join via Invite Code</label>
+          <label style={{ fontWeight: 600, fontSize: "0.9rem", color: "#374151" }}>Gå med via inbjudningskod</label>
           <div style={{ display: "flex", gap: "0.5rem" }}>
             <input
               type="text"
-              placeholder="e.g. EXAM24"
+              placeholder="t.ex. EXAM24"
               value={joinCode}
               onChange={(e) => setJoinCode(e.target.value.toUpperCase())}
               style={{
@@ -244,7 +279,7 @@ export default function GroupDashboard() {
                 cursor: "pointer",
               }}
             >
-              🔑 Join
+              🔑 Gå med
             </button>
           </div>
         </form>
@@ -252,10 +287,10 @@ export default function GroupDashboard() {
 
       {/* Group List */}
       {loading ? (
-        <p style={{ color: "#6b7280" }}>Loading your groups...</p>
+        <p style={{ color: "#6b7280" }}>Laddar dina grupper...</p>
       ) : groups.length === 0 ? (
         <p style={{ color: "#6b7280", fontStyle: "italic" }}>
-          No groups created or joined yet. Create one or enter an invite code above!
+          Inga grupper skapade eller anslutna ännu. Skapa en eller ange en inbjudningskod ovan!
         </p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
@@ -286,13 +321,13 @@ export default function GroupDashboard() {
                       onClick={() => handleEditGroup(group.id)}
                       style={{ padding: "0.3rem 0.75rem", backgroundColor: "#10b981", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer" }}
                     >
-                      Save
+                      Spara
                     </button>
                     <button
                       onClick={() => setEditingGroupId(null)}
                       style={{ padding: "0.3rem 0.5rem", backgroundColor: "#9ca3af", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer" }}
                     >
-                      Cancel
+                      Avbryt
                     </button>
                   </div>
                 ) : (
@@ -302,16 +337,16 @@ export default function GroupDashboard() {
                     </span>
                     {group.is_owner && (
                       <span style={{ marginLeft: "0.5rem", fontSize: "0.75rem", padding: "0.1rem 0.4rem", backgroundColor: "#dbeafe", color: "#1e40af", borderRadius: "4px" }}>
-                        Owner
+                        Ägare
                       </span>
                     )}
                     <div style={{ display: "flex", gap: "1rem", marginTop: "0.25rem", fontSize: "0.8rem", color: "#6b7280" }}>
                       {group.invite_code && (
                         <span>
-                          🔑 Invite Code: <strong>{group.invite_code}</strong>
+                          🔑 Inbjudningskod: <strong>{group.invite_code}</strong>
                         </span>
                       )}
-                      <span>Created: {new Date(group.createdAt).toLocaleDateString()}</span>
+                      <span>Skapad: {new Date(group.createdAt).toLocaleDateString("sv-SE")}</span>
                     </div>
                   </div>
                 )}
@@ -334,12 +369,12 @@ export default function GroupDashboard() {
                       cursor: "pointer",
                     }}
                   >
-                    Edit Name
+                    Redigera namn
                   </button>
                 )}
                 {group.is_owner && (
                   <button
-                    onClick={() => handleDeleteGroup(group.id)}
+                    onClick={() => handleDeleteGroup(group.id, group.name)}
                     style={{
                       padding: "0.35rem 0.75rem",
                       backgroundColor: "#ef4444",
@@ -350,7 +385,7 @@ export default function GroupDashboard() {
                       cursor: "pointer",
                     }}
                   >
-                    Delete
+                    Ta bort
                   </button>
                 )}
               </div>
