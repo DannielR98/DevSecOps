@@ -2,22 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { createTestApp } from "../helpers/testApp.js";
 
-// Hoist the model and crypto mocks so they are available while Vitest hoists the vi.mock factory calls.
-const { findByPkMock, findOneMock, updateMock, hashMock } = vi.hoisted(() => ({
+// Hoist the model mocks so they are available while Vitest hoists the vi.mock factory calls.
+const { findByPkMock, findOneMock, updateMock } = vi.hoisted(() => ({
   findByPkMock: vi.fn(),
   findOneMock: vi.fn(),
   updateMock: vi.fn(),
-  hashMock: vi.fn(),
 }));
 
-// These mocks isolate user lookup, conflict lookup, persistence, and password hashing.
-
-// Mock bcrypt hashing so update tests can simulate successful and failing password encryption.
-vi.mock("bcrypt", () => ({
-  default: {
-    hash: hashMock,
-  },
-}));
+// These mocks isolate user lookup, conflict lookup, and persistence.
 
 // Mock the User model used by the update route.
 vi.mock("../../database/schemas/userSchema.js", () => ({
@@ -57,7 +49,6 @@ describe("Auth > update user", () => {
         surname: "Doe",
         username: "johndoe",
         email: "john@example.com",
-        password: "secret123",
       });
 
       expect(res.status).toBe(403);
@@ -75,7 +66,6 @@ describe("Auth > update user", () => {
         surname: "Doe",
         username: "johndoe",
         email: "john@example.com",
-        password: "secret123",
       });
 
       expect(res.status).toBe(404);
@@ -103,7 +93,6 @@ describe("Auth > update user", () => {
         surname: "Doe",
         username: "johndoe",
         email: "john@example.com",
-        password: "secret123",
       });
 
       expect(res.status).toBe(409);
@@ -129,7 +118,6 @@ describe("Auth > update user", () => {
       findByPkMock
         .mockResolvedValueOnce({ id: 1 })
         .mockResolvedValueOnce(updatedUser);
-      hashMock.mockResolvedValue("hashed-password");
       updateMock.mockResolvedValue([1]);
 
       const res = await request(app).put("/api/update-user/1").send({
@@ -137,7 +125,6 @@ describe("Auth > update user", () => {
         surname: "Doe",
         username: "johndoe2",
         email: "john2@example.com",
-        password: "secret123",
       });
 
       expect(res.status).toBe(200);
@@ -158,7 +145,6 @@ describe("Auth > update user", () => {
         username: "johndoe",
         email: "john@example.com",
       });
-      hashMock.mockResolvedValue("hashed-password");
       updateMock.mockRejectedValue(new Error("update failed"));
 
       const res = await request(app).put("/api/update-user/1").send({
@@ -166,7 +152,6 @@ describe("Auth > update user", () => {
         surname: "Doe",
         username: "johndoe2",
         email: "john2@example.com",
-        password: "secret123",
       });
 
       expect(res.status).toBe(500);
