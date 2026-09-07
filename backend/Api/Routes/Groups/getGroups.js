@@ -19,13 +19,13 @@ router.get("/groups", checkJwt, async (req, res) => {
     const memberEntries = await GroupMember.findAll({ where: { user_id: user.id } });
     const memberGroupIds = memberEntries.map((m) => m.group_id);
 
+    const whereClause =
+      memberGroupIds.length > 0
+        ? { [Op.or]: [{ owner_id: user.id }, { id: memberGroupIds }] }
+        : { owner_id: user.id };
+
     const groups = await Group.findAll({
-      where: {
-        [Op.or]: [
-          { owner_id: user.id },
-          { id: memberGroupIds },
-        ],
-      },
+      where: whereClause,
       order: [["createdAt", "DESC"]],
     });
 
