@@ -452,7 +452,7 @@ export default function Navbar() {
               color: "#9ca3af",
             }}
           >
-            Loading Auth...
+            Laddar...
           </span>
         ) : isAuth && token && userStorage ? (
           <div
@@ -503,7 +503,7 @@ export default function Navbar() {
                 fontWeight: 600,
               }}
             >
-              Log Out
+              Logga ut
             </button>
             <div>
               {menuOpen && (
@@ -513,12 +513,12 @@ export default function Navbar() {
                     to={userOne?.id ? `/user-info/${userOne.id}` : "/"}
                     onClick={() => setMenuOpen(false)}
                   >
-                    User Info
+                    Användarinfo
                   </Link>
                   <button
                     className={`${classes.dropdownButton} ${classes.delete}`}
                   >
-                    Delete
+                    Ta bort
                   </button>
                 </div>
               )}
@@ -543,7 +543,7 @@ export default function Navbar() {
                 fontWeight: 600,
               }}
             >
-              Log In / Register (Auth0)
+              Logga in / Skapa konto
             </button>
           </div>
         )}
