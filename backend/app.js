@@ -21,6 +21,9 @@ import updateGroup from "./Api/Routes/Groups/updateGroup.js";
 // import quiz routes
 import createQuiz from "./Api/Routes/Quizzes/createQuiz.js";
 import getQuizzes from "./Api/Routes/Quizzes/getQuizzes.js";
+import getQuizById from "./Api/Routes/Quizzes/getQuizById.js";
+import updateQuiz from "./Api/Routes/Quizzes/updateQuiz.js";
+import deleteQuiz from "./Api/Routes/Quizzes/deleteQuiz.js";
 import takeQuiz from "./Api/Routes/Quizzes/takeQuiz.js";
 
 // import group remember
@@ -60,6 +63,9 @@ app.use("/api", updateGroup);
 // api quiz
 app.use("/api", createQuiz);
 app.use("/api", getQuizzes);
+app.use("/api", getQuizById);
+app.use("/api", updateQuiz);
+app.use("/api", deleteQuiz);
 app.use("/api", takeQuiz);
 
 // api group remember
