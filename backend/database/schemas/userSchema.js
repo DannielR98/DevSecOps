@@ -35,11 +35,6 @@ const User = sequelize.define(
       allowNull: false,
     },
 
-    password: {
-      type: DataTypes.TEXT,
-      allowNull: true,
-    },
-
     createdAt: {
       type: DataTypes.DATE,
       defaultValue: DataTypes.NOW,
