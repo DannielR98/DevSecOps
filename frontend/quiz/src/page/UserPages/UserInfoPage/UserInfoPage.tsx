@@ -1,3 +1,4 @@
+import { useAuth0 } from "@auth0/auth0-react";
 import { useParams } from "react-router-dom";
 import type { RootState } from "../../../store/store";
 import { useDispatch, useSelector } from "react-redux";
@@ -89,15 +90,6 @@ const useStyles = createUseStyles({
     wordBreak: "break-word",
   },
 
-  footer: {
-    marginTop: 25,
-    paddingTop: 20,
-    borderTop: "1px solid #e5e7eb",
-    textAlign: "center",
-    color: "#9ca3af",
-    fontSize: 13,
-  },
-
   loading: {
     minHeight: "100vh",
     paddingTop: 100,
@@ -148,27 +140,55 @@ export default function UserInfoPage() {
 
   const userId = Number(id);
 
-  const { userById } = useSelector((state: RootState) => state.userSlice);
+  const {
+    getAccessTokenSilently,
+    isAuthenticated,
+    isLoading: authLoading,
+  } = useAuth0();
+
+  const { userOne } = useSelector((state: RootState) => state.userSlice);
 
   const dispatch = useDispatch();
-  /* ====================== functions =================================== */
+
   useEffect(() => {
-    if (!id || Number.isNaN(userId)) return;
+    const fetchUser = async () => {
+      if (!isAuthenticated) return;
 
-    dispatch({
-      type: "Fetch-USER",
-      payload: userId,
-    });
-  }, [dispatch, id, userId]);
+      if (!id || Number.isNaN(userId)) return;
 
-  console.log("userById", userById);
+      try {
+        const token = await getAccessTokenSilently();
 
-  if (!userById) {
+        console.log("AUTH0 TOKEN EXISTS:", !!token);
+        console.log("USER ID:", userId);
+
+        dispatch({
+          type: "Fetch-USER",
+          payload: {
+            id: userId,
+            token,
+          },
+        });
+      } catch (error) {
+        console.error("AUTH0 TOKEN ERROR:", error);
+      }
+    };
+
+    fetchUser();
+  }, [isAuthenticated, id, userId, getAccessTokenSilently, dispatch]);
+
+  console.log("USER BY ID:", userOne);
+
+  if (authLoading) {
+    return <div className={classes.loading}>Loading Auth...</div>;
+  }
+
+  if (!userOne) {
     return <div className={classes.loading}>Loading user information...</div>;
   }
 
   const initials =
-    `${userById.firstname?.charAt(0) ?? ""}${userById.surname?.charAt(0) ?? ""}`.toUpperCase();
+    `${userOne.firstname?.charAt(0) ?? ""}${userOne.surname?.charAt(0) ?? ""}`.toUpperCase();
 
   return (
     <div className={classes.page}>
@@ -184,26 +204,22 @@ export default function UserInfoPage() {
         <div className={classes.infoContainer}>
           <div className={classes.infoItem}>
             <span className={classes.label}>First Name</span>
-
-            <span className={classes.value}>{userById.firstname}</span>
+            <span className={classes.value}>{userOne.firstname}</span>
           </div>
 
           <div className={classes.infoItem}>
             <span className={classes.label}>Surname</span>
-
-            <span className={classes.value}>{userById.surname}</span>
+            <span className={classes.value}>{userOne.surname}</span>
           </div>
 
           <div className={classes.infoItem}>
             <span className={classes.label}>Username</span>
-
-            <span className={classes.value}>{userById.username}</span>
+            <span className={classes.value}>{userOne.username}</span>
           </div>
 
           <div className={classes.infoItem}>
             <span className={classes.label}>Email</span>
-
-            <span className={classes.value}>{userById.email}</span>
+            <span className={classes.value}>{userOne.email}</span>
           </div>
         </div>
       </div>

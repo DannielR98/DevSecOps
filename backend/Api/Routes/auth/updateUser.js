@@ -1,12 +1,12 @@
 import express from "express";
 import User from "../../../database/schemas/userSchema.js";
-import verifyJWT from "../../../middleware/verifyJWT.js";
 import bcrypt from "bcrypt";
 import { Op } from "sequelize";
+import { checkJwt } from "../../../middleware/auth0.js";
 
 const router = express.Router();
 
-router.put("/update-user/:userId", verifyJWT, async (req, res) => {
+router.put("/update-user/:userId", checkJwt, async (req, res) => {
   try {
     const userId = Number(req.params.userId);
 

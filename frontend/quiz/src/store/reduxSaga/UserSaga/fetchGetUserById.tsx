@@ -12,11 +12,9 @@ import {
   setLoading,
 } from "../../reduxSlice/LoadingSlice/LoadingAndErrorSlice.js";
 
-import { setUser } from "../../reduxSlice/userSlice/UserSlice.js";
+import { setUserById } from "../../reduxSlice/userSlice/UserSlice.js";
 
 import type { UserType } from "../../../utilities/interfaces.js";
-
-/* ================= TYPES ================= */
 
 type GetUserResponse = {
   user?: UserType;
@@ -28,42 +26,45 @@ type GetUserErrorResponse = {
   sms?: string[];
 };
 
-/* ================= API ================= */
+type GetUserPayload = {
+  id: number;
+  token: string;
+};
 
-async function GetUserByIdApi(action: PayloadAction<number>) {
-  const storageUser = localStorage.getItem("user");
+// ================= API ================= //
 
-  const token = storageUser ? JSON.parse(storageUser).token : null;
-
+async function GetUserByIdApi(payload: GetUserPayload) {
   const response = await apiRequest({
-    api: `user/${action.payload}`,
+    api: `user/${payload.id}`,
     method: "GET",
     endpoint: "",
-    token,
+    token: payload.token,
   });
 
   return response as GetUserResponse;
 }
 
-/* ================= SAGA WORKER ================= */
+// ================= WORKER ================= //
 
-function* FetchUserById(action: PayloadAction<number>): SagaIterator {
+function* FetchUserById(action: PayloadAction<GetUserPayload>): SagaIterator {
   try {
     yield put(setLoading());
 
-    const data: GetUserResponse = yield call(GetUserByIdApi, action);
+    const data: GetUserResponse = yield call(GetUserByIdApi, action.payload);
 
-    if (data.user) {
-      yield put(setUser(data.user));
+    console.log("GET USER DATA:", data);
+
+    if (data.user?.id !== undefined) {
+      yield put(setUserById(data.user.id));
     }
   } catch (error: unknown) {
-    console.log("GET USER ERROR:", error);
+    console.error("GET USER ERROR:", error);
 
     const err = error as AxiosError<GetUserErrorResponse>;
 
     const resData = err.response?.data;
 
-    console.log("GET USER ERROR RESPONSE:", resData);
+    console.error("GET USER ERROR RESPONSE:", resData);
 
     if (resData?.sms?.length) {
       resData.sms.forEach((msg) => {
@@ -85,7 +86,7 @@ function* FetchUserById(action: PayloadAction<number>): SagaIterator {
   }
 }
 
-/* ================= WATCHER ================= */
+// ================= WATCHER ================= //
 
 export function* WatchFetchUserById(): SagaIterator {
   yield takeLatest("Fetch-USER", FetchUserById);
