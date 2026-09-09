@@ -1,5 +1,5 @@
+import { useAuth0 } from "@auth0/auth0-react";
 import { createUseStyles } from "react-jss";
-import { useNavigate } from "react-router-dom";
 
 const useStyles = createUseStyles({
   section: {
@@ -57,7 +57,7 @@ const useStyles = createUseStyles({
 
 export default function StartSection() {
   const classes = useStyles();
-  const navigate = useNavigate();
+  const { loginWithRedirect } = useAuth0();
 
   return (
     <section id="start" className={classes.section}>
@@ -72,14 +72,18 @@ export default function StartSection() {
         <div className={classes.actions}>
           <button
             className={classes.loginButton}
-            onClick={() => navigate("/login")}
+            onClick={() => loginWithRedirect()}
           >
             Logga in
           </button>
 
           <button
             className={classes.registerButton}
-            onClick={() => navigate("/register")}
+            onClick={() =>
+              loginWithRedirect({
+                authorizationParams: { screen_hint: "signup" },
+              })
+            }
           >
             Skapa konto
           </button>
@@ -88,3 +92,4 @@ export default function StartSection() {
     </section>
   );
 }
+

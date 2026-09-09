@@ -1,3 +1,4 @@
+import { useAuth0 } from "@auth0/auth0-react";
 import { createUseStyles } from "react-jss";
 
 const useStyles = createUseStyles({
@@ -43,6 +44,7 @@ const useStyles = createUseStyles({
 
 export default function ChallengeSection() {
   const classes = useStyles();
+  const { loginWithRedirect } = useAuth0();
 
   return (
     <section className={classes.section}>
@@ -54,8 +56,11 @@ export default function ChallengeSection() {
           andra medlemmar i din grupp och klättra på topplistan.
         </p>
 
-        <button className={classes.button}>Börja tävla</button>
+        <button className={classes.button} onClick={() => loginWithRedirect()}>
+          Börja tävla
+        </button>
       </div>
     </section>
   );
 }
+
