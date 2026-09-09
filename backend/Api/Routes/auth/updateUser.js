@@ -1,6 +1,5 @@
 import express from "express";
 import User from "../../../database/schemas/userSchema.js";
-import bcrypt from "bcrypt";
 import { Op } from "sequelize";
 import { checkJwt } from "../../../middleware/auth0.js";
 
@@ -11,7 +10,6 @@ router.put("/update-user/:userId", checkJwt, async (req, res) => {
     const userId = Number(req.params.userId);
 
     let sms = [];
-    let emptyFields = [];
 
     const transformName = (name, toLower = false) => {
       if (typeof name !== "string") {
@@ -25,18 +23,9 @@ router.put("/update-user/:userId", checkJwt, async (req, res) => {
     const surname = transformName(req.body.surname, true);
     const username = transformName(req.body.username, true);
     const email = transformName(req.body.email, true);
-    const password = transformName(req.body.password);
-
-    const fields = {
-      firstname,
-      surname,
-      username,
-      email,
-      password,
-    };
 
     // User can only update their own account
-    if (req.user.id !== userId) {
+    if (req.user?.id !== userId) {
       return res.status(403).json({
         sms: ["You can only update your own account"],
       });
@@ -65,7 +54,6 @@ router.put("/update-user/:userId", checkJwt, async (req, res) => {
       }
       return res.status(409).json({ sms });
     }
-    //const hashedPassword = await bcrypt.hash(password, 10);
 
     const updated = {
       firstname,
@@ -74,9 +62,6 @@ router.put("/update-user/:userId", checkJwt, async (req, res) => {
       email,
     };
 
-    if (password) {
-      updated.password = await bcrypt.hash(password, 10);
-    }
     await User.update(updated, {
       where: {
         id: userId,
