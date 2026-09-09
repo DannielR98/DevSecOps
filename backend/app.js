@@ -71,10 +71,16 @@ app.use("/api", joinGroupMember);
 app.use("/api", getGroupMembers);
 app.use("/api", getGroupMemberById);
 app.use("/api", leaveGroup);
-////
-app.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
-  console.log("Database connected successfully");
-});
+// Sync database models and start server
+db.sync()
+  .then(() => {
+    console.log("Database synced successfully");
+    app.listen(PORT, () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    console.error("Failed to sync database:", err);
+  });
 
 export default app;

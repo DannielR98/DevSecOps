@@ -10,6 +10,10 @@ const {
   findAllMemberMock,
   findOneUserMock,
   createUserMock,
+  destroyMemberMock,
+  destroyQuizMock,
+  findAllQuizMock,
+  destroyQuizResultMock,
 } = vi.hoisted(() => ({
   createGroupMock: vi.fn(),
   createMemberMock: vi.fn(),
@@ -18,6 +22,10 @@ const {
   findAllMemberMock: vi.fn(),
   findOneUserMock: vi.fn(),
   createUserMock: vi.fn(),
+  destroyMemberMock: vi.fn(),
+  destroyQuizMock: vi.fn(),
+  findAllQuizMock: vi.fn().mockResolvedValue([]),
+  destroyQuizResultMock: vi.fn(),
 }));
 
 // These mocks cover group persistence, membership persistence, and local-user lookup.
@@ -44,6 +52,20 @@ vi.mock("../../database/schemas/groupMemberSchema.js", () => ({
     // Group creation and listing both depend on membership operations.
     create: createMemberMock,
     findAll: findAllMemberMock,
+    destroy: destroyMemberMock,
+  },
+}));
+
+vi.mock("../../database/schemas/quizSchema.js", () => ({
+  default: {
+    findAll: findAllQuizMock,
+    destroy: destroyQuizMock,
+  },
+}));
+
+vi.mock("../../database/schemas/quizResultSchema.js", () => ({
+  default: {
+    destroy: destroyQuizResultMock,
   },
 }));
 
@@ -71,6 +93,7 @@ describe("Groups", () => {
   // Reset every mock before each independent route scenario.
   beforeEach(() => {
     vi.clearAllMocks();
+    findAllQuizMock.mockResolvedValue([]);
   });
 
   // The route rejects a request that does not provide a group name.
@@ -182,6 +205,22 @@ describe("Groups", () => {
     ]);
   });
 
+  // A user with 0 group memberships successfully queries owned groups without SQL error.
+  it("returns 200 when user has 0 group memberships", async () => {
+    findOneUserMock.mockResolvedValue({ id: 1 });
+    findAllMemberMock.mockResolvedValue([]);
+    findAllGroupMock.mockResolvedValue([]);
+
+    const res = await request(app).get("/api/groups");
+
+    expect(res.status).toBe(200);
+    expect(findAllGroupMock).toHaveBeenCalledWith({
+      where: { owner_id: 1 },
+      order: [["createdAt", "DESC"]],
+    });
+    expect(res.body.groups).toEqual([]);
+  });
+
   // A missing group ID returns a not-found response.
   it("returns 404 when group is missing", async () => {
     findByPkGroupMock.mockResolvedValue(null);
@@ -251,11 +290,14 @@ describe("Groups", () => {
     };
     findOneUserMock.mockResolvedValue({ id: 1 });
     findByPkGroupMock.mockResolvedValue(group);
+    findAllQuizMock.mockResolvedValue([{ id: 10 }]);
 
     const res = await request(app).delete("/api/groups/5");
 
     expect(res.status).toBe(200);
     expect(res.body.sms).toEqual(["Grupp borttagen"]);
+    expect(destroyQuizResultMock).toHaveBeenCalledWith({ where: { quiz_id: [10] } });
+    expect(destroyQuizMock).toHaveBeenCalledWith({ where: { group_id: 5 } });
     expect(group.destroy).toHaveBeenCalledOnce();
   });
 });

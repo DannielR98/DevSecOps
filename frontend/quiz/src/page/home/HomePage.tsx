@@ -1,4 +1,7 @@
+import { useState } from "react";
 import { useAuth0 } from "@auth0/auth0-react";
+import { useSelector } from "react-redux";
+import type { RootState } from "../../store/store";
 import GroupDashboard from "../../components/GroupDashboard";
 import QuizManager from "../../components/QuizManager";
 import { createUseStyles } from "react-jss";
@@ -28,11 +31,19 @@ const useStyles = createUseStyles({
 });
 
 export default function HomePage() {
-  const { isAuthenticated, user, isLoading } = useAuth0();
+  const { isAuthenticated: isAuth0Authenticated, user: auth0User, isLoading } = useAuth0();
+  const { isAuth, userStorage } = useSelector((state: RootState) => state.authSlice);
   const classes = useStyles();
+  const [refreshKey, setRefreshKey] = useState(0);
 
-  // VIKTIGT: Vänta tills Auth0 har laddat klart vid sidomåladdning (F5)
-  if (isLoading) {
+  const handleGroupChange = () => {
+    setRefreshKey((prev) => prev + 1);
+  };
+
+  const loggedIn = Boolean((isAuth0Authenticated && auth0User) || (isAuth && userStorage));
+  const currentUser = auth0User || userStorage;
+
+  if (isLoading && !isAuth) {
     return (
       <main className={classes.page}>
         <div className={classes.loadingContainer}>
@@ -41,20 +52,21 @@ export default function HomePage() {
       </main>
     );
   }
+
   return (
     <main className={classes.page}>
-      {isAuthenticated && user ? (
+      {loggedIn && currentUser ? (
         <div style={{ padding: "2rem", fontFamily: "sans-serif", textAlign: "center" }}>
           <div style={{ backgroundColor: "#f3f4f6", padding: "1.5rem", borderRadius: "8px", maxWidth: "600px", margin: "0 auto 2rem" }}>
-            <h2>Hello, {user.name || user.nickname || "User"}! 👋</h2>
-            <p style={{ color: "#4b5563", marginTop: "0.25rem" }}>Logged in as: {user.email}</p>
+            <h2>Hej, {currentUser.name || currentUser.nickname || currentUser.email || "Användare"}! 👋</h2>
+            <p style={{ color: "#4b5563", marginTop: "0.25rem" }}>Inloggad som: {currentUser.email}</p>
             <p style={{ color: "#10b981", fontWeight: "bold", marginTop: "0.5rem" }}>
-              ✓ Authenticated securely via Auth0 (OAuth 2.0 / OIDC)
+              ✓ Säkert autentiserad via Auth0 (OAuth 2.0 / OIDC)
             </p>
           </div>
 
-          <GroupDashboard />
-          <QuizManager />
+          <GroupDashboard onGroupChange={handleGroupChange} />
+          <QuizManager refreshKey={refreshKey} />
         </div>
       ) : (
         <>
@@ -90,4 +102,5 @@ export default function HomePage() {
     </main>
   );
 }
+
 
