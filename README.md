@@ -1,10 +1,10 @@
 # DevSecOps Quiz-plattform
 
-Säker och modern Quiz-plattform byggd med **React**, **Express**, **SQLite** och **Auth0** för DevSecOps-demonstration och projektarbete.
+Säker och modern Quiz-plattform byggd med **React**, **Express**, **SQLite** och **Auth0** för DevSecOps kurs.
 
 ---
 
-## 🏗 Arkitekturbeskrivning
+## Arkitekturbeskrivning
 
 ### Systemöversikt
 
@@ -48,7 +48,7 @@ Säker och modern Quiz-plattform byggd med **React**, **Express**, **SQLite** oc
 
 
 
-## ⚙️ Tekniska val och motiveringar
+## Tekniska val
 
 ### Varför Auth0?
 
@@ -69,7 +69,7 @@ Säker och modern Quiz-plattform byggd med **React**, **Express**, **SQLite** oc
 | **Isolering** | Frontend och backend körs i separata containrar |
 | **Volymhantering** | Databasen persisteras i Docker-volymer |
 
-## 🔒 Säkerhet & Autentisering (Auth0-integration)
+## Säkerhet & Autentisering (Auth0-integration)
 
 Projektet använder **Auth0 (OAuth 2.0 / OpenID Connect)** för autentisering och användarhantering:
 
@@ -79,7 +79,7 @@ Projektet använder **Auth0 (OAuth 2.0 / OpenID Connect)** för autentisering oc
 
 ---
 
-## 📋 Användarflöden (User Flows)
+## Användarflöden (User Flows)
 
 1. **Registrera konto & logga in**: Användare autentiserar sig säkert via Auth0 Universal Login (MFA, lösenordspolicys, OAuth 2.0).
 2. **Skapa grupp (Circle)**: Inloggad användare skapar en grupp och blir automatiskt ägare.
@@ -90,7 +90,7 @@ Projektet använder **Auth0 (OAuth 2.0 / OpenID Connect)** för autentisering oc
 
 ---
 
-## 🛠 Feature Slices
+## Feature Slices
 
 1. Användare kan autentisera sig säkert via Auth0 (Universal Login).
 2. Användare kan skapa en grupp (circle) och bli ägare.
@@ -103,7 +103,7 @@ Projektet använder **Auth0 (OAuth 2.0 / OpenID Connect)** för autentisering oc
 
 ---
 
-## 🥒 BDD-scenarier (Gherkin)
+## BDD-scenarier (Gherkin)
 
 ```gherkin
 Feature: Kontoregistrering och inloggning via Auth0
@@ -146,7 +146,7 @@ Feature: Skapa och genomföra quiz
 
 ---
 
-## 🚀 Snabbstart (Docker)
+## Snabbstart (Docker)
 
 ### 1. Miljövariabler (.env)
 Säkerställ att `.env` eller `docker-compose.yaml` innehåller Auth0-inställningarna:
@@ -171,7 +171,7 @@ docker-compose up -d --build
 
 ---
 
-## 📁 Projektstruktur
+## Projektstruktur
 
 ```
 DevSecOps/
@@ -227,3 +227,4 @@ DevSecOps/
 ├── docker-compose.yaml            # Docker Compose konfiguration
 └── README.md
 ```
+
