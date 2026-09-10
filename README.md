@@ -228,3 +228,38 @@ DevSecOps/
 └── README.md
 ```
 
+---
+
+## 🔄 CI/CD Pipeline
+
+### Översikt
+
+Projektet använder **GitHub Actions** för CI/CD
+
+### CI-delen (Continuous Integration)
+
+Vid varje push eller pull request körs följande steg:
+
+| Steg | Beskrivning | Syfte |
+|------|-------------|-------|
+| **Checkout** | Hämta kod från repo |  |
+| **Node.js setup** | Installera Node.js 20 + npm-caching |  |
+| **Frontend Audit (SCA)** | `npm audit --audit-level=high` | Upptäck sårbara beroenden |
+| **Frontend Test** | `npm test` | Kör enhetstester |
+| **Frontend Build** | `npm run build` | Verifiera att bygget lyckas |
+| **Backend Audit (SCA)** | `npm audit --audit-level=high` | Upptäck sårbara beroenden |
+| **Backend Test** | `npm test` | Kör enhetstester |
+| **Backend Build** | `npm run build` | Verifiera att bygget lyckas |
+| **Semgrep SAST** | Statisk kodanalys | Upptäck säkerhetsbrister i koden |
+
+### CD-delen (Continuous Deployment)
+
+Vid push till `main` eller `dev` byggs och publiceras Docker-images:
+
+| Steg | Beskrivning | Mål |
+|------|-------------|-----|
+| **Login to GHCR** | Autentisera mot GitHub Container Registry |  |
+| **Metadata extraction** | Generera tags och labels | Versionsmärkning |
+| **Build Frontend** | Bygg och pusha frontend-image | `ghcr.io/...-frontend` |
+| **Build Backend** | Bygg och pusha backend-image | `ghcr.io/...-backend` |
+
