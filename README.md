@@ -46,7 +46,29 @@ Säker och modern Quiz-plattform byggd med **React**, **Express**, **SQLite** oc
 7. Vid giltig token synkroniseras användarprofilen till lokal SQLite-databas
 8. Backend returnerar skyddad data till frontend
 
-9. 
+
+
+## ⚙️ Tekniska val och motiveringar
+
+### Varför Auth0?
+
+| Fördel | Beskrivning |
+|--------|-------------|
+| **Inga lösenord lokalt** | Vi lagrar inga lösenord i vår databas - allt hanteras av Auth0 |
+| **MFA inbyggt** | Multi-Factor Authentication aktiveras med några klick i Auth0-dashboard |
+| **OAuth 2.0 / OIDC** | Standard för autentisering(OIDC) och auktorisering (Oauth2) |
+| **RS256 JWT** | Asymmetrisk kryptering med publika/privata nycklar för säker token-verifiering |
+| **Enkel integration** | Auth0 SDK för React gör integrationen rakt på |
+
+### Varför Docker Compose?
+
+| Fördel | Beskrivning |
+|--------|-------------|
+| **Reproducerbar miljö** | Samma miljö för alla utvecklare och produktion |
+| **Enkel start** | `docker-compose up` startar hela applikationen |
+| **Isolering** | Frontend och backend körs i separata containrar |
+| **Volymhantering** | Databasen persisteras i Docker-volymer |
+
 ## 🔒 Säkerhet & Autentisering (Auth0-integration)
 
 Projektet använder **Auth0 (OAuth 2.0 / OpenID Connect)** för autentisering och användarhantering:
