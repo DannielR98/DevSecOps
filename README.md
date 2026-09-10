@@ -34,6 +34,19 @@ Säker och modern Quiz-plattform byggd med **React**, **Express**, **SQLite** oc
 | **Auth0** | OAuth 2.0 / OpenID Connect | Autentisering, MFA, JWT-utfärdande |
 | **Docker** | Docker Compose | Containerisering |
 
+
+### Dataflöde - Autentisering
+
+1. Användare klickar på "Logga in" i frontend
+2. Frontend omdirigerar till Auth0 Universal Login (OIDC)
+3. Användare autentiserar sig hos Auth0 (lösenord + MFA)
+4. Auth0 returnerar JWT (Access Token) till frontend
+5. Frontend sparar JWT och inkluderar det i `Authorization: Bearer <token>`-headern
+6. Backend validerar JWT med Auth0:s publika nyckel (JWKS)
+7. Vid giltig token synkroniseras användarprofilen till lokal SQLite-databas
+8. Backend returnerar skyddad data till frontend
+
+9. 
 ## 🔒 Säkerhet & Autentisering (Auth0-integration)
 
 Projektet använder **Auth0 (OAuth 2.0 / OpenID Connect)** för autentisering och användarhantering:
