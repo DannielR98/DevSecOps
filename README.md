@@ -4,6 +4,26 @@ Säker och modern Quiz-plattform byggd med **React**, **Express**, **SQLite** oc
 
 ---
 
+## 🏗 Arkitekturbeskrivning
+
+### Systemöversikt
+
+```
+┌─────────────────┐      ┌─────────────────────┐      ┌─────────────────┐
+│   Frontend      │      │      Backend        │      │                 │
+│   React (Vite)  │─────▶│   Express API       │─────▶│   SQLite        │
+│   Port: 3000    │ JWT  │   Port: 5000        │ ORM  │   Database      │
+└────────┬────────┘      └──────────┬──────────┘      └─────────────────┘
+         │                          │
+         │ OIDC                     │ RS256 JWT
+         ▼                          ▼
+┌─────────────────┐      ┌─────────────────────┐
+│   Auth0         │      │   Docker Compose    │
+│   Identity      │      │   Orchestration     │
+│   Provider      │      │                     │
+└─────────────────┘      └─────────────────────┘
+```
+
 ## 🔒 Säkerhet & Autentisering (Auth0-integration)
 
 Projektet använder **Auth0 (OAuth 2.0 / OpenID Connect)** för autentisering och användarhantering:
