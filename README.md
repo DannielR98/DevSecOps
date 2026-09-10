@@ -1,10 +1,75 @@
 # DevSecOps Quiz-plattform
 
-Säker och modern Quiz-plattform byggd med **React**, **Express**, **SQLite** och **Auth0** för DevSecOps-demonstration och projektarbete.
+Säker och modern Quiz-plattform byggd med **React**, **Express**, **SQLite** och **Auth0** för DevSecOps kurs.
 
 ---
 
-## 🔒 Säkerhet & Autentisering (Auth0-integration)
+## Arkitekturbeskrivning
+
+### Systemöversikt
+
+```
+┌─────────────────┐      ┌─────────────────────┐      ┌─────────────────┐
+│   Frontend      │      │      Backend        │      │                 │
+│   React (Vite)  │─────▶│   Express API       │─────▶│   SQLite        │
+│   Port: 3000    │ JWT  │   Port: 5000        │ ORM  │   Database      │
+└────────┬────────┘      └──────────┬──────────┘      └─────────────────┘
+         │                          │
+         │ OIDC                     │ RS256 JWT
+         ▼                          ▼
+┌─────────────────┐      ┌─────────────────────┐
+│   Auth0         │      │   Docker Compose    │
+│   Identity      │      │   Orchestration     │
+│   Provider      │      │                     │
+└─────────────────┘      └─────────────────────┘
+```
+
+### Komponentbeskrivning
+
+| Komponent | Teknologi | Ansvar |
+|-----------|-----------|--------|
+| **Frontend** | React + Vite + TypeScript | Användargränssnitt, Auth0 OIDC-inloggning, JWT-hantering |
+| **Backend** | Express.js + Node.js | REST API, JWT-verifiering (RS256), affärslogik |
+| **Databas** | SQLite + Sequelize ORM | Persistens av användare, grupper, quiz, resultat |
+| **Auth0** | OAuth 2.0 / OpenID Connect | Autentisering, MFA, JWT-utfärdande |
+| **Docker** | Docker Compose | Containerisering |
+
+
+### Dataflöde - Autentisering
+
+1. Användare klickar på "Logga in" i frontend
+2. Frontend omdirigerar till Auth0 Universal Login (OIDC)
+3. Användare autentiserar sig hos Auth0 (lösenord + MFA)
+4. Auth0 returnerar JWT (Access Token) till frontend
+5. Frontend sparar JWT och inkluderar det i `Authorization: Bearer <token>`-headern
+6. Backend validerar JWT med Auth0:s publika nyckel (JWKS)
+7. Vid giltig token synkroniseras användarprofilen till lokal SQLite-databas
+8. Backend returnerar skyddad data till frontend
+
+
+
+## Tekniska val
+
+### Varför Auth0?
+
+| Fördel | Beskrivning |
+|--------|-------------|
+| **Inga lösenord lokalt** | Vi lagrar inga lösenord i vår databas - allt hanteras av Auth0 |
+| **MFA inbyggt** | Multi-Factor Authentication aktiveras med några klick i Auth0-dashboard |
+| **OAuth 2.0 / OIDC** | Standard för autentisering(OIDC) och auktorisering (Oauth2) |
+| **RS256 JWT** | Asymmetrisk kryptering med publika/privata nycklar för säker token-verifiering |
+| **Enkel integration** | Auth0 SDK för React gör integrationen rakt på |
+
+### Varför Docker Compose?
+
+| Fördel | Beskrivning |
+|--------|-------------|
+| **Reproducerbar miljö** | Samma miljö för alla utvecklare och produktion |
+| **Enkel start** | `docker-compose up` startar hela applikationen |
+| **Isolering** | Frontend och backend körs i separata containrar |
+| **Volymhantering** | Databasen persisteras i Docker-volymer |
+
+## Säkerhet & Autentisering (Auth0-integration)
 
 Projektet använder **Auth0 (OAuth 2.0 / OpenID Connect)** för autentisering och användarhantering:
 
@@ -14,7 +79,7 @@ Projektet använder **Auth0 (OAuth 2.0 / OpenID Connect)** för autentisering oc
 
 ---
 
-## 📋 Användarflöden (User Flows)
+## Användarflöden (User Flows)
 
 1. **Registrera konto & logga in**: Användare autentiserar sig säkert via Auth0 Universal Login (MFA, lösenordspolicys, OAuth 2.0).
 2. **Skapa grupp (Circle)**: Inloggad användare skapar en grupp och blir automatiskt ägare.
@@ -25,7 +90,7 @@ Projektet använder **Auth0 (OAuth 2.0 / OpenID Connect)** för autentisering oc
 
 ---
 
-## 🛠 Feature Slices
+## Feature Slices
 
 1. Användare kan autentisera sig säkert via Auth0 (Universal Login).
 2. Användare kan skapa en grupp (circle) och bli ägare.
@@ -38,7 +103,7 @@ Projektet använder **Auth0 (OAuth 2.0 / OpenID Connect)** för autentisering oc
 
 ---
 
-## 🥒 BDD-scenarier (Gherkin)
+## BDD-scenarier (Gherkin)
 
 ```gherkin
 Feature: Kontoregistrering och inloggning via Auth0
@@ -81,7 +146,7 @@ Feature: Skapa och genomföra quiz
 
 ---
 
-## 🚀 Snabbstart (Docker)
+## Snabbstart (Docker)
 
 ### 1. Miljövariabler (.env)
 Säkerställ att `.env` eller `docker-compose.yaml` innehåller Auth0-inställningarna:
@@ -106,7 +171,7 @@ docker-compose up -d --build
 
 ---
 
-## 📁 Projektstruktur
+## Projektstruktur
 
 ```
 DevSecOps/
@@ -162,3 +227,39 @@ DevSecOps/
 ├── docker-compose.yaml            # Docker Compose konfiguration
 └── README.md
 ```
+
+---
+
+## 🔄 CI/CD Pipeline
+
+### Översikt
+
+Projektet använder **GitHub Actions** för CI/CD
+
+### CI-delen (Continuous Integration)
+
+Vid varje push eller pull request körs följande steg:
+
+| Steg | Beskrivning | Syfte |
+|------|-------------|-------|
+| **Checkout** | Hämta kod från repo |  |
+| **Node.js setup** | Installera Node.js 20 + npm-caching |  |
+| **Frontend Audit (SCA)** | `npm audit --audit-level=high` | Upptäck sårbara beroenden |
+| **Frontend Test** | `npm test` | Kör enhetstester |
+| **Frontend Build** | `npm run build` | Verifiera att bygget lyckas |
+| **Backend Audit (SCA)** | `npm audit --audit-level=high` | Upptäck sårbara beroenden |
+| **Backend Test** | `npm test` | Kör enhetstester |
+| **Backend Build** | `npm run build` | Verifiera att bygget lyckas |
+| **Semgrep SAST** | Statisk kodanalys | Upptäck säkerhetsbrister i koden |
+
+### CD-delen (Continuous Deployment)
+
+Vid push till `main` eller `dev` byggs och publiceras Docker-images:
+
+| Steg | Beskrivning | Mål |
+|------|-------------|-----|
+| **Login to GHCR** | Autentisera mot GitHub Container Registry |  |
+| **Metadata extraction** | Generera tags och labels | Versionsmärkning |
+| **Build Frontend** | Bygg och pusha frontend-image | `ghcr.io/...-frontend` |
+| **Build Backend** | Bygg och pusha backend-image | `ghcr.io/...-backend` |
+
