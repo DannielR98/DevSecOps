@@ -274,10 +274,12 @@ export default function Navbar() {
 
   const dispatch = useDispatch();
   const [menuOpen, setMenuOpen] = useState(false);
-  const { users, userOne } = useSelector((state: RootState) => state.userSlice);
+  const { users = [], userOne } = useSelector(
+    (state: RootState) => state.userSlice ?? { users: [], userOne: null },
+  );
 
-  const { isAuth, token, userStorage } = useSelector(
-    (state: RootState) => state.authSlice,
+  const { isAuth = false, token = null, userStorage = null } = useSelector(
+    (state: RootState) => state.authSlice ?? { isAuth: false, token: null, userStorage: null },
   );
 
   /* functions */

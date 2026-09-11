@@ -51,7 +51,7 @@ jobs:
         
       - name: Run frontend Test
         working-directory: frontend/quiz
-        run: npm test -- --watchAll=false
+        run: npm test
         
       - name: Build frontend
         working-directory: frontend/quiz
