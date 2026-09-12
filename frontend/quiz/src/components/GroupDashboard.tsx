@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store/store";
 import { apiRequest } from "../utilities/HeaderFunction";
+import { createUseStyles } from "react-jss";
 
 interface GroupItem {
   id: number;
@@ -16,8 +17,22 @@ interface GroupItem {
 interface GroupDashboardProps {
   onGroupChange?: () => void;
 }
+const useStyles = createUseStyles({
+  gridContainer: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "1rem",
+    marginBottom: "1.5rem",
+
+    "@media (max-width: 700px)": {
+      gridTemplateColumns: "1fr",
+    },
+  },
+});
 
 export default function GroupDashboard({ onGroupChange }: GroupDashboardProps) {
+  const classes = useStyles();
+
   const { isAuthenticated, getAccessTokenSilently } = useAuth0();
   const { isAuth, token: reduxToken } = useSelector(
     (state: RootState) => state.authSlice,
@@ -47,7 +62,13 @@ export default function GroupDashboard({ onGroupChange }: GroupDashboardProps) {
 
   const getErrorMessage = (err: unknown): string => {
     if (typeof err === "object" && err !== null && "response" in err) {
-      const res = (err as { response?: { data?: { message?: string; error?: string; sms?: string[] } } }).response;
+      const res = (
+        err as {
+          response?: {
+            data?: { message?: string; error?: string; sms?: string[] };
+          };
+        }
+      ).response;
       if (res?.data?.message) return res.data.message;
       if (res?.data?.error) return res.data.error;
       if (res?.data?.sms && res.data.sms.length > 0) return res.data.sms[0];
@@ -149,7 +170,7 @@ export default function GroupDashboard({ onGroupChange }: GroupDashboardProps) {
 
   const handleDeleteGroup = async (id: number, groupName: string) => {
     const confirmed = window.confirm(
-      `Detta kommer att ta bort alla kopplade quiz i gruppen "${groupName}". Är du säker på att du vill ta bort gruppen?`
+      `Detta kommer att ta bort alla kopplade quiz i gruppen "${groupName}". Är du säker på att du vill ta bort gruppen?`,
     );
     if (!confirmed) return;
 
@@ -184,7 +205,9 @@ export default function GroupDashboard({ onGroupChange }: GroupDashboardProps) {
         textAlign: "left",
       }}
     >
-      <h2 style={{ fontSize: "1.5rem", marginBottom: "1rem", color: "#111827" }}>
+      <h2
+        style={{ fontSize: "1.5rem", marginBottom: "1rem", color: "#111827" }}
+      >
         📚 Mina Quizgrupper
       </h2>
 
@@ -217,9 +240,16 @@ export default function GroupDashboard({ onGroupChange }: GroupDashboardProps) {
       )}
 
       {/* Forms: Create Group & Join Group */}
-      <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "1rem", marginBottom: "1.5rem" }}>
-        <form onSubmit={handleCreateGroup} style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-          <label style={{ fontWeight: 600, fontSize: "0.9rem", color: "#374151" }}>Skapa ny grupp</label>
+      <div className={classes.gridContainer}>
+        <form
+          onSubmit={handleCreateGroup}
+          style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}
+        >
+          <label
+            style={{ fontWeight: 600, fontSize: "0.9rem", color: "#374151" }}
+          >
+            Skapa ny grupp
+          </label>
           <div style={{ display: "flex", gap: "0.5rem" }}>
             <input
               type="text"
@@ -251,8 +281,15 @@ export default function GroupDashboard({ onGroupChange }: GroupDashboardProps) {
           </div>
         </form>
 
-        <form onSubmit={handleJoinGroup} style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-          <label style={{ fontWeight: 600, fontSize: "0.9rem", color: "#374151" }}>Gå med via inbjudningskod</label>
+        <form
+          onSubmit={handleJoinGroup}
+          style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}
+        >
+          <label
+            style={{ fontWeight: 600, fontSize: "0.9rem", color: "#374151" }}
+          >
+            Gå med via inbjudningskod
+          </label>
           <div style={{ display: "flex", gap: "0.5rem" }}>
             <input
               type="text"
@@ -290,7 +327,8 @@ export default function GroupDashboard({ onGroupChange }: GroupDashboardProps) {
         <p style={{ color: "#6b7280" }}>Laddar dina grupper...</p>
       ) : groups.length === 0 ? (
         <p style={{ color: "#6b7280", fontStyle: "italic" }}>
-          Inga grupper skapade eller anslutna ännu. Skapa en eller ange en inbjudningskod ovan!
+          Inga grupper skapade eller anslutna ännu. Skapa en eller ange en
+          inbjudningskod ovan!
         </p>
       ) : (
         <ul style={{ listStyle: "none", padding: 0, margin: 0 }}>
@@ -310,43 +348,94 @@ export default function GroupDashboard({ onGroupChange }: GroupDashboardProps) {
             >
               <div style={{ flex: 1 }}>
                 {editingGroupId === group.id ? (
-                  <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: "0.5rem",
+                      alignItems: "center",
+                    }}
+                  >
                     <input
                       type="text"
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
-                      style={{ padding: "0.3rem 0.5rem", borderRadius: "4px", border: "1px solid #d1d5db" }}
+                      style={{
+                        padding: "0.3rem 0.5rem",
+                        borderRadius: "4px",
+                        border: "1px solid #d1d5db",
+                      }}
                     />
                     <button
                       onClick={() => handleEditGroup(group.id)}
-                      style={{ padding: "0.3rem 0.75rem", backgroundColor: "#10b981", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                      style={{
+                        padding: "0.3rem 0.75rem",
+                        backgroundColor: "#10b981",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                      }}
                     >
                       Spara
                     </button>
                     <button
                       onClick={() => setEditingGroupId(null)}
-                      style={{ padding: "0.3rem 0.5rem", backgroundColor: "#9ca3af", color: "#fff", border: "none", borderRadius: "4px", cursor: "pointer" }}
+                      style={{
+                        padding: "0.3rem 0.5rem",
+                        backgroundColor: "#9ca3af",
+                        color: "#fff",
+                        border: "none",
+                        borderRadius: "4px",
+                        cursor: "pointer",
+                      }}
                     >
                       Avbryt
                     </button>
                   </div>
                 ) : (
                   <div>
-                    <span style={{ fontWeight: 600, fontSize: "1.05rem", color: "#1f2937" }}>
+                    <span
+                      style={{
+                        fontWeight: 600,
+                        fontSize: "1.05rem",
+                        color: "#1f2937",
+                      }}
+                    >
                       {group.name}
                     </span>
                     {group.is_owner && (
-                      <span style={{ marginLeft: "0.5rem", fontSize: "0.75rem", padding: "0.1rem 0.4rem", backgroundColor: "#dbeafe", color: "#1e40af", borderRadius: "4px" }}>
+                      <span
+                        style={{
+                          marginLeft: "0.5rem",
+                          fontSize: "0.75rem",
+                          padding: "0.1rem 0.4rem",
+                          backgroundColor: "#dbeafe",
+                          color: "#1e40af",
+                          borderRadius: "4px",
+                        }}
+                      >
                         Ägare
                       </span>
                     )}
-                    <div style={{ display: "flex", gap: "1rem", marginTop: "0.25rem", fontSize: "0.8rem", color: "#6b7280" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "1rem",
+                        marginTop: "0.25rem",
+                        fontSize: "0.8rem",
+                        color: "#6b7280",
+                      }}
+                    >
                       {group.invite_code && (
                         <span>
-                          🔑 Inbjudningskod: <strong>{group.invite_code}</strong>
+                          🔑 Inbjudningskod:{" "}
+                          <strong>{group.invite_code}</strong>
                         </span>
                       )}
-                      <span>Skapad: {new Date(group.createdAt).toLocaleDateString("sv-SE")}</span>
+                      <span>
+                        Skapad:{" "}
+                        {new Date(group.createdAt).toLocaleDateString("sv-SE")}
+                      </span>
                     </div>
                   </div>
                 )}
