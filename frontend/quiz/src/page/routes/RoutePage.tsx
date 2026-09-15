@@ -1,6 +1,6 @@
 import { BrowserRouter as Router, Routes, Route } from "react-router-dom";
 import HomePage from "../home/HomePage";
-import Navbar from "../../components/Navbar";
+import Navbar from "../../components/NavbarContainer/Navbar";
 import UpdateUserInfo from "../UserPages/UpdateUserInfo.tsx/UpdateUserInfo";
 import UserInfoPage from "../UserPages/UserInfoPage/UserInfoPage";
 import { createUseStyles } from "react-jss";

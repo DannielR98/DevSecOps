@@ -1,8 +1,10 @@
-import { useEffect, useRef, useState } from "react";
+/* import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import type { RootState } from "../../store/store";
 import { useDispatch, useSelector } from "react-redux";
 import { createUseStyles } from "react-jss";
+import DeskTopNavBar from "./DeskTopNavBar";
+import MobileNavBar from "./MobileNavBar";
 
 const useStyles = createUseStyles({
   navbar: {
@@ -157,7 +159,7 @@ export default function Navigation() {
   const userInitials =
     `${firstname.charAt(0)}${surname.charAt(0)}`.toUpperCase();
 
-  /* ================================== functions =============================== */
+  // ================================== functions =============================== //
   const handleDelete = () => {
     if (!id) return;
 
@@ -192,68 +194,34 @@ export default function Navigation() {
   }, []);
 
   return (
-    <nav className={classes.navbar}>
-      <Link className={classes.home} to="/">
-        Home
-      </Link>
-
-      <div className={classes.right}>
-        {!isLoggedIn ? (
-          <div className={classes.authLinks}>
-            <Link className={classes.link} to="/register">
-              Register
-            </Link>
-
-            <Link className={classes.link} to="/login">
-              Login
-            </Link>
-          </div>
-        ) : (
-          <div>
-            <button
-              className={classes.profileButton}
-              onClick={() => setMenuOpen((prev) => !prev)}
-              aria-label="Open user menu"
-            >
-              {userInitials}
-            </button>
-
-            {menuOpen && (
-              <div className={classes.dropdown} ref={dropDownContainer}>
-                <Link
-                  className={classes.dropdownLink}
-                  to={`/user-info/${id}`}
-                  onClick={() => setMenuOpen(false)}
-                >
-                  User Info
-                </Link>
-
-                <Link
-                  className={classes.dropdownLink}
-                  to={`/update-user`}
-                  onClick={() => setMenuOpen(false)}
-                >
-                  Update
-                </Link>
-
-                <button
-                  className={`${classes.dropdownButton} ${classes.delete}`}
-                  onClick={handleDelete}
-                >
-                  Delete
-                </button>
-
-                <button
-                  className={classes.dropdownButton}
-                  onClick={handleLogOut}
-                >
-                  Logout
-                </button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </nav>
+    <div>
+      <DeskTopNavBar
+        menuOpen={menuOpen}
+        userInitials={userInitials}
+        isLoggedIn={isLoggedIn}
+        dropDownContainer={dropDownContainer}
+        id={id}
+        handleDelete={handleDelete}
+        handleLogOut={handleLogOut}
+        setMenuOpen={setMenuOpen}
+      />
+      <MobileNavBar />
+      <h1>eferferferferferf</h1>
+      <h1>eferferferferferf</h1>
+      <h1>eferferferferferf</h1>
+      <h1>eferferferferferf</h1>
+      <h1>eferferferferferf</h1>
+      <h1>eferferferferferf</h1>
+      <h1>eferferferferferf</h1>
+      <h1>eferferferferferf</h1>
+      <h1>eferferferferferf</h1>
+      <h1>eferferferferferf</h1>
+      <h1>eferferferferferf</h1>
+      <h1>eferferferferferf</h1>
+      <h1>eferferferferferf</h1>
+      <h1>eferferferferferf</h1>
+      <h1>eferferferferferf</h1>
+    </div>
   );
 }
+ */
