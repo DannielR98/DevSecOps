@@ -1,4 +1,4 @@
-import { useAuth0, User } from "@auth0/auth0-react";
+import { useAuth0, type User } from "@auth0/auth0-react";
 import {
   useEffect,
   useRef,

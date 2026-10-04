@@ -157,7 +157,7 @@ function stateFor(page: Page): ScenarioState {
 
 async function openAuthenticatedApp(page: Page) {
     await page.goto("/");
-    await expect(page.getByText(/Authenticated securely via Auth0/)).toBeVisible();
+    await expect(page.getByText(/Säkert autentiserad via Auth0/)).toBeVisible();
 }
 
 Before(async ({ page }) => {
@@ -180,7 +180,7 @@ When("jag loggar in med en lokal Auth0-testidentitet", async ({ page }) => {
 });
 
 Then("ska jag vara inloggad", async ({ page }) => {
-    await expect(page.getByText(/Hello, BDD Test User!/)).toBeVisible();
+    await expect(page.getByText(/Hej, BDD Test User!/)).toBeVisible();
 });
 
 Then("testprofilen ska synkroniseras till den lokala databasen", async ({ page }) => {
@@ -193,12 +193,12 @@ Given("jag är inloggad via Auth0", async ({ page }) => {
 
 When("jag skapar en ny grupp med namnet {string}", async ({ page }, name: string) => {
     await openAuthenticatedApp(page);
-    await page.getByPlaceholder("Group Name...").fill(name);
-    await page.getByRole("button", { name: "+ Create", exact: true }).click();
+    await page.getByPlaceholder("Gruppnamn...").fill(name);
+    await page.getByRole("button", { name: "+ Skapa", exact: true }).click();
 });
 
 Then("ska gruppen skapas", async ({ page }) => {
-    await expect(page.getByText("Group created successfully!")).toBeVisible();
+    await expect(page.getByText("Gruppen har skapats!")).toBeVisible();
     await expect(page.getByText("Fredagsquiz")).toBeVisible();
 });
 
@@ -209,7 +209,7 @@ Then("en unik {int}-teckens inbjudningskod ska skapas", async ({ page }, length:
 });
 
 Then("jag ska bli ägare av gruppen", async ({ page }) => {
-    await expect(page.getByText("Owner", { exact: true })).toBeVisible();
+    await expect(page.getByText("Ägare", { exact: true })).toBeVisible();
 });
 
 Given("jag har fått en giltig inbjudningskod till en grupp", async ({ page }) => {
@@ -217,8 +217,8 @@ Given("jag har fått en giltig inbjudningskod till en grupp", async ({ page }) =
 });
 
 When("jag anger koden och klickar på Gå med", async ({ page }) => {
-    await page.getByPlaceholder("e.g. EXAM24").fill("VQQMY8");
-    await page.getByRole("button", { name: /Join/ }).click();
+    await page.getByPlaceholder("t.ex. EXAM24").fill("VQQMY8");
+    await page.getByRole("button", { name: /Gå med/ }).click();
 });
 
 Then("ska jag läggas till som medlem i gruppen", async ({ page }) => {
@@ -234,13 +234,13 @@ When('jag skapar ett quiz med kategorin {string} och frågor', async ({ page }, 
     expect(category).toBe("DevSecOps");
     await openAuthenticatedApp(page);
     await expect(page.getByText("Fredagsquiz")).toBeVisible();
-    await page.getByRole("button", { name: /Create New Quiz/ }).click();
-    await page.getByPlaceholder("e.g. DevSecOps Fundamentals").fill("DevSecOps grunder");
-    await page.getByPlaceholder("Enter question text...").fill("Vilket alternativ är säkrast?");
+    await page.getByRole("button", { name: /Skapa nytt quiz/ }).click();
+    await page.getByPlaceholder("t.ex. Grunderna i DevSecOps").fill("DevSecOps grunder");
+    await page.getByPlaceholder("Skriv frågetext...").fill("Vilket alternativ är säkrast?");
     for (const [index, option] of ["Secure", "Insecure", "Unknown", "Disabled"].entries()) {
-        await page.getByPlaceholder(`Option ${index + 1}`).fill(option);
+        await page.getByPlaceholder(`Alternativ ${index + 1}`).fill(option);
     }
-    await page.getByRole("button", { name: "Save Quiz" }).click();
+    await page.getByRole("button", { name: "Spara quiz" }).click();
 });
 
 Then("ska quizet sparas i databasen", async ({ page }) => {
@@ -260,13 +260,13 @@ Given("jag är medlem i en grupp med ett publicerat quiz", async ({ page }) => {
 
 When("jag svarar på alla frågor i quizet och skickar in", async ({ page }) => {
     await openAuthenticatedApp(page);
-    await page.getByRole("button", { name: /Take Quiz/ }).click();
+    await page.getByRole("button", { name: /Starta quiz/ }).click();
     await page.getByRole("radio", { name: "Secure", exact: true }).check();
-    await page.getByRole("button", { name: "Submit Answers" }).click();
+    await page.getByRole("button", { name: "Lämna in svar" }).click();
 });
 
 Then("ska mitt poängresultat beräknas", async ({ page }) => {
-    await expect(page.getByText("Score: 1 / 1 (100%)")).toBeVisible();
+    await expect(page.getByText("Resultat: 1 / 1 (100%)")).toBeVisible();
     expect(stateFor(page).quizResult?.percentage).toBe(100);
 });
 
