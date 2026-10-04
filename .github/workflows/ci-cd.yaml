@@ -91,6 +91,37 @@ jobs:
         with:
           config: auto
 
+      # =========================
+      # 4. BDD & E2E TESTING (Playwright)
+      # =========================
+    
+      - name: Install npm & Playwright
+        run: |
+          npx playwright install --with-deps
+
+      - name: Set up and Run Playwright tests
+        env:
+          PYTHONDONOTWRITEBYTECODE: 1
+          PYTHONUNBUFFERED: 1
+        run: |
+          cd backend
+          npm ci
+          npm install
+          npm start &
+          sleep 15
+          cd frontend/quiz
+          npm ci
+          npm install
+          npm install --save-dev @cucumber/cucumber
+          npm run dev -- --host 0.0.0.0 &
+          #wait for software to start
+          sleep 15
+          #run tests
+          cd ../../
+          npm run bdd:gen
+          npx playwright test
+
+
 
   cd:
       name: Continuous Deployment (Docker)
