@@ -10,4 +10,4 @@ COPY . .
 
 EXPOSE 5000
 
-CMD ["npm", "run", "dev", "--", "--legacy-watch"]
+CMD ["node", "--watch", "app.js"]
