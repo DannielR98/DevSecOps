@@ -1,4 +1,4 @@
-import { useAuth0 } from "@auth0/auth0-react";
+import { useAuth } from "../../../context/AuthContext";
 import { createUseStyles } from "react-jss";
 
 const useStyles = createUseStyles({
@@ -57,7 +57,7 @@ const useStyles = createUseStyles({
 
 export default function StartSection() {
   const classes = useStyles();
-  const { loginWithRedirect } = useAuth0();
+  const { openAuthModal } = useAuth();
 
   return (
     <section id="start" className={classes.section}>
@@ -72,18 +72,14 @@ export default function StartSection() {
         <div className={classes.actions}>
           <button
             className={classes.loginButton}
-            onClick={() => loginWithRedirect()}
+            onClick={() => openAuthModal("login")}
           >
             Logga in
           </button>
 
           <button
             className={classes.registerButton}
-            onClick={() =>
-              loginWithRedirect({
-                authorizationParams: { screen_hint: "signup" },
-              })
-            }
+            onClick={() => openAuthModal("signup")}
           >
             Skapa konto
           </button>

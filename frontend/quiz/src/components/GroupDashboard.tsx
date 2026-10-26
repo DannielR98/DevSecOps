@@ -1,4 +1,4 @@
-import { useAuth0 } from "@auth0/auth0-react";
+import { useAuth } from "../context/AuthContext";
 import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store/store";
@@ -33,7 +33,7 @@ const useStyles = createUseStyles({
 export default function GroupDashboard({ onGroupChange }: GroupDashboardProps) {
   const classes = useStyles();
 
-  const { isAuthenticated, getAccessTokenSilently } = useAuth0();
+  const { isAuthenticated, getAccessTokenSilently } = useAuth();
   const { isAuth, token: reduxToken } = useSelector(
     (state: RootState) => state.authSlice,
   );

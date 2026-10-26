@@ -19,6 +19,24 @@ vi.mock('@auth0/auth0-react', () => ({
   useAuth0: () => mockUseAuth0(),
 }))
 
+vi.mock('../context/AuthContext', () => ({
+  useAuth: () => mockUseAuth0(),
+  useAuth0: () => mockUseAuth0(),
+  AuthProvider: ({ children }: any) => children,
+}))
+
+vi.mock('../supabase', () => ({
+  supabase: {
+    auth: {
+      getSession: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      onAuthStateChange: vi.fn().mockReturnValue({ data: { subscription: { unsubscribe: vi.fn() } } }),
+      signInWithPassword: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      signUp: vi.fn().mockResolvedValue({ data: { session: null }, error: null }),
+      signOut: vi.fn().mockResolvedValue({ error: null }),
+    },
+  },
+}))
+
 vi.mock('../utilities/HeaderFunction', () => ({
   apiRequest: mockApiRequest,
 }))
@@ -74,4 +92,5 @@ beforeEach(() => {
   mockApiRequest.mockImplementation(defaultApiResult)
 })
 
-export { mockUseAuth0, mockApiRequest }
+const mockUseAuth = mockUseAuth0
+export { mockUseAuth0, mockUseAuth, mockApiRequest }

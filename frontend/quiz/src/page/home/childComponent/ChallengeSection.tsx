@@ -1,4 +1,4 @@
-import { useAuth0 } from "@auth0/auth0-react";
+import { useAuth } from "../../../context/AuthContext";
 import { createUseStyles } from "react-jss";
 
 const useStyles = createUseStyles({
@@ -44,7 +44,7 @@ const useStyles = createUseStyles({
 
 export default function ChallengeSection() {
   const classes = useStyles();
-  const { loginWithRedirect } = useAuth0();
+  const { loginWithRedirect } = useAuth();
 
   return (
     <section className={classes.section}>

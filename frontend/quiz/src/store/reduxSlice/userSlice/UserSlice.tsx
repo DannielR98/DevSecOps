@@ -32,7 +32,9 @@ const UserSlice = createSlice({
       state.users = action.payload;
     },
     setUser: (state, action: PayloadAction<string>) => {
-      const findUser = state.users.find((u) => u.auth0_id === action.payload);
+      const findUser = state.users.find(
+        (u) => u.supabase_id === action.payload || u.auth0_id === action.payload,
+      );
 
       if (findUser) {
         state.userOne = findUser;
@@ -151,9 +153,11 @@ const userSlice = createSlice({
       state.users = action.payload;
     },
 
-    // Find user by Auth0 ID
+    // Find user by Supabase / Auth ID
     setUser: (state, action: PayloadAction<string>) => {
-      const findUser = state.users.find((u) => u.auth0_id === action.payload);
+      const findUser = state.users.find(
+        (u) => u.supabase_id === action.payload || u.auth0_id === action.payload,
+      );
 
       if (findUser) {
         state.userOne = findUser;

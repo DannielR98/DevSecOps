@@ -1,6 +1,6 @@
 # DevSecOps Quiz-plattform
 
-Säker och modern Quiz-plattform byggd med **React**, **Express**, **SQLite** och **Auth0** för DevSecOps kurs.
+Säker och modern Quiz-plattform byggd med **React**, **Express**, **SQLite** och **Supabase Auth** för DevSecOps kurs.
 
 ---
 
@@ -15,12 +15,12 @@ Säker och modern Quiz-plattform byggd med **React**, **Express**, **SQLite** oc
 │   Port: 3000    │ JWT  │   Port: 5000        │ ORM  │   Database      │
 └────────┬────────┘      └──────────┬──────────┘      └─────────────────┘
          │                          │
-         │ OIDC                     │ RS256 JWT
+         │ Auth                     │ JWT Secret
          ▼                          ▼
 ┌─────────────────┐      ┌─────────────────────┐
-│   Auth0         │      │   Docker Compose    │
-│   Identity      │      │   Orchestration     │
-│   Provider      │      │                     │
+│   Supabase      │      │   Docker Compose    │
+│   Auth          │      │   Orchestration     │
+│                 │      │                     │
 └─────────────────┘      └─────────────────────┘
 ```
 
@@ -28,37 +28,35 @@ Säker och modern Quiz-plattform byggd med **React**, **Express**, **SQLite** oc
 
 | Komponent | Teknologi | Ansvar |
 |-----------|-----------|--------|
-| **Frontend** | React + Vite + TypeScript | Användargränssnitt, Auth0 OIDC-inloggning, JWT-hantering |
-| **Backend** | Express.js + Node.js | REST API, JWT-verifiering (RS256), affärslogik |
+| **Frontend** | React + Vite + TypeScript | Användargränssnitt, Supabase Auth-inloggning, JWT-hantering |
+| **Backend** | Express.js + Node.js | REST API, JWT-verifiering, affärslogik |
 | **Databas** | SQLite + Sequelize ORM | Persistens av användare, grupper, quiz, resultat |
-| **Auth0** | OAuth 2.0 / OpenID Connect | Autentisering, MFA, JWT-utfärdande |
+| **Supabase** | Supabase Auth (JWT) | Autentisering, säker lösenordshantering, JWT-utfärdande |
 | **Docker** | Docker Compose | Containerisering |
 
 
 ### Dataflöde - Autentisering
 
-1. Användare klickar på "Logga in" i frontend
-2. Frontend omdirigerar till Auth0 Universal Login (OIDC)
-3. Användare autentiserar sig hos Auth0 (lösenord + MFA)
-4. Auth0 returnerar JWT (Access Token) till frontend
-5. Frontend sparar JWT och inkluderar det i `Authorization: Bearer <token>`-headern
-6. Backend validerar JWT med Auth0:s publika nyckel (JWKS)
-7. Vid giltig token synkroniseras användarprofilen till lokal SQLite-databas
-8. Backend returnerar skyddad data till frontend
+1. Användare klickar på "Logga in" eller "Skapa konto" i frontend
+2. Användare autentiserar sig via Supabase Auth Modal (e-post och lösenord)
+3. Supabase returnerar JWT (Access Token & Session) till frontend
+4. Frontend sparar session och inkluderar JWT i `Authorization: Bearer <token>`-headern
+5. Backend validerar JWT med Supabase JWT Secret
+6. Vid giltig token synkroniseras användarprofilen till lokal SQLite-databas (`users`)
+7. Backend returnerar skyddad data till frontend
 
 
 
 ## Tekniska val
 
-### Varför Auth0?
+### Varför Supabase Auth?
 
 | Fördel | Beskrivning |
 |--------|-------------|
-| **Inga lösenord lokalt** | Vi lagrar inga lösenord i vår databas - allt hanteras av Auth0 |
-| **MFA inbyggt** | Multi-Factor Authentication aktiveras med några klick i Auth0-dashboard |
-| **OAuth 2.0 / OIDC** | Standard för autentisering(OIDC) och auktorisering (Oauth2) |
-| **RS256 JWT** | Asymmetrisk kryptering med publika/privata nycklar för säker token-verifiering |
-| **Enkel integration** | Auth0 SDK för React gör integrationen rakt på |
+| **Inga lösenord lokalt** | Vi lagrar inga känsliga lösenord i SQLite - allt hanteras säkert av Supabase |
+| **Standard JWT** | Snabb och säker tokenverifiering i backend via JWT Secret |
+| **Smidig UI-upplevelse** | Inbyggd modal i frontend utan externa omdirigeringar |
+| **Enkel integration** | `@supabase/supabase-js` ger en ren och modern utvecklarupplevelse |
 
 ### Varför Docker Compose?
 
@@ -69,19 +67,19 @@ Säker och modern Quiz-plattform byggd med **React**, **Express**, **SQLite** oc
 | **Isolering** | Frontend och backend körs i separata containrar |
 | **Volymhantering** | Databasen persisteras i Docker-volymer |
 
-## Säkerhet & Autentisering (Auth0-integration)
+## Säkerhet & Autentisering (Supabase Auth-integration)
 
-Projektet använder **Auth0 (OAuth 2.0 / OpenID Connect)** för autentisering och användarhantering:
+Projektet använder **Supabase Auth** för autentisering och användarhantering:
 
-- **Asymmetrisk RS256 JWT-verifiering**: Backend verifierar alla inkommande tokens med publika nycklar från Auth0:s JWKS-slutpunkt (`/.well-known/jwks.json`).
-- **Inga lösenord i den lokala databasen**: Lösenord, kryptering, MFA och kontoregistrering hanteras helt av Auth0.
-- **Lokal profilsynkronisering**: Backend synkroniserar automatisk Auth0-användarprofiler (`auth0_id`, `email`, `username`) till den lokala SQLite-databasen (`users`) vid inloggning.
+- **JWT-verifiering**: Backend verifierar alla inkommande tokens med Supabase JWT Secret.
+- **Inga lösenord i den lokala databasen**: Lösenord, kryptering och kontoregistrering hanteras helt av Supabase.
+- **Lokal profilsynkronisering**: Backend synkroniserar automatiskt Supabase-användarprofiler (`supabase_id`, `email`, `username`) till den lokala SQLite-databasen (`users`) vid inloggning.
 
 ---
 
 ## Användarflöden (User Flows)
 
-1. **Registrera konto & logga in**: Användare autentiserar sig säkert via Auth0 Universal Login (MFA, lösenordspolicys, OAuth 2.0).
+1. **Registrera konto & logga in**: Användare autentiserar sig säkert via Supabase Auth.
 2. **Skapa grupp (Circle)**: Inloggad användare skapar en grupp och blir automatiskt ägare.
 3. **Bjuda in & gå med via kod**: Ägare genererar en unik 6-teckens inbjudningskod (t.ex. `VQQMY8`) → vän anger koden och blir medlem i gruppen.
 4. **Skapa quiz**: Medlem skapar ett quiz i sin grupp (kategori, frågor, valbara alternativ och rätt svar).
@@ -159,15 +157,14 @@ Feature: Skapa och genomföra quiz
 ## Snabbstart (Docker)
 
 ### 1. Miljövariabler (.env)
-Säkerställ att `.env` eller `docker-compose.yaml` innehåller Auth0-inställningarna:
+Säkerställ att `.env` eller `docker-compose.yaml` innehåller Supabase-inställningarna:
 
 ```env
-VITE_AUTH0_DOMAIN=dev-oz2aw2gea6l10gab.us.auth0.com
-VITE_AUTH0_CLIENT_ID=nozbtl9zVfqFJPeVZE6XfnjTAsOchVsy
-VITE_AUTH0_AUDIENCE=https://quiz-api.dev
+VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 
-AUTH0_AUDIENCE=https://quiz-api.dev
-AUTH0_ISSUER_BASE_URL=https://dev-oz2aw2gea6l10gab.us.auth0.com/
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_JWT_SECRET=your_supabase_jwt_secret_here
 PORT=5000
 ```
 
@@ -206,13 +203,14 @@ DevSecOps/
 │   ├── database/
 │   │   ├── database.js            # Sequelize SQLite-anslutning
 │   │   └── schemas/
-│   │       ├── userSchema.js      # Users-tabell (auth0_id, email, name)
+│   │       ├── userSchema.js      # Users-tabell (supabase_id, auth0_id, email, name)
 │   │       ├── groupSchema.js     # Groups-tabell (name, invite_code, owner_id)
 │   │       ├── groupMemberSchema.js # Group members & roller
 │   │       ├── quizSchema.js      # Quizzes-tabell (questions, category, group_id)
 │   │       └── quizResultSchema.js# Quiz results-tabell (score, total)
 │   ├── middleware/
-│   │   ├── auth0.js               # RS256 Auth0 JWT verifierings-middleware
+│   │   ├── auth0.js               # Supabase JWT verifierings-middleware (bakåtkompatibel)
+│   │   ├── supabaseAuth.js        # Supabase JWT verifiering
 │   │   └── verifyJWT.js           # Symmetrisk JWT verifiering
 │   ├── app.js                     # Express app entry point
 │   ├── Dockerfile
@@ -221,14 +219,17 @@ DevSecOps/
 ├── frontend/quiz/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── Navbar.tsx         # Auth0 Navigation & profilvisning
+│   │   │   ├── NavbarContainer/   # Navigation & profilvisning
+│   │   │   ├── Auth/AuthModal.tsx # Supabase Login & Registrering Modal
 │   │   │   ├── GroupDashboard.tsx # Gruppskapande, redigering & inbjudningar
 │   │   │   └── QuizManager.tsx    # Quiz-skapande & interaktiv spelfunktion
+│   │   ├── context/
+│   │   │   └── AuthContext.tsx    # Supabase AuthProvider & useAuth hook
 │   │   ├── page/
 │   │   │   ├── home/HomePage.tsx  # Huvuddashboard
 │   │   │   └── routes/RoutePage.tsx # React Router setup
 │   │   ├── App.tsx
-│   │   └── main.tsx               # Auth0Provider & Redux Provider
+│   │   └── main.tsx               # AuthProvider & Redux Provider
 │   ├── Dockerfile
 │   └── package.json
 │

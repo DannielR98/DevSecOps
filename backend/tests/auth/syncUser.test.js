@@ -86,6 +86,7 @@ describe("Auth > sync user", () => {
     expect(res.body.user).toEqual(createdUser);
     expect(createMock).toHaveBeenCalledWith({
       auth0_id: "auth0|test-user",
+      supabase_id: "auth0|test-user",
       email: "jane@example.com",
       username: "jane",
       firstname: "Jane",
@@ -105,6 +106,7 @@ describe("Auth > sync user", () => {
     expect(res.body.user).toEqual(createdUser);
     expect(createMock).toHaveBeenCalledWith({
       auth0_id: "auth0|test-user",
+      supabase_id: "auth0|test-user",
       email: "auth0|test-user@auth0.user",
       username: "auth0|test-user",
       firstname: "Auth0",

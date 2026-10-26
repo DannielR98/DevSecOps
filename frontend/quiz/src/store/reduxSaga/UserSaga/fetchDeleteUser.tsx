@@ -172,7 +172,7 @@ async function DeleteUserApi(action: PayloadAction<number>) {
   const authData: StoredUser = JSON.parse(storedUser);
 
   if (!authData.token) {
-    throw new Error("Auth0 token not found");
+    throw new Error("Auth token not found");
   }
 
   const response = await apiRequest({

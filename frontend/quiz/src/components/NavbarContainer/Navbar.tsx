@@ -1,4 +1,5 @@
-import { useAuth0, type User } from "@auth0/auth0-react";
+import { useAuth } from "../../context/AuthContext";
+import type { User } from "../../store/reduxSlice/userSlice/authSlice";
 import {
   useEffect,
   useRef,
@@ -45,7 +46,7 @@ export default function Navbar() {
     logout,
     getAccessTokenSilently,
     isLoading,
-  } = useAuth0();
+  } = useAuth();
 
   const dispatch = useDispatch();
   const [menuOpen, setMenuOpen] = useState(false);
@@ -78,7 +79,7 @@ export default function Navbar() {
           }),
         );
       } catch (error) {
-        console.error("AUTH0 TOKEN ERROR:", error);
+        console.error("SUPABASE AUTH TOKEN ERROR:", error);
       }
     };
 

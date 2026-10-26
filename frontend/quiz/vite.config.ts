@@ -7,7 +7,10 @@ export default defineConfig(({ mode }) => ({
 
   resolve: {
     alias: mode === "e2e"
-      ? [{ find: "@auth0/auth0-react", replacement: resolve(process.cwd(), "src/e2e/auth0Mock.tsx") }]
+      ? [
+          { find: "@auth0/auth0-react", replacement: resolve(process.cwd(), "src/e2e/auth0Mock.tsx") },
+          { find: resolve(process.cwd(), "src/context/AuthContext"), replacement: resolve(process.cwd(), "src/e2e/auth0Mock.tsx") },
+        ]
       : [],
   },
 

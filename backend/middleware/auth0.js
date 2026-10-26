@@ -1,12 +1,34 @@
-import { auth } from "express-oauth2-jwt-bearer";
+import jwt from "jsonwebtoken";
 import dotenv from "dotenv";
 
 dotenv.config();
 
-export const checkJwt = auth({
-  audience: process.env.AUTH0_AUDIENCE || "https://quiz-api.dev",
-  issuerBaseURL:
-    process.env.AUTH0_ISSUER_BASE_URL ||
-    "https://dev-oz2aw2gea6l10gab.us.auth0.com/",
-  tokenSigningAlg: "RS256",
-});
+export const checkJwt = (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ message: "Authorization header is required" });
+    }
+
+    const token = authHeader.split(" ")[1];
+    if (!token) {
+      return res.status(401).json({ message: "Invalid authorization header" });
+    }
+
+    const secret = process.env.SUPABASE_JWT_SECRET || process.env.JWT_SECRET;
+    const decoded = jwt.verify(token, secret);
+
+    // Provide both req.auth.payload and req.user so all controllers remain compatible
+    req.auth = { payload: decoded };
+    req.user = decoded;
+
+    next();
+  } catch (error) {
+    return res.status(401).json({
+      message: "Invalid or expired token",
+      error: error.message,
+    });
+  }
+};
+
+export default checkJwt;

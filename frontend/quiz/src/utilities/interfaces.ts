@@ -1,5 +1,6 @@
 export interface UserType {
-  auth0_id: string;
+  auth0_id?: string;
+  supabase_id?: string;
   name?: string;
   id?: number;
   picture?: string;
@@ -7,7 +8,16 @@ export interface UserType {
   surname: string;
   username: string;
   email: string;
-  password: string;
+  password?: string;
+}
+
+export interface AuthUser {
+  sub?: string;
+  name?: string;
+  email?: string;
+  nickname?: string;
+  picture?: string;
+  [key: string]: unknown;
 }
 
 export interface RegisterUserType {
@@ -18,6 +28,7 @@ export interface RegisterUserType {
   password: string;
   confirmPassword?: string;
 }
+
 export interface LoginUserType {
   username: string;
   password: string;
@@ -48,5 +59,5 @@ export interface UpdaterUserType {
   surname: string;
   username: string;
   email: string;
-  password: string;
+  password?: string;
 }
