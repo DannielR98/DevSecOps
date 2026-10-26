@@ -32,6 +32,7 @@ services:
       - JWT_SECRET=${JWT_SECRET:-dev_jwt_secret_key_12345}
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
+      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-${VITE_SUPABASE_ANON_KEY}}
       - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:${POSTGRES_PASSWORD:-postgres_password_123}@postgres:5432/${POSTGRES_DB:-quiz_devsecops}}
     depends_on:
       - postgres
