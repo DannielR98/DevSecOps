@@ -33,7 +33,7 @@ const UserSlice = createSlice({
     },
     setUser: (state, action: PayloadAction<string>) => {
       const findUser = state.users.find(
-        (u) => u.supabase_id === action.payload || u.auth0_id === action.payload,
+        (u) => u.supabase_id === action.payload,
       );
 
       if (findUser) {
@@ -156,7 +156,7 @@ const userSlice = createSlice({
     // Find user by Supabase / Auth ID
     setUser: (state, action: PayloadAction<string>) => {
       const findUser = state.users.find(
-        (u) => u.supabase_id === action.payload || u.auth0_id === action.payload,
+        (u) => u.supabase_id === action.payload,
       );
 
       if (findUser) {

@@ -84,41 +84,41 @@ Projektet använder **Supabase Auth** för autentisering och användarhantering:
 3. **Bjuda in & gå med via kod**: Ägare genererar en unik 6-teckens inbjudningskod (t.ex. `VQQMY8`) → vän anger koden och blir medlem i gruppen.
 4. **Skapa quiz**: Medlem skapar ett quiz i sin grupp (kategori, frågor, valbara alternativ och rätt svar).
 5. **Delta i quiz**: Medlem öppnar ett quiz i sin grupp, svarar på frågorna och ser sitt poängresultat direkt.
-6. **Se resultat & historik**: Quiz-resultat sparas och kopplas till användarens Auth0-profil i databasen.
+6. **Se resultat & historik**: Quiz-resultat sparas och kopplas till användarens Supabase-profil i databasen.
 
 ---
 
 ## Feature Slices
 
-1. Användare kan autentisera sig säkert via Auth0 (Universal Login).
+1. Användare kan autentisera sig säkert via Supabase Auth (e-post och lösenord).
 2. Användare kan skapa en grupp (circle) och bli ägare.
 3. Gruppägare får en automatisk inbjudningskod (`invite_code`).
 4. Inbjuden person kan gå med i en grupp via inbjudningskoden.
 5. Gruppägare kan redigera gruppnamn och ta bort grupper.
 6. Medlem kan skapa ett quiz (titel, kategori, frågor, alternativ, rätt svar) i sin grupp.
 7. Medlem kan genomföra ett quiz och få sitt resultat beräknat i realtid.
-8. Icke-medlemmar nekas åtkomst till gruppens quiz och funktioner (åtkomstkontroll via Auth0 Bearer-tokens).
+8. Icke-medlemmar nekas åtkomst till gruppens quiz och funktioner (åtkomstkontroll via Supabase Bearer-tokens).
 
 ---
 
 ## BDD-scenarier (Gherkin)
 
 ```gherkin
-Feature: Kontoregistrering och inloggning via Auth0
+Feature: Kontoregistrering och inloggning via Supabase Auth
 
-  Scenario: Ny användare registrerar konto via Auth0
+  Scenario: Ny användare registrerar konto via Supabase Auth
     Given jag är en ny besökare
-    When jag registrerar mig i Auth0 med giltig e-post och starkt lösenord
-    Then ska ett konto skapas i Auth0
+    When jag registrerar mig i Supabase med giltig e-post och starkt lösenord
+    Then ska ett konto skapas i Supabase
     And profilen ska synkroniseras till den lokala databasen
     And jag ska vara inloggad
 
   Scenario: Ny användare registrerar sig och loggar in med samma uppgifter
-    Given jag är på Auth0s inloggningssida
-    When jag väljer "Sign up"
+    Given jag är på inloggningssidan
+    When jag väljer "Registrera dig"
     And jag registrerar mig med en unik e-postadress och ett giltigt lösenord
-    Then ska ett konto skapas i Auth0
-    When jag loggar ut från Auth0
+    Then ska ett konto skapas i Supabase
+    When jag loggar ut från Supabase
     And jag loggar in med samma e-postadress och lösenord
     Then ska jag vara inloggad med det nyskapade kontot
     And profilen ska synkroniseras till den lokala databasen
@@ -126,7 +126,7 @@ Feature: Kontoregistrering och inloggning via Auth0
 Feature: Skapa och gå med i grupp
 
   Scenario: Skapa en grupp med inbjudningskod
-    Given jag är inloggad via Auth0
+    Given jag är inloggad via Supabase
     When jag skapar en ny grupp med namnet "Fredagsquiz"
     Then ska gruppen skapas
     And en unik 6-teckens inbjudningskod ska skapas
@@ -186,7 +186,7 @@ DevSecOps/
 │   ├── Api/
 │   │   └── Routes/
 │   │       ├── auth/
-│   │       │   ├── syncUser.js        # POST /api/sync-user (Auth0-profilsynk)
+│   │       │   ├── syncUser.js        # POST /api/sync-user (Supabase-profilsynk)
 │   │       │   ├── registerUser.js    # Äldre lokal auth
 │   │       │   └── loginUser.js       # Äldre lokal auth
 │   │       ├── Groups/
@@ -203,14 +203,13 @@ DevSecOps/
 │   ├── database/
 │   │   ├── database.js            # Sequelize SQLite-anslutning
 │   │   └── schemas/
-│   │       ├── userSchema.js      # Users-tabell (supabase_id, auth0_id, email, name)
+│   │       ├── userSchema.js      # Users-tabell (supabase_id, email, name)
 │   │       ├── groupSchema.js     # Groups-tabell (name, invite_code, owner_id)
 │   │       ├── groupMemberSchema.js # Group members & roller
 │   │       ├── quizSchema.js      # Quizzes-tabell (questions, category, group_id)
 │   │       └── quizResultSchema.js# Quiz results-tabell (score, total)
 │   ├── middleware/
-│   │   ├── auth0.js               # Supabase JWT verifierings-middleware (bakåtkompatibel)
-│   │   ├── supabaseAuth.js        # Supabase JWT verifiering
+│   │   ├── supabaseAuth.js        # Supabase JWT verifierings-middleware
 │   │   └── verifyJWT.js           # Symmetrisk JWT verifiering
 │   ├── app.js                     # Express app entry point
 │   ├── Dockerfile

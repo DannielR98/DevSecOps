@@ -1,7 +1,7 @@
 import express from "express";
 import Group from "../../../database/schemas/groupSchema.js";
 import User from "../../../database/schemas/userSchema.js";
-import { checkJwt } from "../../../middleware/auth0.js";
+import { checkJwt } from "../../../middleware/supabaseAuth.js";
 
 const router = express.Router();
 
@@ -14,8 +14,8 @@ router.put("/groups/:id", checkJwt, async (req, res) => {
       return res.status(400).json({ message: "Group name is required." });
     }
 
-    const auth0Id = req.auth.payload.sub;
-    const user = await User.findOne({ where: { auth0_id: auth0Id } });
+    const supabaseId = req.auth.payload.sub;
+    const user = await User.findOne({ where: { supabase_id: supabaseId } });
 
     const group = await Group.findByPk(groupId);
     if (!group) {

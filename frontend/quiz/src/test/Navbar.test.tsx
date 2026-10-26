@@ -3,7 +3,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import Navbar from '../components/NavbarContainer/Navbar'
 import { renderWithProviders } from './test-utils'
-import { mockUseAuth0 } from './setup'
+import { mockUseAuth } from './setup'
 
 const loggedOutAuth = () => ({
   isAuthenticated: false,
@@ -12,10 +12,12 @@ const loggedOutAuth = () => ({
   logout: vi.fn(),
   getAccessTokenSilently: vi.fn().mockResolvedValue('test-token'),
   isLoading: false,
+  openAuthModal: vi.fn(),
+  closeAuthModal: vi.fn(),
 })
 
 const loggedInAuthStorage = {
-  sub: 'auth0|test-user',
+  sub: 'supabase|test-user',
   email: 'test@example.com',
   name: 'Test User',
   nickname: 'tester',
@@ -28,8 +30,8 @@ describe('Navbar Component', () => {
     expect(screen.getByText(/DevSecOps Quiz/i)).toBeInTheDocument()
   })
 
-  it('should show loading text while Auth0 is loading', () => {
-    mockUseAuth0.mockReturnValue({
+  it('should show loading text while auth is loading', () => {
+    mockUseAuth.mockReturnValue({
       ...loggedOutAuth(),
       isLoading: true,
     })
@@ -39,7 +41,7 @@ describe('Navbar Component', () => {
 
   it('should show login button when logged out and trigger login', async () => {
     const loginWithRedirect = vi.fn()
-    mockUseAuth0.mockReturnValue({
+    mockUseAuth.mockReturnValue({
       ...loggedOutAuth(),
       loginWithRedirect,
     })
@@ -56,13 +58,15 @@ describe('Navbar Component', () => {
 
   it('should show user name and logout when logged in', async () => {
     const logout = vi.fn()
-    mockUseAuth0.mockReturnValue({
+    mockUseAuth.mockReturnValue({
       isAuthenticated: true,
       user: loggedInAuthStorage,
       loginWithRedirect: vi.fn(),
       logout,
       getAccessTokenSilently: vi.fn().mockResolvedValue('test-token'),
       isLoading: false,
+      openAuthModal: vi.fn(),
+      closeAuthModal: vi.fn(),
     })
     const { store } = renderWithProviders(<Navbar />, {
       preloadedState: {
@@ -88,13 +92,15 @@ describe('Navbar Component', () => {
   })
 
   it('should open profile dropdown when clicking avatar', async () => {
-    mockUseAuth0.mockReturnValue({
+    mockUseAuth.mockReturnValue({
       isAuthenticated: true,
       user: loggedInAuthStorage,
       loginWithRedirect: vi.fn(),
       logout: vi.fn(),
       getAccessTokenSilently: vi.fn().mockResolvedValue('test-token'),
       isLoading: false,
+      openAuthModal: vi.fn(),
+      closeAuthModal: vi.fn(),
     })
     renderWithProviders(<Navbar />, {
       preloadedState: {

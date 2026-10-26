@@ -8,17 +8,17 @@ const { findOneMock, createMock } = vi.hoisted(() => ({
   createMock: vi.fn(),
 }));
 
-// Provide a stable Auth0 subject without requiring a real access token.
-vi.mock("../../middleware/auth0.js", () => ({
+// Provide a stable Supabase subject without requiring a real access token.
+vi.mock("../../middleware/supabaseAuth.js", () => ({
   checkJwt: (req, res, next) => {
-    req.auth = { payload: { sub: "auth0|test-user" } };
+    req.auth = { payload: { sub: "supabase|test-user" } };
     next();
   },
 }));
 
 vi.mock("../../database/schemas/userSchema.js", () => ({
   default: {
-    // The route may look up an Auth0 ID or email and may create a new local user.
+    // The route may look up an Supabase ID or email and may create a new local user.
     findOne: findOneMock,
     create: createMock,
   },
@@ -34,9 +34,9 @@ describe("Auth > sync user", () => {
     vi.clearAllMocks();
   });
 
-  // An existing Auth0 match is returned without creating another local user.
-  it("returns an existing user matched by Auth0 id", async () => {
-    const user = { id: 1, auth0_id: "auth0|test-user", email: "john@example.com" };
+  // An existing Supabase match is returned without creating another local user.
+  it("returns an existing user matched by Supabase id", async () => {
+    const user = { id: 1, supabase_id: "supabase|test-user", email: "john@example.com" };
     findOneMock.mockResolvedValueOnce(user);
 
     const res = await request(app).post("/api/sync-user").send({
@@ -51,8 +51,8 @@ describe("Auth > sync user", () => {
     expect(createMock).not.toHaveBeenCalled();
   });
 
-  // An email-only match is linked to the Auth0 subject and saved.
-  it("links an existing email account to Auth0", async () => {
+  // An email-only match is linked to the Supabase subject and saved.
+  it("links an existing email account to Supabase", async () => {
     const user = {
       id: 1,
       email: "john@example.com",
@@ -65,14 +65,14 @@ describe("Auth > sync user", () => {
     });
 
     expect(res.status).toBe(200);
-    expect(user.auth0_id).toBe("auth0|test-user");
+    expect(user.supabase_id).toBe("supabase|test-user");
     expect(user.save).toHaveBeenCalledOnce();
     expect(createMock).not.toHaveBeenCalled();
   });
 
-  // When no match exists, the Auth0 profile is converted into a new local user.
+  // When no match exists, the Supabase profile is converted into a new local user.
   it("creates a local user when no matching user exists", async () => {
-    const createdUser = { id: 2, auth0_id: "auth0|test-user" };
+    const createdUser = { id: 2, supabase_id: "supabase|test-user" };
     findOneMock.mockResolvedValue(null);
     createMock.mockResolvedValue(createdUser);
 
@@ -85,8 +85,8 @@ describe("Auth > sync user", () => {
     expect(res.status).toBe(200);
     expect(res.body.user).toEqual(createdUser);
     expect(createMock).toHaveBeenCalledWith({
-      auth0_id: "auth0|test-user",
-      supabase_id: "auth0|test-user",
+      supabase_id: "supabase|test-user",
+      supabase_id: "supabase|test-user",
       email: "jane@example.com",
       username: "jane",
       firstname: "Jane",
@@ -94,9 +94,9 @@ describe("Auth > sync user", () => {
     });
   });
 
-  // Missing profile fields use the route's deterministic Auth0 fallback values.
-  it("creates a user with Auth0 fallback values when profile data is missing", async () => {
-    const createdUser = { id: 3, auth0_id: "auth0|test-user" };
+  // Missing profile fields use the route's deterministic Supabase fallback values.
+  it("creates a user with Supabase fallback values when profile data is missing", async () => {
+    const createdUser = { id: 3, supabase_id: "supabase|test-user" };
     findOneMock.mockResolvedValue(null);
     createMock.mockResolvedValue(createdUser);
 
@@ -105,11 +105,11 @@ describe("Auth > sync user", () => {
     expect(res.status).toBe(200);
     expect(res.body.user).toEqual(createdUser);
     expect(createMock).toHaveBeenCalledWith({
-      auth0_id: "auth0|test-user",
-      supabase_id: "auth0|test-user",
-      email: "auth0|test-user@auth0.user",
-      username: "auth0|test-user",
-      firstname: "Auth0",
+      supabase_id: "supabase|test-user",
+      supabase_id: "supabase|test-user",
+      email: "supabase|test-user@supabase.user",
+      username: "supabase|test-user",
+      firstname: "Supabase",
       surname: "User",
     });
   });

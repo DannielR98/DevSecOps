@@ -159,7 +159,7 @@ export default function UserInfoPage() {
       try {
         const token = await getAccessTokenSilently();
 
-        console.log("AUTH0 TOKEN EXISTS:", !!token);
+        console.log("AUTH TOKEN EXISTS:", !!token);
         console.log("USER ID:", userId);
 
         dispatch({
@@ -170,7 +170,7 @@ export default function UserInfoPage() {
           },
         });
       } catch (error) {
-        console.error("AUTH0 TOKEN ERROR:", error);
+        console.error("AUTH TOKEN ERROR:", error);
       }
     };
 

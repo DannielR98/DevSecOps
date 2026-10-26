@@ -21,11 +21,11 @@ vi.mock("../../database/schemas/userSchema.js", () => ({
   },
 }));
 
-// Mock Auth0 middleware so the route receives the subject of an authenticated user.
-vi.mock("../../middleware/auth0.js", () => ({
+// Mock Supabase middleware so the route receives the subject of an authenticated user.
+vi.mock("../../middleware/supabaseAuth.js", () => ({
   checkJwt: (req, res, next) => {
     req.user = { id: 1 };
-    req.auth = { payload: { sub: "auth0|test-user" } };
+    req.auth = { payload: { sub: "supabase|test-user" } };
     next();
   },
 }));

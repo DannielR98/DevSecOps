@@ -1,7 +1,6 @@
 import express from "express";
-import { Op } from "sequelize";
 import User from "../../../database/schemas/userSchema.js";
-import { checkJwt } from "../../../middleware/auth0.js";
+import { checkJwt } from "../../../middleware/supabaseAuth.js";
 
 const router = express.Router();
 
@@ -12,7 +11,7 @@ router.post("/sync-user", checkJwt, async (req, res) => {
 
     let user = await User.findOne({
       where: {
-        [Op.or]: [{ supabase_id: authId }, { auth0_id: authId }],
+        supabase_id: authId,
       },
     });
 
@@ -21,20 +20,17 @@ router.post("/sync-user", checkJwt, async (req, res) => {
       user = await User.findOne({ where: { email } });
       if (user) {
         user.supabase_id = authId;
-        user.auth0_id = authId;
         await user.save();
       }
     }
 
     if (!user) {
       // Create new local user synced from Supabase
-      const isAuth0 = authId.startsWith("auth0|");
       user = await User.create({
-        auth0_id: authId,
         supabase_id: authId,
-        email: email || (isAuth0 ? `${authId}@auth0.user` : `${authId}@supabase.user`),
+        email: email || `${authId}@supabase.user`,
         username: nickname || name || email || authId,
-        firstname: name ? name.split(" ")[0] : (isAuth0 ? "Auth0" : "Supabase"),
+        firstname: name ? name.split(" ")[0] : "Supabase",
         surname: name && name.split(" ").length > 1 ? name.split(" ").slice(1).join(" ") : "User",
       });
     }

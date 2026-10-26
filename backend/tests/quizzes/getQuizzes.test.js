@@ -14,9 +14,9 @@ const {
   findAllQuizMock: vi.fn(),
 }));
 
-vi.mock("../../middleware/auth0.js", () => ({
+vi.mock("../../middleware/supabaseAuth.js", () => ({
   checkJwt: (req, res, next) => {
-    req.auth = { payload: { sub: "auth0|atester-id" } };
+    req.auth = { payload: { sub: "supabase|atester-id" } };
     next();
   },
 }));
@@ -47,7 +47,7 @@ describe("GET /api/quizzes", () => {
   });
 
   it("returns empty quizzes array when user belongs to 0 groups", async () => {
-    findOneUserMock.mockResolvedValue({ id: 99, auth0_id: "auth0|atester-id" });
+    findOneUserMock.mockResolvedValue({ id: 99, supabase_id: "supabase|atester-id" });
     findAllMemberMock.mockResolvedValue([]);
     findAllGroupMock.mockResolvedValue([]);
 
@@ -59,7 +59,7 @@ describe("GET /api/quizzes", () => {
   });
 
   it("returns only quizzes for groups the user belongs to", async () => {
-    findOneUserMock.mockResolvedValue({ id: 99, auth0_id: "auth0|atester-id" });
+    findOneUserMock.mockResolvedValue({ id: 99, supabase_id: "supabase|atester-id" });
     findAllMemberMock.mockResolvedValue([{ group_id: 10 }]);
     findAllGroupMock.mockResolvedValue([{ id: 10, name: "Dev Team" }]);
     findAllQuizMock.mockResolvedValue([

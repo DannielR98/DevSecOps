@@ -1,4 +1,4 @@
-import { DataTypes, Op } from "sequelize";
+import { DataTypes } from "sequelize";
 import sequelize from "../database.js";
 
 const User = sequelize.define(
@@ -8,12 +8,6 @@ const User = sequelize.define(
       type: DataTypes.INTEGER,
       primaryKey: true,
       autoIncrement: true,
-    },
-
-    auth0_id: {
-      type: DataTypes.STRING,
-      allowNull: true,
-      unique: true,
     },
 
     supabase_id: {
@@ -55,7 +49,7 @@ const User = sequelize.define(
 User.findByAuthId = function (authId) {
   return User.findOne({
     where: {
-      [Op.or]: [{ supabase_id: authId }, { auth0_id: authId }],
+      supabase_id: authId,
     },
   });
 };

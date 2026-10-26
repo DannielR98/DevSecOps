@@ -10,7 +10,7 @@ import type { UserType } from '../utilities/interfaces'
 
 const user1: UserType = {
   id: 1,
-  auth0_id: 'auth0|1',
+  supabase_id: 'supabase|1',
   firstname: 'Anna',
   surname: 'Andersson',
   username: 'anna',
@@ -20,7 +20,7 @@ const user1: UserType = {
 
 const user2: UserType = {
   id: 2,
-  auth0_id: 'auth0|2',
+  supabase_id: 'supabase|2',
   firstname: 'Bo',
   surname: 'Bengtsson',
   username: 'bo',
@@ -54,13 +54,13 @@ describe('UserSlice', () => {
     expect(state.users[0].username).toBe('anna')
   })
 
-  it('setUser finds user by auth0_id', () => {
-    const state = reducer(baseState, setUser('auth0|2'))
+  it('setUser finds user by supabase_id', () => {
+    const state = reducer(baseState, setUser('supabase|2'))
     expect(state.userOne?.username).toBe('bo')
   })
 
-  it('setUser keeps userOne when auth0_id is unknown', () => {
-    const state = reducer(baseState, setUser('auth0|unknown'))
+  it('setUser keeps userOne when supabase_id is unknown', () => {
+    const state = reducer(baseState, setUser('supabase|unknown'))
     expect(state.userOne).toBeNull()
   })
 

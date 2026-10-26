@@ -78,7 +78,7 @@ async function handleApi(route: Route, state: ScenarioState) {
 
     if (path === "sync-user" && method === "POST") {
         state.profileSynced = true;
-        await fulfill(route, { user: { id: 1, auth0_id: "auth0|bdd-test-user" } });
+        await fulfill(route, { user: { id: 1, supabase_id: "supabase|bdd-test-user" } });
         return;
     }
 
@@ -157,7 +157,7 @@ function stateFor(page: Page): ScenarioState {
 
 async function openAuthenticatedApp(page: Page) {
     await page.goto("/");
-    await expect(page.getByText(/Säkert autentiserad via Auth0/)).toBeVisible();
+    await expect(page.getByText(/Säkert autentiserad via Supabase Auth/)).toBeVisible();
 }
 
 Before(async ({ page }) => {
@@ -175,7 +175,7 @@ Before(async ({ page }) => {
 
 Given("jag är en ny besökare", async () => { });
 
-When("jag loggar in med en lokal Auth0-testidentitet", async ({ page }) => {
+When("jag loggar in med en lokal Supabase-testidentitet", async ({ page }) => {
     await openAuthenticatedApp(page);
 });
 
@@ -187,7 +187,7 @@ Then("testprofilen ska synkroniseras till den lokala databasen", async ({ page }
     await expect.poll(() => stateFor(page).profileSynced).toBe(true);
 });
 
-Given("jag är inloggad via Auth0", async ({ page }) => {
+Given("jag är inloggad via Supabase", async ({ page }) => {
     await openAuthenticatedApp(page);
 });
 

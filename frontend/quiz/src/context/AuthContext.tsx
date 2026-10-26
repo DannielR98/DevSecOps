@@ -155,5 +155,3 @@ export function useAuth(): AuthContextType {
   return context;
 }
 
-// Backwards-compatible alias so existing components and test setups can seamlessly transition
-export const useAuth0 = useAuth;

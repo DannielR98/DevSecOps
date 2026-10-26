@@ -1,7 +1,7 @@
 Feature: Skapa och gå med i grupp
 
     Scenario: Skapa en grupp med inbjudningskod
-        Given jag är inloggad via Auth0
+        Given jag är inloggad via Supabase
         When jag skapar en ny grupp med namnet "Fredagsquiz"
         Then ska gruppen skapas
         And en unik 6-teckens inbjudningskod ska skapas

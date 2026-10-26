@@ -30,10 +30,10 @@ const {
 
 // These mocks cover group persistence, membership persistence, and local-user lookup.
 
-// Provide the Auth0 subject expected by every protected group route.
-vi.mock("../../middleware/auth0.js", () => ({
+// Provide the Supabase subject expected by every protected group route.
+vi.mock("../../middleware/supabaseAuth.js", () => ({
   checkJwt: (req, res, next) => {
-    req.auth = { payload: { sub: "auth0|test-user" } };
+    req.auth = { payload: { sub: "supabase|test-user" } };
     next();
   },
 }));
@@ -71,7 +71,7 @@ vi.mock("../../database/schemas/quizResultSchema.js", () => ({
 
 vi.mock("../../database/schemas/userSchema.js", () => ({
   default: {
-    // A group request may find or create the local Auth0 user.
+    // A group request may find or create the local Supabase user.
     findOne: findOneUserMock,
     create: createUserMock,
   },
@@ -137,9 +137,9 @@ describe("Groups", () => {
     expect(createMemberMock).toHaveBeenCalledOnce();
   });
 
-  // A first-time Auth0 user is created locally before becoming group owner.
+  // A first-time Supabase user is created locally before becoming group owner.
   it("creates the local user before creating a group", async () => {
-    const localUser = { id: 2, auth0_id: "auth0|test-user" };
+    const localUser = { id: 2, supabase_id: "supabase|test-user" };
     const newGroup = {
       id: 6,
       name: "New Team",
@@ -157,8 +157,8 @@ describe("Groups", () => {
 
     expect(res.status).toBe(201);
     expect(createUserMock).toHaveBeenCalledWith({
-      auth0_id: "auth0|test-user",
-      email: "auth0|test-user@auth0.user",
+      supabase_id: "supabase|test-user",
+      email: "supabase|test-user@supabase.user",
     });
     expect(createGroupMock).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -1,8 +1,8 @@
 import type { PropsWithChildren } from "react";
 
 const testUser = {
-  sub: "auth0|bdd-test-user",
-  id: "auth0|bdd-test-user",
+  sub: "supabase|bdd-test-user",
+  id: "supabase|bdd-test-user",
   email: "bdd@example.test",
   name: "BDD Test User",
   nickname: "bdd-user",
@@ -11,10 +11,6 @@ const testUser = {
 const getAccessTokenSilently = async () => "bdd-test-token";
 
 export function AuthProvider({ children }: PropsWithChildren) {
-  return <>{children}</>;
-}
-
-export function Auth0Provider({ children }: PropsWithChildren) {
   return <>{children}</>;
 }
 
@@ -31,5 +27,3 @@ export function useAuth() {
     closeAuthModal: () => undefined,
   };
 }
-
-export const useAuth0 = useAuth;

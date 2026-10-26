@@ -31,7 +31,7 @@ const useStyles = createUseStyles({
 });
 
 export default function HomePage() {
-  const { isAuthenticated: isAuth0Authenticated, user: auth0User, isLoading } = useAuth();
+  const { isAuthenticated, user: authUser, isLoading } = useAuth();
   const { isAuth, userStorage } = useSelector((state: RootState) => state.authSlice);
   const classes = useStyles();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -40,8 +40,8 @@ export default function HomePage() {
     setRefreshKey((prev) => prev + 1);
   };
 
-  const loggedIn = Boolean((isAuth0Authenticated && auth0User) || (isAuth && userStorage));
-  const currentUser = auth0User || userStorage;
+  const loggedIn = Boolean((isAuthenticated && authUser) || (isAuth && userStorage));
+  const currentUser = authUser || userStorage;
 
   if (isLoading && !isAuth) {
     return (

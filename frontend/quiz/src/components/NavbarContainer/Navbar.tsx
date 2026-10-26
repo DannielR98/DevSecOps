@@ -41,7 +41,7 @@ export default function Navbar() {
 
   const {
     isAuthenticated,
-    user: auth0User,
+    user: authUser,
     loginWithRedirect,
     logout,
     getAccessTokenSilently,
@@ -64,7 +64,7 @@ export default function Navbar() {
 
   useEffect(() => {
     const saveAuth = async () => {
-      if (!isAuthenticated || !auth0User) {
+      if (!isAuthenticated || !authUser) {
         return;
       }
 
@@ -75,7 +75,7 @@ export default function Navbar() {
           setAuth({
             isAuth: true,
             token: freshToken,
-            userStorage: auth0User,
+            userStorage: authUser,
           }),
         );
       } catch (error) {
@@ -84,7 +84,7 @@ export default function Navbar() {
     };
 
     saveAuth();
-  }, [isAuthenticated, auth0User, getAccessTokenSilently, dispatch]);
+  }, [isAuthenticated, authUser, getAccessTokenSilently, dispatch]);
 
   useEffect(() => {
     if (!isAuth || !token) {
@@ -111,7 +111,7 @@ export default function Navbar() {
 
   useEffect(() => {
     const syncUser = async () => {
-      if (!isAuthenticated || !auth0User) {
+      if (!isAuthenticated || !authUser) {
         return;
       }
 
@@ -122,7 +122,7 @@ export default function Navbar() {
           setAuth({
             isAuth: true,
             token: freshToken,
-            userStorage: auth0User,
+            userStorage: authUser,
           }),
         );
 
@@ -131,9 +131,9 @@ export default function Navbar() {
           method: "POST",
           token: freshToken,
           body: {
-            email: auth0User.email,
-            name: auth0User.name,
-            nickname: auth0User.nickname,
+            email: authUser.email,
+            name: authUser.name,
+            nickname: authUser.nickname,
           },
         });
       } catch (error) {
@@ -142,7 +142,7 @@ export default function Navbar() {
     };
 
     syncUser();
-  }, [isAuthenticated, auth0User, getAccessTokenSilently, dispatch]);
+  }, [isAuthenticated, authUser, getAccessTokenSilently, dispatch]);
 
   const handleLogout = () => {
     dispatch(clearAuth());

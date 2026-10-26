@@ -1,5 +1,4 @@
 export interface UserType {
-  auth0_id?: string;
   supabase_id?: string;
   name?: string;
   id?: number;

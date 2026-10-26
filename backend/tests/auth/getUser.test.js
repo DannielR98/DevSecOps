@@ -7,9 +7,9 @@ const { findAllUserMock, findByPkUserMock } = vi.hoisted(() => ({
   findByPkUserMock: vi.fn(),
 }));
 
-vi.mock("../../middleware/auth0.js", () => ({
+vi.mock("../../middleware/supabaseAuth.js", () => ({
   checkJwt: (req, res, next) => {
-    req.auth = { payload: { sub: "auth0|test-user" } };
+    req.auth = { payload: { sub: "supabase|test-user" } };
     next();
   },
 }));

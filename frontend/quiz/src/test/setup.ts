@@ -6,22 +6,17 @@ type AnyArgs = any[]
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type AnyResult = any
 
-const { mockUseAuth0, mockApiRequest } = vi.hoisted(() => {
+const { mockUseAuth, mockApiRequest } = vi.hoisted(() => {
   return {
-    mockUseAuth0: vi.fn((): AnyResult => ({})),
+    mockUseAuth: vi.fn((): AnyResult => ({})),
     mockApiRequest: vi.fn(
       async (..._args: AnyArgs): Promise<AnyResult> => ({ groups: [] }),
     ),
   }
 })
 
-vi.mock('@auth0/auth0-react', () => ({
-  useAuth0: () => mockUseAuth0(),
-}))
-
 vi.mock('../context/AuthContext', () => ({
-  useAuth: () => mockUseAuth0(),
-  useAuth0: () => mockUseAuth0(),
+  useAuth: () => mockUseAuth(),
   AuthProvider: ({ children }: any) => children,
 }))
 
@@ -66,10 +61,10 @@ const defaultApiResult = async (...args: AnyArgs): Promise<AnyResult> => {
   return {}
 }
 
-const defaultAuth0Value = () => ({
+const defaultAuthValue = () => ({
   isAuthenticated: true,
   user: {
-    sub: 'auth0|test-user',
+    sub: 'supabase|test-user',
     email: 'test@example.com',
     name: 'Test User',
     nickname: 'tester',
@@ -79,18 +74,19 @@ const defaultAuth0Value = () => ({
   logout: vi.fn(),
   getAccessTokenSilently: vi.fn().mockResolvedValue('test-token'),
   isLoading: false,
+  openAuthModal: vi.fn(),
+  closeAuthModal: vi.fn(),
 })
 
-mockUseAuth0.mockImplementation(defaultAuth0Value)
+mockUseAuth.mockImplementation(defaultAuthValue)
 mockApiRequest.mockImplementation(defaultApiResult)
 
 beforeEach(() => {
   localStorage.clear()
   vi.clearAllMocks()
   // Re-apply default implementations after clearAllMocks (which clears them)
-  mockUseAuth0.mockImplementation(defaultAuth0Value)
+  mockUseAuth.mockImplementation(defaultAuthValue)
   mockApiRequest.mockImplementation(defaultApiResult)
 })
 
-const mockUseAuth = mockUseAuth0
-export { mockUseAuth0, mockUseAuth, mockApiRequest }
+export { mockUseAuth, mockApiRequest }
