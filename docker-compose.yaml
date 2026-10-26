@@ -32,7 +32,24 @@ services:
       - JWT_SECRET=${JWT_SECRET:-dev_jwt_secret_key_12345}
       - SUPABASE_URL=${SUPABASE_URL}
       - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
+      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:${POSTGRES_PASSWORD:-postgres_password_123}@postgres:5432/${POSTGRES_DB:-quiz_devsecops}}
+    depends_on:
+      - postgres
+
+  postgres:
+    container_name: quiz-container-postgres
+    image: postgres:16-alpine
+    restart: always
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-quiz_devsecops}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_password_123}
+    ports:
+      - "5432:5432"
+    volumes:
+      - quiz-volume-postgres:/var/lib/postgresql/data
 
 volumes:
   quiz-volume-frontend:
   quiz-volume-backend:
+  quiz-volume-postgres:

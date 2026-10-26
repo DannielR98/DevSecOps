@@ -1,6 +1,6 @@
 # DevSecOps Quiz-plattform
 
-Säker och modern Quiz-plattform byggd med **React**, **Express**, **SQLite** och **Supabase Auth** för DevSecOps kurs.
+Säker och modern Quiz-plattform byggd med **React**, **Express**, **PostgreSQL** och **Supabase Auth** för DevSecOps kurs.
 
 ---
 
@@ -11,7 +11,7 @@ Säker och modern Quiz-plattform byggd med **React**, **Express**, **SQLite** oc
 ```
 ┌─────────────────┐      ┌─────────────────────┐      ┌─────────────────┐
 │   Frontend      │      │      Backend        │      │                 │
-│   React (Vite)  │─────▶│   Express API       │─────▶│   SQLite        │
+│   React (Vite)  │─────▶│   Express API       │─────▶│   PostgreSQL    │
 │   Port: 3000    │ JWT  │   Port: 5000        │ ORM  │   Database      │
 └────────┬────────┘      └──────────┬──────────┘      └─────────────────┘
          │                          │
@@ -30,9 +30,9 @@ Säker och modern Quiz-plattform byggd med **React**, **Express**, **SQLite** oc
 |-----------|-----------|--------|
 | **Frontend** | React + Vite + TypeScript | Användargränssnitt, Supabase Auth-inloggning, JWT-hantering |
 | **Backend** | Express.js + Node.js | REST API, JWT-verifiering, affärslogik |
-| **Databas** | SQLite + Sequelize ORM | Persistens av användare, grupper, quiz, resultat |
+| **Databas** | PostgreSQL + Sequelize ORM | Persistens av användare, grupper, quiz, resultat (SQLite som test-fallback) |
 | **Supabase** | Supabase Auth (JWT) | Autentisering, säker lösenordshantering, JWT-utfärdande |
-| **Docker** | Docker Compose | Containerisering |
+| **Docker** | Docker Compose | Containerisering (Frontend, Backend, PostgreSQL) |
 
 
 ### Dataflöde - Autentisering
@@ -42,7 +42,7 @@ Säker och modern Quiz-plattform byggd med **React**, **Express**, **SQLite** oc
 3. Supabase returnerar JWT (Access Token & Session) till frontend
 4. Frontend sparar session och inkluderar JWT i `Authorization: Bearer <token>`-headern
 5. Backend validerar JWT med Supabase JWT Secret
-6. Vid giltig token synkroniseras användarprofilen till lokal SQLite-databas (`users`)
+6. Vid giltig token synkroniseras användarprofilen till PostgreSQL-databasen (`users`)
 7. Backend returnerar skyddad data till frontend
 
 
@@ -53,19 +53,27 @@ Säker och modern Quiz-plattform byggd med **React**, **Express**, **SQLite** oc
 
 | Fördel | Beskrivning |
 |--------|-------------|
-| **Inga lösenord lokalt** | Vi lagrar inga känsliga lösenord i SQLite - allt hanteras säkert av Supabase |
+| **Inga lösenord lokalt** | Vi lagrar inga känsliga lösenord i databasen - allt hanteras säkert av Supabase |
 | **Standard JWT** | Snabb och säker tokenverifiering i backend via JWT Secret |
 | **Smidig UI-upplevelse** | Inbyggd modal i frontend utan externa omdirigeringar |
 | **Enkel integration** | `@supabase/supabase-js` ger en ren och modern utvecklarupplevelse |
+
+### Varför PostgreSQL?
+
+| Fördel | Beskrivning |
+|--------|-------------|
+| **Robust & Skalbar** | Standarddatabasmotor i produktion med stöd för relationer, transaktioner och integritet |
+| **Supabase-kompatibel** | Supabase körs direkt på PostgreSQL, vilket underlättar direkt integration eller hosting |
+| **Lokal testbarhet** | Körs smidigt i Docker Compose och fallbackar till SQLite under automatiserade enhetstester |
 
 ### Varför Docker Compose?
 
 | Fördel | Beskrivning |
 |--------|-------------|
 | **Reproducerbar miljö** | Samma miljö för alla utvecklare och produktion |
-| **Enkel start** | `docker-compose up` startar hela applikationen |
-| **Isolering** | Frontend och backend körs i separata containrar |
-| **Volymhantering** | Databasen persisteras i Docker-volymer |
+| **Enkel start** | `docker-compose up` startar hela applikationen inklusive PostgreSQL |
+| **Isolering** | Frontend, backend och databas körs i separata containrar |
+| **Volymhantering** | Databasen persisteras i Docker-volymer (`quiz-volume-postgres`) |
 
 ## Säkerhet & Autentisering (Supabase Auth-integration)
 
@@ -73,7 +81,7 @@ Projektet använder **Supabase Auth** för autentisering och användarhantering:
 
 - **JWT-verifiering**: Backend verifierar alla inkommande tokens med Supabase JWT Secret.
 - **Inga lösenord i den lokala databasen**: Lösenord, kryptering och kontoregistrering hanteras helt av Supabase.
-- **Lokal profilsynkronisering**: Backend synkroniserar automatiskt Supabase-användarprofiler (`supabase_id`, `email`, `username`) till den lokala SQLite-databasen (`users`) vid inloggning.
+- **Lokal profilsynkronisering**: Backend synkroniserar automatiskt Supabase-användarprofiler (`supabase_id`, `email`, `username`) till PostgreSQL-databasen (`users`) vid inloggning.
 
 ---
 
@@ -157,15 +165,20 @@ Feature: Skapa och genomföra quiz
 ## Snabbstart (Docker)
 
 ### 1. Miljövariabler (.env)
-Säkerställ att `.env` eller `docker-compose.yaml` innehåller Supabase-inställningarna:
+Säkerställ att `.env` eller `docker-compose.yaml` innehåller Supabase- och PostgreSQL-inställningarna:
 
 ```env
+# Frontend (Supabase Auth)
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 
+# Backend (Supabase Auth & API)
 SUPABASE_URL=https://your-project.supabase.co
 SUPABASE_JWT_SECRET=your_supabase_jwt_secret_here
 PORT=5000
+
+# PostgreSQL Databas
+DATABASE_URL=postgresql://postgres:postgres_password_123@postgres:5432/quiz_devsecops
 ```
 
 ### 2. Starta med Docker Compose
@@ -201,7 +214,7 @@ DevSecOps/
 │   │           ├── getQuizzes.js      # GET /api/quizzes
 │   │           └── takeQuiz.js        # POST /api/quizzes/:id/submit
 │   ├── database/
-│   │   ├── database.js            # Sequelize SQLite-anslutning
+│   │   ├── database.js            # Sequelize PostgreSQL-anslutning (med test-fallback)
 │   │   └── schemas/
 │   │       ├── userSchema.js      # Users-tabell (supabase_id, email, name)
 │   │       ├── groupSchema.js     # Groups-tabell (name, invite_code, owner_id)
