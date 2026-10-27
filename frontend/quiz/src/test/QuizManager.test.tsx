@@ -3,7 +3,7 @@ import { screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import QuizManager from '../components/QuizManager'
 import { renderWithProviders } from './test-utils'
-import { mockApiRequest, mockUseAuth0 } from './setup'
+import { mockApiRequest, mockUseAuth } from './setup'
 import { apiRequest } from '../utilities/HeaderFunction'
 
 const demoGroups = [{ id: 1, name: 'Grupp A' }]
@@ -37,7 +37,7 @@ describe('QuizManager Component', () => {
   })
 
   it('should render nothing when not logged in', () => {
-    mockUseAuth0.mockReturnValue({
+    mockUseAuth.mockReturnValue({
       isAuthenticated: false,
       user: undefined,
       loginWithRedirect: vi.fn(),

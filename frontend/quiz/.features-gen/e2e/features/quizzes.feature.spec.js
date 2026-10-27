@@ -1,4 +1,4 @@
-// Generated from: e2e\features\quizzes.feature
+// Generated from: e2e/features/quizzes.feature
 import { test } from "playwright-bdd";
 
 test.describe('Skapa och genomföra quiz', () => {
@@ -25,7 +25,7 @@ test.beforeEach('BeforeEach Hooks', ({ $runScenarioHooks, page }) => $runScenari
 
 test.use({
   $test: [({}, use) => use(test), { scope: 'test', box: true }],
-  $uri: [({}, use) => use('e2e\\features\\quizzes.feature'), { scope: 'test', box: true }],
+  $uri: [({}, use) => use('e2e/features/quizzes.feature'), { scope: 'test', box: true }],
   $bddFileData: [({}, use) => use(bddFileData), { scope: "test", box: true }],
 });
 

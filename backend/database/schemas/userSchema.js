@@ -10,7 +10,7 @@ const User = sequelize.define(
       autoIncrement: true,
     },
 
-    auth0_id: {
+    supabase_id: {
       type: DataTypes.STRING,
       allowNull: true,
       unique: true,
@@ -45,5 +45,13 @@ const User = sequelize.define(
     timestamps: false,
   },
 );
+
+User.findByAuthId = function (authId) {
+  return User.findOne({
+    where: {
+      supabase_id: authId,
+    },
+  });
+};
 
 export default User;

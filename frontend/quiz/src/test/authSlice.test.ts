@@ -6,7 +6,7 @@ import reducer, {
 } from '../store/reduxSlice/userSlice/authSlice'
 
 const authUser = {
-  sub: 'auth0|test-user',
+  sub: 'supabase|test-user',
   email: 'test@example.com',
   name: 'Test User',
   nickname: 'tester',

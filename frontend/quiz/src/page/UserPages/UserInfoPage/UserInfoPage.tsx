@@ -1,4 +1,4 @@
-import { useAuth0 } from "@auth0/auth0-react";
+import { useAuth } from "../../../context/AuthContext";
 import { useParams } from "react-router-dom";
 import type { RootState } from "../../../store/store";
 import { useDispatch, useSelector } from "react-redux";
@@ -144,7 +144,7 @@ export default function UserInfoPage() {
     getAccessTokenSilently,
     isAuthenticated,
     isLoading: authLoading,
-  } = useAuth0();
+  } = useAuth();
 
   const { userOne } = useSelector((state: RootState) => state.userSlice);
 
@@ -159,7 +159,7 @@ export default function UserInfoPage() {
       try {
         const token = await getAccessTokenSilently();
 
-        console.log("AUTH0 TOKEN EXISTS:", !!token);
+        console.log("AUTH TOKEN EXISTS:", !!token);
         console.log("USER ID:", userId);
 
         dispatch({
@@ -170,7 +170,7 @@ export default function UserInfoPage() {
           },
         });
       } catch (error) {
-        console.error("AUTH0 TOKEN ERROR:", error);
+        console.error("AUTH TOKEN ERROR:", error);
       }
     };
 

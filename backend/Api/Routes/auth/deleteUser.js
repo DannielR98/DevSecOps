@@ -2,7 +2,7 @@ import express from "express";
 import User from "../../../database/schemas/userSchema.js";
 import Group from "../../../database/schemas/groupSchema.js";
 import GroupMember from "../../../database/schemas/groupMemberSchema.js";
-import { checkJwt } from "../../../middleware/auth0.js";
+import { checkJwt } from "../../../middleware/supabaseAuth.js";
 
 const router = express.Router();
 
@@ -16,11 +16,11 @@ router.delete("/delete-user/:userId", checkJwt, async (req, res) => {
       });
     }
 
-    const auth0Id = req.auth.payload.sub;
+    const supabaseId = req.auth.payload.sub;
 
     const findUser = await User.findOne({
       where: {
-        auth0_id: auth0Id,
+        supabase_id: supabaseId,
       },
     });
 

@@ -1,4 +1,4 @@
-import { useAuth0 } from "@auth0/auth0-react";
+import { useAuth } from "../context/AuthContext";
 import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store/store";
@@ -31,7 +31,7 @@ interface QuizManagerProps {
 }
 
 export default function QuizManager({ refreshKey }: QuizManagerProps) {
-  const { isAuthenticated, getAccessTokenSilently } = useAuth0();
+  const { isAuthenticated, getAccessTokenSilently } = useAuth();
   const { isAuth, token: reduxToken } = useSelector(
     (state: RootState) => state.authSlice,
   );
