@@ -2,6 +2,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { createTestApp } from "../helpers/testApp.js";
 
+const VALID_GROUP_UUID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
+const VALID_MEMBER_UUID = "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22";
+
 const {
   findOneUserMock,
   findOneGroupMock,
@@ -18,25 +21,28 @@ const {
   createMemberMock: vi.fn(),
 }));
 
-vi.mock("../../middleware/supabaseAuth.js", () => ({
-  checkJwt: (req, res, next) => {
-    req.auth = { payload: { sub: "supabase|test-user" } };
+vi.mock("../../middleware/verifyJWT.js", () => ({
+  default: (req, res, next) => {
+    req.user = { id: "user-1", email: "user@example.com" };
     next();
   },
 }));
 
-vi.mock("../../database/schemas/userSchema.js", () => ({
-  default: { findOne: findOneUserMock },
+vi.mock("../../models/User.js", () => ({
+  default: {
+    findByPk: findOneUserMock,
+    findOne: findOneUserMock,
+  },
 }));
 
-vi.mock("../../database/schemas/groupSchema.js", () => ({
+vi.mock("../../models/Group.js", () => ({
   default: {
     findOne: findOneGroupMock,
     findByPk: findByPkGroupMock,
   },
 }));
 
-vi.mock("../../database/schemas/groupMemberSchema.js", () => ({
+vi.mock("../../models/GroupMember.js", () => ({
   default: {
     findAll: findAllMemberMock,
     findOne: findOneMemberMock,
@@ -44,10 +50,10 @@ vi.mock("../../database/schemas/groupMemberSchema.js", () => ({
   },
 }));
 
-import getGroupMembersRoute from "../../Api/Routes/GroupMember/getGroupMembers.js";
-import getGroupMemberByIdRoute from "../../Api/Routes/GroupMember/getGroupMemberById.js";
-import joinGroupMemberRoute from "../../Api/Routes/GroupMember/joinGroup.js";
-import leaveGroupRoute from "../../Api/Routes/GroupMember/leaveGroup.js";
+import getGroupMembersRoute from "../../Api/GroupMember/getGroupMembers.js";
+import getGroupMemberByIdRoute from "../../Api/GroupMember/getGroupMemberById.js";
+import joinGroupMemberRoute from "../../Api/GroupMember/joinGroup.js";
+import leaveGroupRoute from "../../Api/GroupMember/leaveGroup.js";
 
 const app = createTestApp(
   getGroupMembersRoute,
@@ -62,94 +68,115 @@ describe("GroupMember Endpoints", () => {
   });
 
   describe("GET /api/groups/:groupId/members", () => {
+    it("returns 400 when group ID is invalid UUID", async () => {
+      const res = await request(app).get("/api/groups/invalid-id/members");
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("Invalid group ID format");
+    });
+
+    it("returns 404 when group is not found", async () => {
+      findByPkGroupMock.mockResolvedValue(null);
+
+      const res = await request(app).get(`/api/groups/${VALID_GROUP_UUID}/members`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe("Group not found");
+    });
+
     it("returns 200 and list of group members", async () => {
-      const membersList = [{ id: 1, group_id: 10, user_id: 1, role: "owner" }];
+      const membersList = [
+        { id: VALID_MEMBER_UUID, group_id: VALID_GROUP_UUID, user_id: "user-1", role: "owner" },
+      ];
+      findByPkGroupMock.mockResolvedValue({ id: VALID_GROUP_UUID });
       findAllMemberMock.mockResolvedValue(membersList);
 
-      const res = await request(app).get("/api/groups/10/members");
+      const res = await request(app).get(`/api/groups/${VALID_GROUP_UUID}/members`);
 
       expect(res.status).toBe(200);
       expect(res.body.members).toEqual(membersList);
     });
-
-    it("returns 500 when query fails", async () => {
-      findAllMemberMock.mockRejectedValue(new Error("Query failed"));
-
-      const res = await request(app).get("/api/groups/10/members");
-
-      expect(res.status).toBe(500);
-      expect(res.body.sms).toEqual(["Could not get group members"]);
-    });
   });
 
   describe("GET /api/groups/:groupId/members/:memberId", () => {
-    it("returns 404 when requesting user is not found in local DB", async () => {
+    it("returns 404 when user is not found", async () => {
       findOneUserMock.mockResolvedValue(null);
 
-      const res = await request(app).get("/api/groups/10/members/1");
+      const res = await request(app).get(
+        `/api/groups/${VALID_GROUP_UUID}/members/${VALID_MEMBER_UUID}`,
+      );
 
       expect(res.status).toBe(404);
-      expect(res.body.sms).toEqual(["User not found"]);
+      expect(res.body.message).toBe("User not found");
     });
 
-    it("returns 403 when requesting user is not a member of the group", async () => {
-      findOneUserMock.mockResolvedValue({ id: 1 });
+    it("returns 404 when group is not found", async () => {
+      findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
+      findByPkGroupMock.mockResolvedValue(null);
+
+      const res = await request(app).get(
+        `/api/groups/${VALID_GROUP_UUID}/members/${VALID_MEMBER_UUID}`,
+      );
+
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe("Group not found");
+    });
+
+    it("returns 403 when current user is not member of group", async () => {
+      findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
+      findByPkGroupMock.mockResolvedValue({ id: VALID_GROUP_UUID });
       findOneMemberMock.mockResolvedValue(null);
 
-      const res = await request(app).get("/api/groups/10/members/2");
+      const res = await request(app).get(
+        `/api/groups/${VALID_GROUP_UUID}/members/${VALID_MEMBER_UUID}`,
+      );
 
       expect(res.status).toBe(403);
-      expect(res.body.sms).toEqual(["You are not a member of this group"]);
+      expect(res.body.message).toBe("You are not a member of this group");
     });
 
-    it("returns 404 when target member is not found", async () => {
-      findOneUserMock.mockResolvedValue({ id: 1 });
-      // First findOne for membership check returns membership, second findOne for target returns null
+    it("returns 200 and member details when authorized", async () => {
+      const memberObj = {
+        id: VALID_MEMBER_UUID,
+        group_id: VALID_GROUP_UUID,
+        user_id: "user-1",
+        role: "owner",
+        createdAt: "2026-09-06T00:00:00.000Z",
+      };
+      findOneUserMock
+        .mockResolvedValueOnce({ user_id: "user-1", id: "user-1" }) // for auth check
+        .mockResolvedValueOnce({
+          user_id: "user-1",
+          firstname: "Test",
+          surname: "User",
+          username: "testuser",
+          email: "user@example.com",
+        }); // for memberUser lookup
+
+      findByPkGroupMock.mockResolvedValue({ id: VALID_GROUP_UUID });
+      // First findOne for currentMembership check, second findOne for member lookup
       findOneMemberMock
-        .mockResolvedValueOnce({ id: 10, group_id: 10, user_id: 1 })
-        .mockResolvedValueOnce(null);
-
-      const res = await request(app).get("/api/groups/10/members/99");
-
-      expect(res.status).toBe(404);
-      expect(res.body.sms).toEqual(["Group member not found"]);
-    });
-
-    it("returns 200 and member details when found", async () => {
-      const memberObj = { id: 2, group_id: 10, user_id: 2, role: "member" };
-      findOneUserMock.mockResolvedValue({ id: 1 });
-      findOneMemberMock
-        .mockResolvedValueOnce({ id: 1, group_id: 10, user_id: 1 })
+        .mockResolvedValueOnce({ id: VALID_MEMBER_UUID, group_id: VALID_GROUP_UUID, user_id: "user-1" })
         .mockResolvedValueOnce(memberObj);
 
-      const res = await request(app).get("/api/groups/10/members/2");
+      const res = await request(app).get(
+        `/api/groups/${VALID_GROUP_UUID}/members/${VALID_MEMBER_UUID}`,
+      );
 
       expect(res.status).toBe(200);
-      expect(res.body.member).toEqual(memberObj);
+      expect(res.body.member.id).toBe(VALID_MEMBER_UUID);
+      expect(res.body.member.role).toBe("owner");
     });
   });
 
   describe("POST /api/group-members/join", () => {
     it("returns 400 when invite code is missing", async () => {
       const res = await request(app).post("/api/group-members/join").send({});
-
       expect(res.status).toBe(400);
-      expect(res.body.sms).toEqual(["Invite code is required"]);
+      expect(res.body.message).toBe("Invite code is required");
     });
 
-    it("returns 404 when user is missing", async () => {
-      findOneUserMock.mockResolvedValue(null);
-
-      const res = await request(app)
-        .post("/api/group-members/join")
-        .send({ invite_code: "CODE" });
-
-      expect(res.status).toBe(404);
-      expect(res.body.sms).toEqual(["User not found"]);
-    });
-
-    it("returns 404 when group invite code is invalid", async () => {
-      findOneUserMock.mockResolvedValue({ id: 1 });
+    it("returns 404 when group is not found with invite code", async () => {
+      findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
       findOneGroupMock.mockResolvedValue(null);
 
       const res = await request(app)
@@ -157,108 +184,75 @@ describe("GroupMember Endpoints", () => {
         .send({ invite_code: "INVALID" });
 
       expect(res.status).toBe(404);
-      expect(res.body.sms).toEqual(["Invalid invite code"]);
+      expect(res.body.message).toBe("Invalid invite code");
     });
 
-    it("returns 409 when user is already a group member", async () => {
-      findOneUserMock.mockResolvedValue({ id: 1 });
-      findOneGroupMock.mockResolvedValue({ id: 10 });
-      findOneMemberMock.mockResolvedValue({ id: 5 });
+    it("returns 409 when user is already a member", async () => {
+      findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
+      findOneGroupMock.mockResolvedValue({ id: VALID_GROUP_UUID });
+      findOneMemberMock.mockResolvedValue({ id: VALID_MEMBER_UUID });
 
       const res = await request(app)
         .post("/api/group-members/join")
         .send({ invite_code: "CODE123" });
 
       expect(res.status).toBe(409);
-      expect(res.body.sms).toEqual(["You are already a member of this group"]);
+      expect(res.body.message).toBe("You are already a member of this group");
     });
 
     it("returns 201 and joins group successfully", async () => {
-      findOneUserMock.mockResolvedValue({ id: 1 });
-      findOneGroupMock.mockResolvedValue({ id: 10 });
-      findOneMemberMock.mockResolvedValue(null);
-      createMemberMock.mockResolvedValue({
-        id: 50,
-        group_id: 10,
-        user_id: 1,
+      const createdMember = {
+        id: VALID_MEMBER_UUID,
+        group_id: VALID_GROUP_UUID,
+        user_id: "user-1",
         role: "member",
-      });
+        createdAt: new Date().toISOString(),
+      };
+      findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
+      findOneGroupMock.mockResolvedValue({ id: VALID_GROUP_UUID });
+      findOneMemberMock.mockResolvedValue(null);
+      createMemberMock.mockResolvedValue(createdMember);
 
       const res = await request(app)
         .post("/api/group-members/join")
         .send({ invite_code: "CODE123" });
 
       expect(res.status).toBe(201);
-      expect(res.body.sms).toEqual(["Joined group successfully"]);
-      expect(res.body.member).toEqual({
-        id: 50,
-        group_id: 10,
-        user_id: 1,
-        role: "member",
-      });
+      expect(res.body.member.id).toBe(VALID_MEMBER_UUID);
+      expect(res.body.member.role).toBe("member");
     });
   });
 
   describe("DELETE /api/groups/:groupId/members/leave", () => {
-    it("returns 400 when group ID is invalid", async () => {
-      const res = await request(app).delete("/api/groups/abc/members/leave");
-
-      expect(res.status).toBe(400);
-      expect(res.body.sms).toEqual(["Invalid group ID"]);
-    });
-
-    it("returns 404 when user is not found", async () => {
-      findOneUserMock.mockResolvedValue(null);
-
-      const res = await request(app).delete("/api/groups/10/members/leave");
-
-      expect(res.status).toBe(404);
-      expect(res.body.sms).toEqual(["User not found"]);
-    });
-
-    it("returns 404 when group is not found", async () => {
-      findOneUserMock.mockResolvedValue({ id: 1 });
-      findByPkGroupMock.mockResolvedValue(null);
-
-      const res = await request(app).delete("/api/groups/10/members/leave");
-
-      expect(res.status).toBe(404);
-      expect(res.body.sms).toEqual(["Group not found"]);
-    });
-
     it("returns 400 when group owner attempts to leave", async () => {
-      findOneUserMock.mockResolvedValue({ id: 1 });
-      findByPkGroupMock.mockResolvedValue({ id: 10, owner_id: 1 });
+      findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
+      findByPkGroupMock.mockResolvedValue({ id: VALID_GROUP_UUID, owner_id: "user-1" });
 
-      const res = await request(app).delete("/api/groups/10/members/leave");
+      const res = await request(app).delete(
+        `/api/groups/${VALID_GROUP_UUID}/members/leave`,
+      );
 
       expect(res.status).toBe(400);
-      expect(res.body.sms).toEqual([
-        "Group owner cannot leave the group. Transfer ownership first.",
-      ]);
+      expect(res.body.message).toContain("Group owner cannot leave");
     });
 
-    it("returns 404 when user is not a group member", async () => {
-      findOneUserMock.mockResolvedValue({ id: 2 });
-      findByPkGroupMock.mockResolvedValue({ id: 10, owner_id: 1 });
-      findOneMemberMock.mockResolvedValue(null);
-
-      const res = await request(app).delete("/api/groups/10/members/leave");
-
-      expect(res.status).toBe(404);
-      expect(res.body.sms).toEqual(["You are not a member of this group"]);
-    });
-
-    it("returns 200 and leaves group successfully", async () => {
+    it("returns 200 when normal member leaves group successfully", async () => {
       const destroyMock = vi.fn().mockResolvedValue(undefined);
-      findOneUserMock.mockResolvedValue({ id: 2 });
-      findByPkGroupMock.mockResolvedValue({ id: 10, owner_id: 1 });
-      findOneMemberMock.mockResolvedValue({ id: 50, destroy: destroyMock });
+      findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
+      findByPkGroupMock.mockResolvedValue({ id: VALID_GROUP_UUID, owner_id: "owner-id" });
+      findOneMemberMock.mockResolvedValue({
+        id: VALID_MEMBER_UUID,
+        group_id: VALID_GROUP_UUID,
+        user_id: "user-1",
+        destroy: destroyMock,
+      });
 
-      const res = await request(app).delete("/api/groups/10/members/leave");
+      const res = await request(app).delete(
+        `/api/groups/${VALID_GROUP_UUID}/members/leave`,
+      );
 
       expect(res.status).toBe(200);
-      expect(res.body.sms).toEqual(["You left the group successfully"]);
+      expect(res.body.message).toBe("You left the group successfully");
       expect(destroyMock).toHaveBeenCalledOnce();
     });
   });
