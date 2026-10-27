@@ -1,13 +1,18 @@
 import { defineConfig } from "vite";
-import react from '@vitejs/plugin-react'
-import { resolve } from "node:path";
+import react from "@vitejs/plugin-react";
+import { fileURLToPath } from "node:url";
 
 export default defineConfig(({ mode }) => ({
   plugins: [react()],
 
   resolve: {
     alias: mode === "e2e"
-      ? [{ find: "@auth0/auth0-react", replacement: resolve(process.cwd(), "src/e2e/auth0Mock.tsx") }]
+      ? [
+          {
+            find: /.*\/context\/AuthContext(\.tsx)?$/,
+            replacement: fileURLToPath(new URL("./src/e2e/authMock.tsx", import.meta.url)),
+          },
+        ]
       : [],
   },
 

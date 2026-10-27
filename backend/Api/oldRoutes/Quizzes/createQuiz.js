@@ -2,7 +2,7 @@ import express from "express";
 import Quiz from "../../../database/schemas/quizSchema.js";
 import Group from "../../../database/schemas/groupSchema.js";
 import User from "../../../database/schemas/userSchema.js";
-import { checkJwt } from "../../../middleware/auth0.js";
+import { checkJwt } from "../../../middleware/supabaseAuth.js";
 
 const router = express.Router();
 
@@ -16,8 +16,8 @@ router.post("/quizzes", checkJwt, async (req, res) => {
       });
     }
 
-    const auth0Id = req.auth.payload.sub;
-    const user = await User.findOne({ where: { auth0_id: auth0Id } });
+    const supabaseId = req.auth.payload.sub;
+    const user = await User.findOne({ where: { supabase_id: supabaseId } });
 
     if (!user) {
       return res.status(404).json({ message: "User not found in local database." });

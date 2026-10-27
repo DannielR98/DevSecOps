@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useAuth0 } from "@auth0/auth0-react";
+import { useAuth } from "../../context/AuthContext";
 import { useSelector } from "react-redux";
 import type { RootState } from "../../store/store";
 import GroupDashboard from "../../components/GroupDashboard";
@@ -31,7 +31,7 @@ const useStyles = createUseStyles({
 });
 
 export default function HomePage() {
-  const { isAuthenticated: isAuth0Authenticated, user: auth0User, isLoading } = useAuth0();
+  const { isAuthenticated, user: authUser, isLoading } = useAuth();
   const { isAuth, userStorage } = useSelector((state: RootState) => state.authSlice);
   const classes = useStyles();
   const [refreshKey, setRefreshKey] = useState(0);
@@ -40,8 +40,8 @@ export default function HomePage() {
     setRefreshKey((prev) => prev + 1);
   };
 
-  const loggedIn = Boolean((isAuth0Authenticated && auth0User) || (isAuth && userStorage));
-  const currentUser = auth0User || userStorage;
+  const loggedIn = Boolean((isAuthenticated && authUser) || (isAuth && userStorage));
+  const currentUser = authUser || userStorage;
 
   if (isLoading && !isAuth) {
     return (
@@ -61,7 +61,7 @@ export default function HomePage() {
             <h2>Hej, {currentUser.name || currentUser.nickname || currentUser.email || "Användare"}! 👋</h2>
             <p style={{ color: "#4b5563", marginTop: "0.25rem" }}>Inloggad som: {currentUser.email}</p>
             <p style={{ color: "#10b981", fontWeight: "bold", marginTop: "0.5rem" }}>
-              ✓ Säkert autentiserad via Auth0 (OAuth 2.0 / OIDC)
+              ✓ Säkert autentiserad via Supabase Auth
             </p>
           </div>
 

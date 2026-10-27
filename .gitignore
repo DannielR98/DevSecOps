@@ -1,6 +1,14 @@
+# Environment files
 .env
+.env.*
 *.env
-*.db
-quiz.db
-database/*.db
+!.env.example
+
+# OS / Editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Dependencies
 node_modules/

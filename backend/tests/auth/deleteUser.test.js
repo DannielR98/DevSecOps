@@ -9,16 +9,16 @@ const { findOneMock, findAllMock, destroyMock } = vi.hoisted(() => ({
   destroyMock: vi.fn(),
 }));
 
-// Provide the Auth0 subject expected by the route without requiring a real token.
-vi.mock("../../middleware/auth0.js", () => ({
+// Provide the Supabase subject expected by the route without requiring a real token.
+vi.mock("../../middleware/supabaseAuth.js", () => ({
   checkJwt: (req, res, next) => {
-    req.auth = { payload: { sub: "auth0|test-user" } };
+    req.auth = { payload: { sub: "supabase|test-user" } };
     next();
   },
 }));
 
 vi.mock("../../database/schemas/userSchema.js", () => ({
-  // The delete route identifies the local user through the Auth0 subject.
+  // The delete route identifies the local user through the Supabase subject.
   default: { findOne: findOneMock },
 }));
 
@@ -44,7 +44,7 @@ describe("Auth > delete user", () => {
 
   // A valid user may delete only the account associated with their own ID.
   it("returns 403 when deleting another user's account", async () => {
-    findOneMock.mockResolvedValue({ id: 1, auth0_id: "auth0|test-user" });
+    findOneMock.mockResolvedValue({ id: 1, supabase_id: "supabase|test-user" });
 
     const res = await request(app).delete("/api/delete-user/2");
 
@@ -52,7 +52,7 @@ describe("Auth > delete user", () => {
     expect(res.body.sms).toEqual(["You can only delete your own account"]);
   });
 
-  // No local user for the Auth0 subject means there is nothing to delete.
+  // No local user for the Supabase subject means there is nothing to delete.
   it("returns 404 when user does not exist", async () => {
     findOneMock.mockResolvedValue(null);
 
@@ -66,7 +66,7 @@ describe("Auth > delete user", () => {
   it("returns 500 when destroy throws", async () => {
     findOneMock.mockResolvedValue({
       id: 1,
-      auth0_id: "auth0|test-user",
+      supabase_id: "supabase|test-user",
       destroy: vi.fn().mockRejectedValue(new Error("destroy failed")),
     });
     findAllMock.mockResolvedValue([]);
@@ -82,7 +82,7 @@ describe("Auth > delete user", () => {
   it("returns 200 when user is deleted", async () => {
     const user = {
       id: 1,
-      auth0_id: "auth0|test-user",
+      supabase_id: "supabase|test-user",
       destroy: vi.fn().mockResolvedValue(undefined),
     };
 

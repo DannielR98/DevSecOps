@@ -1,7 +1,7 @@
 import express from "express";
 
 import User from "../../../database/schemas/userSchema.js";
-import { checkJwt } from "../../../middleware/auth0.js";
+import { checkJwt } from "../../../middleware/supabaseAuth.js";
 
 const router = express.Router();
 

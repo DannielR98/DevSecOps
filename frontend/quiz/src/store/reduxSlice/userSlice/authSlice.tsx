@@ -1,5 +1,7 @@
 import { createSlice, type PayloadAction } from "@reduxjs/toolkit";
-import type { User } from "@auth0/auth0-react";
+import type { AuthUser } from "../../../utilities/interfaces";
+
+export type User = AuthUser;
 
 type AuthState = {
   isAuth: boolean;
@@ -18,7 +20,7 @@ const authSlice = createSlice({
   initialState,
 
   reducers: {
-    // Save Auth0 data
+    // Save Auth data
     setAuth: (
       state,
       action: PayloadAction<{
@@ -41,7 +43,7 @@ const authSlice = createSlice({
       );
     },
 
-    // Load Auth0 data after refresh
+    // Load Auth data after refresh
     loadAuth: (state) => {
       const storedUser = localStorage.getItem("storedUser");
 
@@ -62,7 +64,7 @@ const authSlice = createSlice({
       }
     },
 
-    // Clear Auth0 data
+    // Clear Auth data
     clearAuth: (state) => {
       state.isAuth = false;
       state.token = null;

@@ -2,7 +2,7 @@ import express from "express";
 import Group from "../../../database/schemas/groupSchema.js";
 import GroupMember from "../../../database/schemas/groupMemberSchema.js";
 import User from "../../../database/schemas/userSchema.js";
-import { checkJwt } from "../../../middleware/auth0.js";
+import { checkJwt } from "../../../middleware/supabaseAuth.js";
 
 const router = express.Router();
 
@@ -16,13 +16,13 @@ router.post("/groups", checkJwt, async (req, res) => {
       });
     }
 
-    const auth0Id = req.auth.payload.sub;
-    let user = await User.findOne({ where: { auth0_id: auth0Id } });
+    const supabaseId = req.auth.payload.sub;
+    let user = await User.findOne({ where: { supabase_id: supabaseId } });
 
     if (!user) {
       user = await User.create({
-        auth0_id: auth0Id,
-        email: `${auth0Id}@auth0.user`,
+        supabase_id: supabaseId,
+        email: `${supabaseId}@supabase.user`,
       });
     }
 

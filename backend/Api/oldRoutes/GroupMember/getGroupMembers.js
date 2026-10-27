@@ -1,6 +1,6 @@
 import express from "express";
 import GroupMember from "../../../database/schemas/groupMemberSchema.js";
-import { checkJwt } from "../../../middleware/auth0.js";
+import { checkJwt } from "../../../middleware/supabaseAuth.js";
 
 const router = express.Router();
 
