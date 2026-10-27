@@ -1,0 +1,11 @@
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Ignore example env templates and documentation"
+paths = [
+  '''^\.env\.example$''',
+  '''^backend/\.env\.example$''',
+  '''^frontend/quiz/\.env\.example$''',
+  '''^README\.md$'''
+]
