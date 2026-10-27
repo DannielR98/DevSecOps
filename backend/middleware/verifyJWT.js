@@ -6,6 +6,7 @@ const verifyJWT = (req, res, next) => {
 
     if (!header) {
       return res.status(401).json({
+        success: false,
         message: "Authorization header is required",
       });
     }
@@ -14,17 +15,17 @@ const verifyJWT = (req, res, next) => {
 
     if (type !== "Bearer" || !token) {
       return res.status(401).json({
+        success: false,
         message: "Invalid authorization header",
       });
     }
 
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-
-    req.user = decoded;
+    req.user = jwt.verify(token, process.env.JWT_SECRET);
 
     next();
   } catch (error) {
     return res.status(401).json({
+      success: false,
       message: "Invalid or expired token",
     });
   }

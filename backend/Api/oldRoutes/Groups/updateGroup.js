@@ -23,7 +23,9 @@ router.put("/groups/:id", checkJwt, async (req, res) => {
     }
 
     if (!user || group.owner_id !== user.id) {
-      return res.status(403).json({ message: "Only group owner can edit group details." });
+      return res
+        .status(403)
+        .json({ message: "Only group owner can edit group details." });
     }
 
     group.name = name.trim();
