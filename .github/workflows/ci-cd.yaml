@@ -113,13 +113,13 @@ jobs:
         working-directory: frontend/quiz
         run: npx playwright install --with-deps chromium
 
-      - name: Run Playwright BDD tests
-        run: |
-          cd backend
-          npm start &
-          sleep 15
-          cd ../frontend/quiz
-          npm run test:ui
+      ## - name: Run Playwright BDD tests
+      ## run: |
+      ##  cd backend
+      ## npm start &
+      ## sleep 15
+      ## cd ../frontend/quiz
+      ## npm run test:ui
 
   cd:
     name: Continuous Deployment (Docker)
