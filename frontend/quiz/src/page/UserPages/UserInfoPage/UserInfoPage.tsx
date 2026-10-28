@@ -152,9 +152,9 @@ export default function UserInfoPage() {
 
   useEffect(() => {
     const fetchUser = async () => {
-      if (!isAuthenticated) return;
+      if (!isAuthenticated) {return;}
 
-      if (!id || Number.isNaN(userId)) return;
+      if (!id || Number.isNaN(userId)) {return;}
 
       try {
         const token = await getAccessTokenSilently();

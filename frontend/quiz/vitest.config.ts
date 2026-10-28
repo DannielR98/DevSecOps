@@ -7,11 +7,11 @@ export default defineConfig(({ mode }) => ({
   resolve: {
     alias: mode === "e2e"
       ? [
-          {
-            find: /.*\/context\/AuthContext(\.tsx)?$/,
-            replacement: fileURLToPath(new URL("./src/e2e/authMock.tsx", import.meta.url)),
-          },
-        ]
+        {
+          find: /.*\/context\/AuthContext(\.tsx)?$/,
+          replacement: fileURLToPath(new URL("./src/e2e/authMock.tsx", import.meta.url)),
+        },
+      ]
       : [],
   },
   test: {

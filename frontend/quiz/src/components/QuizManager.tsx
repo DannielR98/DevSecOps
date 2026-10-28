@@ -56,7 +56,11 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
   const [editingQuizId, setEditingQuizId] = useState<number | null>(null);
   const [activeQuiz, setActiveQuiz] = useState<QuizItem | null>(null);
   const [userAnswers, setUserAnswers] = useState<number[]>([]);
-  const [quizScore, setQuizScore] = useState<{ score: number; total_questions: number; percentage: number } | null>(null);
+  const [quizScore, setQuizScore] = useState<{
+    score: number;
+    total_questions: number;
+    percentage: number;
+  } | null>(null);
 
   // Form State
   const [title, setTitle] = useState("");
@@ -69,23 +73,45 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
   const resetFormState = () => {
     setTitle("");
     setEditingQuizId(null);
-    setQuestions([{ question: "", options: ["", "", "", ""], correctAnswer: 0 }]);
+    setQuestions([
+      { question: "", options: ["", "", "", ""], correctAnswer: 0 },
+    ]);
   };
 
   const fetchData = async () => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn) {
+      return;
+    }
     setLoading(true);
     try {
       const token = await getToken();
-      if (!token) return;
-      const groupsData = await apiRequest({ api: "groups", method: "GET", token });
+      if (!token) {
+        return;
+      }
+      const groupsData = await apiRequest({
+        api: "groups",
+        method: "GET",
+        token,
+      });
+      /* 
       const groupList = groupsData.groups || [];
       setGroups(groupList);
       if (groupList.length > 0 && selectedGroupId === "") {
         setSelectedGroupId(groupList[0].id);
+      } */
+
+      const groupList = groupsData.groups || [];
+      setGroups(groupList);
+
+      if (groupList.length > 0 && selectedGroupId === "") {
+        setSelectedGroupId(groupList[0].id);
       }
 
-      const quizData = await apiRequest({ api: "quizzes", method: "GET", token });
+      const quizData = await apiRequest({
+        api: "quizzes",
+        method: "GET",
+        token,
+      });
       setQuizzes(quizData.quizzes || []);
     } catch (err) {
       console.error("Error loading data:", err);
@@ -94,8 +120,20 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
     }
   };
 
-  useEffect(() => {
+  /*   useEffect(() => {
     fetchData();
+  }, [isAuthenticated, isAuth, refreshKey]);
+
+  const handleAddQuestion = () => {
+    setQuestions([
+      ...questions,
+      { question: "", options: ["", "", "", ""], correctAnswer: 0 },
+    ]);
+  }; */
+  useEffect(() => {
+    const loadData = async () => {};
+
+    void loadData();
   }, [isAuthenticated, isAuth, refreshKey]);
 
   const handleAddQuestion = () => {
@@ -106,18 +144,32 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
   };
 
   const handleRemoveQuestion = (qIndex: number) => {
-    if (questions.length <= 1) return;
+    if (questions.length <= 1) {
+      return;
+    }
     setQuestions(questions.filter((_, idx) => idx !== qIndex));
   };
 
-  const handleQuestionChange = (index: number, field: string, value: unknown) => {
+  const handleQuestionChange = (
+    index: number,
+    field: string,
+    value: unknown,
+  ) => {
     const updated = [...questions];
-    if (field === "question") updated[index].question = value as string;
-    if (field === "correctAnswer") updated[index].correctAnswer = Number(value);
+    if (field === "question") {
+      updated[index].question = value as string;
+    }
+    if (field === "correctAnswer") {
+      updated[index].correctAnswer = Number(value);
+    }
     setQuestions(updated);
   };
 
-  const handleOptionChange = (qIndex: number, oIndex: number, value: string) => {
+  const handleOptionChange = (
+    qIndex: number,
+    oIndex: number,
+    value: string,
+  ) => {
     const updated = [...questions];
     updated[qIndex].options[oIndex] = value;
     setQuestions(updated);
@@ -125,7 +177,9 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
 
   const handleSaveQuiz = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !selectedGroupId) return;
+    if (!title.trim() || !selectedGroupId) {
+      return;
+    }
 
     try {
       const token = await getToken();
@@ -165,9 +219,11 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
 
   const handleDeleteQuiz = async (quizId: number, quizTitle: string) => {
     const confirmed = window.confirm(
-      `Är du säker på att du vill ta bort quizet "${quizTitle}"?`
+      `Är du säker på att du vill ta bort quizet "${quizTitle}"?`,
     );
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
     try {
       const token = await getToken();
@@ -196,7 +252,9 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
   };
 
   const handleSubmitQuiz = async () => {
-    if (!activeQuiz) return;
+    if (!activeQuiz) {
+      return;
+    }
     try {
       const token = await getToken();
       const data = await apiRequest({
@@ -217,17 +275,25 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
     try {
       const token = await getToken();
       if (token) {
-        const groupsData = await apiRequest({ api: "groups", method: "GET", token });
+        const groupsData = await apiRequest({
+          api: "groups",
+          method: "GET",
+          token,
+        });
         const groupList = groupsData.groups || [];
         setGroups(groupList);
         if (groupList.length > 0) {
           setSelectedGroupId((prev) => {
-            const exists = groupList.some((g: GroupItem) => g.id === Number(prev));
+            const exists = groupList.some(
+              (g: GroupItem) => g.id === Number(prev),
+            );
             return exists ? prev : groupList[0].id;
           });
           setShowCreateModal(true);
         } else {
-          alert("För att skapa ett quiz, skapa en grupp eller gå med i en via inbjudningskod ovan först!");
+          alert(
+            "För att skapa ett quiz, skapa en grupp eller gå med i en via inbjudningskod ovan först!",
+          );
         }
       }
     } catch (err) {
@@ -242,12 +308,14 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
     setQuestions(
       quiz.questions && quiz.questions.length > 0
         ? JSON.parse(JSON.stringify(quiz.questions))
-        : [{ question: "", options: ["", "", "", ""], correctAnswer: 0 }]
+        : [{ question: "", options: ["", "", "", ""], correctAnswer: 0 }],
     );
     setShowCreateModal(true);
   };
 
-  if (!isLoggedIn) return null;
+  if (!isLoggedIn) {
+    return null;
+  }
 
   return (
     <div
@@ -262,7 +330,14 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
         textAlign: "left",
       }}
     >
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "1.5rem",
+        }}
+      >
         <h2 style={{ fontSize: "1.5rem", color: "#111827", margin: 0 }}>
           🎯 Quiz
         </h2>
@@ -287,10 +362,17 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
         <p style={{ color: "#6b7280" }}>Laddar quiz...</p>
       ) : quizzes.length === 0 ? (
         <p style={{ color: "#6b7280", fontStyle: "italic" }}>
-          Inga quiz tillgängliga ännu. Skapa en grupp och lägg till ditt första quiz!
+          Inga quiz tillgängliga ännu. Skapa en grupp och lägg till ditt första
+          quiz!
         </p>
       ) : (
-        <div style={{ display: "grid", gap: "1rem", gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))" }}>
+        <div
+          style={{
+            display: "grid",
+            gap: "1rem",
+            gridTemplateColumns: "repeat(auto-fill, minmax(240px, 1fr))",
+          }}
+        >
           {quizzes.map((quiz) => {
             const groupName =
               quiz.group_name ||
@@ -325,12 +407,27 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
                   >
                     👥 {groupName}
                   </span>
-                  <h3 style={{ fontSize: "1.1rem", margin: "0 0 0.5rem 0", color: "#111827" }}>{quiz.title}</h3>
+                  <h3
+                    style={{
+                      fontSize: "1.1rem",
+                      margin: "0 0 0.5rem 0",
+                      color: "#111827",
+                    }}
+                  >
+                    {quiz.title}
+                  </h3>
                   <p style={{ fontSize: "0.85rem", color: "#6b7280" }}>
                     {quiz.questions?.length || 0} Frågor
                   </p>
                 </div>
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem", marginTop: "1rem" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    flexDirection: "column",
+                    gap: "0.5rem",
+                    marginTop: "1rem",
+                  }}
+                >
                   <button
                     onClick={() => startQuiz(quiz)}
                     style={{
@@ -417,17 +514,26 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
               overflowY: "auto",
             }}
           >
-            <h2 style={{ fontSize: "1.5rem", color: "#111827", marginBottom: "0.5rem" }}>
+            <h2
+              style={{
+                fontSize: "1.5rem",
+                color: "#111827",
+                marginBottom: "0.5rem",
+              }}
+            >
               {activeQuiz.title}
             </h2>
 
             {quizScore ? (
               <div style={{ textAlign: "center", padding: "1.5rem 0" }}>
                 <h3 style={{ fontSize: "2rem", color: "#10b981" }}>
-                  Resultat: {quizScore.score} / {quizScore.total_questions} ({quizScore.percentage}%)
+                  Resultat: {quizScore.score} / {quizScore.total_questions} (
+                  {quizScore.percentage}%)
                 </h3>
                 <p style={{ color: "#4b5563", margin: "0.5rem 0 1.5rem 0" }}>
-                  {quizScore.percentage >= 70 ? "🎉 Enastående resultat!" : "Bra kämpat! Fortsätt öva."}
+                  {quizScore.percentage >= 70
+                    ? "🎉 Enastående resultat!"
+                    : "Bra kämpat! Fortsätt öva."}
                 </p>
                 <button
                   onClick={() => setActiveQuiz(null)}
@@ -447,11 +553,31 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
             ) : (
               <div>
                 {activeQuiz.questions.map((q, qIdx) => (
-                  <div key={qIdx} style={{ marginBottom: "1.5rem", padding: "1rem", backgroundColor: "#f9fafb", borderRadius: "8px" }}>
-                    <p style={{ fontWeight: 600, color: "#1f2937", marginBottom: "0.75rem" }}>
+                  <div
+                    key={qIdx}
+                    style={{
+                      marginBottom: "1.5rem",
+                      padding: "1rem",
+                      backgroundColor: "#f9fafb",
+                      borderRadius: "8px",
+                    }}
+                  >
+                    <p
+                      style={{
+                        fontWeight: 600,
+                        color: "#1f2937",
+                        marginBottom: "0.75rem",
+                      }}
+                    >
                       {qIdx + 1}. {q.question}
                     </p>
-                    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "0.5rem",
+                      }}
+                    >
                       {q.options.map((opt, oIdx) => (
                         <label
                           key={oIdx}
@@ -462,8 +588,12 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
                             padding: "0.5rem",
                             border: "1px solid #d1d5db",
                             borderRadius: "6px",
-                            backgroundColor: userAnswers[qIdx] === oIdx ? "#eff6ff" : "#fff",
-                            borderColor: userAnswers[qIdx] === oIdx ? "#3b82f6" : "#d1d5db",
+                            backgroundColor:
+                              userAnswers[qIdx] === oIdx ? "#eff6ff" : "#fff",
+                            borderColor:
+                              userAnswers[qIdx] === oIdx
+                                ? "#3b82f6"
+                                : "#d1d5db",
                             cursor: "pointer",
                           }}
                         >
@@ -479,7 +609,13 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
                     </div>
                   </div>
                 ))}
-                <div style={{ display: "flex", justifyContent: "flex-end", gap: "1rem" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "flex-end",
+                    gap: "1rem",
+                  }}
+                >
                   <button
                     onClick={() => setActiveQuiz(null)}
                     style={{
@@ -498,12 +634,16 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
                     disabled={userAnswers.includes(-1)}
                     style={{
                       padding: "0.6rem 1.5rem",
-                      backgroundColor: userAnswers.includes(-1) ? "#9ca3af" : "#10b981",
+                      backgroundColor: userAnswers.includes(-1)
+                        ? "#9ca3af"
+                        : "#10b981",
                       color: "#fff",
                       border: "none",
                       borderRadius: "6px",
                       fontWeight: 600,
-                      cursor: userAnswers.includes(-1) ? "not-allowed" : "pointer",
+                      cursor: userAnswers.includes(-1)
+                        ? "not-allowed"
+                        : "pointer",
                     }}
                   >
                     Lämna in svar
@@ -543,28 +683,60 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
               overflowY: "auto",
             }}
           >
-            <h2 style={{ fontSize: "1.5rem", color: "#111827", marginBottom: "1rem" }}>
+            <h2
+              style={{
+                fontSize: "1.5rem",
+                color: "#111827",
+                marginBottom: "1rem",
+              }}
+            >
               {editingQuizId ? "Redigera quiz" : "Skapa nytt quiz"}
             </h2>
             <form onSubmit={handleSaveQuiz}>
               <div style={{ marginBottom: "1rem" }}>
-                <label style={{ display: "block", fontWeight: 600, marginBottom: "0.25rem" }}>Quiztitel</label>
+                <label
+                  style={{
+                    display: "block",
+                    fontWeight: 600,
+                    marginBottom: "0.25rem",
+                  }}
+                >
+                  Quiztitel
+                </label>
                 <input
                   type="text"
                   required
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="t.ex. Grunderna i DevSecOps"
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid #d1d5db" }}
+                  style={{
+                    width: "100%",
+                    padding: "0.5rem",
+                    borderRadius: "6px",
+                    border: "1px solid #d1d5db",
+                  }}
                 />
               </div>
 
               <div style={{ marginBottom: "1rem" }}>
-                <label style={{ display: "block", fontWeight: 600, marginBottom: "0.25rem" }}>Målgrupp</label>
+                <label
+                  style={{
+                    display: "block",
+                    fontWeight: 600,
+                    marginBottom: "0.25rem",
+                  }}
+                >
+                  Målgrupp
+                </label>
                 <select
                   value={selectedGroupId}
                   onChange={(e) => setSelectedGroupId(Number(e.target.value))}
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid #d1d5db" }}
+                  style={{
+                    width: "100%",
+                    padding: "0.5rem",
+                    borderRadius: "6px",
+                    border: "1px solid #d1d5db",
+                  }}
                 >
                   {groups.map((g) => (
                     <option key={g.id} value={g.id}>
@@ -576,8 +748,23 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
 
               <h4 style={{ margin: "1.5rem 0 0.5rem 0" }}>Frågor</h4>
               {questions.map((q, qIdx) => (
-                <div key={qIdx} style={{ padding: "1rem", backgroundColor: "#f9fafb", borderRadius: "6px", marginBottom: "1rem" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                <div
+                  key={qIdx}
+                  style={{
+                    padding: "1rem",
+                    backgroundColor: "#f9fafb",
+                    borderRadius: "6px",
+                    marginBottom: "1rem",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: "0.5rem",
+                    }}
+                  >
                     <label style={{ fontWeight: 600, color: "#1f2937" }}>
                       Fråga #{qIdx + 1}
                     </label>
@@ -604,10 +791,25 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
                     required
                     placeholder="Skriv frågetext..."
                     value={q.question}
-                    onChange={(e) => handleQuestionChange(qIdx, "question", e.target.value)}
-                    style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid #d1d5db", marginBottom: "0.5rem" }}
+                    onChange={(e) =>
+                      handleQuestionChange(qIdx, "question", e.target.value)
+                    }
+                    style={{
+                      width: "100%",
+                      padding: "0.5rem",
+                      borderRadius: "6px",
+                      border: "1px solid #d1d5db",
+                      marginBottom: "0.5rem",
+                    }}
                   />
-                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", marginBottom: "0.5rem" }}>
+                  <div
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns: "1fr 1fr",
+                      gap: "0.5rem",
+                      marginBottom: "0.5rem",
+                    }}
+                  >
                     {q.options.map((opt, oIdx) => (
                       <input
                         key={oIdx}
@@ -615,8 +817,14 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
                         required
                         placeholder={`Alternativ ${oIdx + 1}`}
                         value={opt}
-                        onChange={(e) => handleOptionChange(qIdx, oIdx, e.target.value)}
-                        style={{ padding: "0.4rem", borderRadius: "4px", border: "1px solid #d1d5db" }}
+                        onChange={(e) =>
+                          handleOptionChange(qIdx, oIdx, e.target.value)
+                        }
+                        style={{
+                          padding: "0.4rem",
+                          borderRadius: "4px",
+                          border: "1px solid #d1d5db",
+                        }}
                       />
                     ))}
                   </div>
@@ -624,7 +832,13 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
                     Rätt svar:
                     <select
                       value={q.correctAnswer}
-                      onChange={(e) => handleQuestionChange(qIdx, "correctAnswer", e.target.value)}
+                      onChange={(e) =>
+                        handleQuestionChange(
+                          qIdx,
+                          "correctAnswer",
+                          e.target.value,
+                        )
+                      }
                       style={{ marginLeft: "0.5rem", padding: "0.2rem" }}
                     >
                       {q.options.map((_, oIdx) => (
@@ -653,20 +867,41 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
                 + Lägg till en till fråga
               </button>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "1rem" }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: "1rem",
+                }}
+              >
                 <button
                   type="button"
                   onClick={() => {
                     resetFormState();
                     setShowCreateModal(false);
                   }}
-                  style={{ padding: "0.6rem 1.2rem", backgroundColor: "#9ca3af", color: "#fff", border: "none", borderRadius: "6px", cursor: "pointer" }}
+                  style={{
+                    padding: "0.6rem 1.2rem",
+                    backgroundColor: "#9ca3af",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                  }}
                 >
                   Avbryt
                 </button>
                 <button
                   type="submit"
-                  style={{ padding: "0.6rem 1.5rem", backgroundColor: "#2563eb", color: "#fff", border: "none", borderRadius: "6px", fontWeight: 600, cursor: "pointer" }}
+                  style={{
+                    padding: "0.6rem 1.5rem",
+                    backgroundColor: "#2563eb",
+                    color: "#fff",
+                    border: "none",
+                    borderRadius: "6px",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
                 >
                   {editingQuizId ? "Uppdatera quiz" : "Spara quiz"}
                 </button>

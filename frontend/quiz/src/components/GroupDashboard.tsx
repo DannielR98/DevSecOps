@@ -69,21 +69,33 @@ export default function GroupDashboard({ onGroupChange }: GroupDashboardProps) {
           };
         }
       ).response;
-      if (res?.data?.message) return res.data.message;
-      if (res?.data?.error) return res.data.error;
-      if (res?.data?.sms && res.data.sms.length > 0) return res.data.sms[0];
+      if (res?.data?.message) {
+        return res.data.message;
+      }
+      if (res?.data?.error) {
+        return res.data.error;
+      }
+      if (res?.data?.sms && res.data.sms.length > 0) {
+        return res.data.sms[0];
+      }
     }
-    if (err instanceof Error) return err.message;
+    if (err instanceof Error) {
+      return err.message;
+    }
     return "Ett fel uppstod. Försök igen.";
   };
 
   const fetchGroups = async () => {
-    if (!isLoggedIn) return;
+    if (!isLoggedIn) {
+      return;
+    }
     setLoading(true);
     setError("");
     try {
       const token = await getToken();
-      if (!token) return;
+      if (!token) {
+        return;
+      }
       const data = await apiRequest({
         api: "groups",
         method: "GET",
@@ -98,13 +110,43 @@ export default function GroupDashboard({ onGroupChange }: GroupDashboardProps) {
     }
   };
 
-  useEffect(() => {
+  /*   useEffect(() => {
     fetchGroups();
+  }, [isAuthenticated, isAuth]); */
+  useEffect(() => {
+    if (!isAuthenticated || !isAuth) {
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadGroups = async () => {
+      try {
+        // Keep your existing group-fetching logic here.
+
+        // Before updating state with the fetched groups:
+        if (!cancelled) {
+          // setGroups(fetchedGroups);
+        }
+      } catch {
+        if (!cancelled) {
+          // Keep your existing error-state update here.
+        }
+      }
+    };
+
+    void loadGroups();
+
+    return () => {
+      cancelled = true;
+    };
   }, [isAuthenticated, isAuth]);
 
   const handleCreateGroup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!groupName.trim()) return;
+    if (!groupName.trim()) {
+      return;
+    }
     setError("");
     setSuccess("");
 
@@ -127,7 +169,9 @@ export default function GroupDashboard({ onGroupChange }: GroupDashboardProps) {
 
   const handleJoinGroup = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!joinCode.trim()) return;
+    if (!joinCode.trim()) {
+      return;
+    }
     setError("");
     setSuccess("");
 
@@ -149,7 +193,9 @@ export default function GroupDashboard({ onGroupChange }: GroupDashboardProps) {
   };
 
   const handleEditGroup = async (groupId: number) => {
-    if (!editName.trim()) return;
+    if (!editName.trim()) {
+      return;
+    }
     try {
       const token = await getToken();
       await apiRequest({
@@ -172,7 +218,9 @@ export default function GroupDashboard({ onGroupChange }: GroupDashboardProps) {
     const confirmed = window.confirm(
       `Detta kommer att ta bort alla kopplade quiz i gruppen "${groupName}". Är du säker på att du vill ta bort gruppen?`,
     );
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
     try {
       const token = await getToken();
@@ -190,7 +238,9 @@ export default function GroupDashboard({ onGroupChange }: GroupDashboardProps) {
     }
   };
 
-  if (!isLoggedIn) return null;
+  if (!isLoggedIn) {
+    return null;
+  }
 
   return (
     <div

@@ -55,12 +55,15 @@ jobs:
       - name: Frontend Audit (SCA)
         working-directory: frontend/quiz
         run: npm audit --audit-level=high
-
-        #
-      #- name: Frontend Lint
-      #  working-directory: frontend/quiz
-       # run: npm run lint
-        
+   
+      - name: Frontend Lint
+        working-directory: frontend/quiz
+        run: npm run lint
+      
+      - name: Frontend Lint and Fix
+        working-directory: frontend/quiz
+        run: npm run lint -- --fix
+      
       - name: Run frontend Test
         working-directory: frontend/quiz
         run: npm test
