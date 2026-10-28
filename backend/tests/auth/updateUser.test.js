@@ -2,160 +2,133 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { createTestApp } from "../helpers/testApp.js";
 
-// Hoist the model mocks so they are available while Vitest hoists the vi.mock factory calls.
-const { findByPkMock, findOneMock, updateMock } = vi.hoisted(() => ({
+const VALID_USER_UUID = "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44";
+const OTHER_USER_UUID = "e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a55";
+
+const { findByPkMock } = vi.hoisted(() => ({
   findByPkMock: vi.fn(),
-  findOneMock: vi.fn(),
-  updateMock: vi.fn(),
 }));
 
-// These mocks isolate user lookup, conflict lookup, and persistence.
-
-// Mock the User model used by the update route.
-vi.mock("../../database/schemas/userSchema.js", () => ({
-  default: {
-    // The route reads the current user, checks conflicts, and writes the update.
-    findByPk: findByPkMock,
-    findOne: findOneMock,
-    update: updateMock,
-  },
-}));
-
-// Mock Supabase middleware so the route receives the subject of an authenticated user.
-vi.mock("../../middleware/supabaseAuth.js", () => ({
-  checkJwt: (req, res, next) => {
-    req.user = { id: 1 };
-    req.auth = { payload: { sub: "supabase|test-user" } };
+vi.mock("../../middleware/verifyJWT.js", () => ({
+  default: (req, res, next) => {
+    req.user = { id: VALID_USER_UUID, user_id: VALID_USER_UUID };
     next();
   },
 }));
 
-import updateUserRoute from "../../Api/Routes/auth/updateUser.js";
+vi.mock("../../models/User.js", () => ({
+  default: {
+    findByPk: findByPkMock,
+  },
+}));
 
-// Build a tiny Express app that mounts only the update route.
+import updateUserRoute from "../../Api/UserRoute/updateUser.js";
+
 const app = createTestApp(updateUserRoute);
 
 describe("Auth > update user", () => {
-  // Reset all mocks before each test.
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   describe("authorization", () => {
-    // Should block attempts to update another user's account.
-    it("returns 403 when updating another user", async () => {
-      const res = await request(app).put("/api/update-user/2").send({
+    it("returns 400 when user ID is not a valid UUID", async () => {
+      const res = await request(app).put("/api/update-user/invalid-id").send({
         firstname: "John",
-        surname: "Doe",
-        username: "johndoe",
-        email: "john@example.com",
+      });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("Invalid user ID");
+    });
+
+    it("returns 403 when updating another user", async () => {
+      const res = await request(app).put(`/api/update-user/${OTHER_USER_UUID}`).send({
+        firstname: "John",
       });
 
       expect(res.status).toBe(403);
-      expect(res.body.sms).toEqual(["You can only update your own account"]);
+      expect(res.body.message).toBe("You are not authorized to update this user");
     });
   });
 
   describe("missing resource", () => {
-    // Should return 404 when the user cannot be found.
     it("returns 404 when user does not exist", async () => {
       findByPkMock.mockResolvedValue(null);
 
-      const res = await request(app).put("/api/update-user/1").send({
+      const res = await request(app).put(`/api/update-user/${VALID_USER_UUID}`).send({
         firstname: "John",
-        surname: "Doe",
-        username: "johndoe",
-        email: "john@example.com",
       });
 
       expect(res.status).toBe(404);
-      expect(res.body.sms).toEqual(["User not found"]);
+      expect(res.body.message).toBe("User not found");
     });
   });
 
   describe("conflicts", () => {
-    // Should return 409 if another user already has the requested username/email.
     it("returns 409 when username or email already exists", async () => {
-      findOneMock.mockResolvedValue({
-        id: 2,
-        username: "johndoe",
-        email: "john@example.com",
+      const uniqueConstraintError = new Error("Unique constraint error");
+      uniqueConstraintError.name = "SequelizeUniqueConstraintError";
+
+      findByPkMock.mockResolvedValue({
+        user_id: VALID_USER_UUID,
+        update: vi.fn().mockRejectedValue(uniqueConstraintError),
       });
-      findByPkMock.mockResolvedValueOnce({
-        id: 1,
-        firstname: "John",
-        surname: "Doe",
-        username: "johndoe",
-        email: "john@example.com",
-      });
-      const res = await request(app).put("/api/update-user/1").send({
-        firstname: "John",
-        surname: "Doe",
-        username: "johndoe",
-        email: "john@example.com",
+
+      const res = await request(app).put(`/api/update-user/${VALID_USER_UUID}`).send({
+        email: "taken@example.com",
       });
 
       expect(res.status).toBe(409);
-      expect(res.body.sms).toEqual([
-        "Username is already exist. Please try another username.",
-        "Email is already exist. Please try another email.",
-      ]);
+      expect(res.body.message).toBe("Email or username already exists");
     });
   });
 
   describe("successful updates", () => {
-    // The complete update path returns the refreshed user after persistence.
     it("returns 200 when the user is updated", async () => {
-      const updatedUser = {
-        id: 1,
-        firstname: "John",
+      const userInstance = {
+        user_id: VALID_USER_UUID,
+        firstname: "OldName",
         surname: "Doe",
-        username: "johndoe2",
-        email: "john2@example.com",
+        username: "johndoe",
+        email: "john@example.com",
+        update: vi.fn().mockResolvedValue(undefined),
+        toJSON: vi.fn(() => ({
+          user_id: VALID_USER_UUID,
+          firstname: "NewName",
+          surname: "Doe",
+          username: "johndoe",
+          email: "john@example.com",
+        })),
       };
 
-      findOneMock.mockResolvedValue(null);
-      findByPkMock
-        .mockResolvedValueOnce({ id: 1 })
-        .mockResolvedValueOnce(updatedUser);
-      updateMock.mockResolvedValue([1]);
+      findByPkMock.mockResolvedValue(userInstance);
 
-      const res = await request(app).put("/api/update-user/1").send({
-        firstname: "John",
-        surname: "Doe",
-        username: "johndoe2",
-        email: "john2@example.com",
+      const res = await request(app).put(`/api/update-user/${VALID_USER_UUID}`).send({
+        firstname: "NewName",
       });
 
       expect(res.status).toBe(200);
-      expect(res.body.sms).toEqual(["User successfully updated"]);
-      expect(res.body.user).toEqual(updatedUser);
-      expect(updateMock).toHaveBeenCalledOnce();
+      expect(res.body.success).toBe(true);
+      expect(res.body.user.firstname).toBe("NewName");
+      expect(userInstance.update).toHaveBeenCalledWith(
+        expect.objectContaining({ firstname: "NewName" }),
+      );
     });
   });
 
   describe("server errors", () => {
-    // Should return 500 if the update operation fails unexpectedly.
     it("returns 500 when update fails", async () => {
-      findOneMock.mockResolvedValue(null);
-      findByPkMock.mockResolvedValueOnce({
-        id: 1,
-        firstname: "John",
-        surname: "Doe",
-        username: "johndoe",
-        email: "john@example.com",
+      findByPkMock.mockResolvedValue({
+        user_id: VALID_USER_UUID,
+        update: vi.fn().mockRejectedValue(new Error("unexpected update failure")),
       });
-      updateMock.mockRejectedValue(new Error("update failed"));
 
-      const res = await request(app).put("/api/update-user/1").send({
-        firstname: "John",
-        surname: "Doe",
-        username: "johndoe2",
-        email: "john2@example.com",
+      const res = await request(app).put(`/api/update-user/${VALID_USER_UUID}`).send({
+        firstname: "NewName",
       });
 
       expect(res.status).toBe(500);
-      expect(res.body.error).toBe("update failed");
+      expect(res.body.message).toBe("Failed to update user");
     });
   });
 });

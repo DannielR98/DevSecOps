@@ -11,9 +11,9 @@ services:
       - ./frontend/quiz:/app
       - quiz-volume-frontend:/app/node_modules
     environment:
-      - CHOKIDAR_USEPOLLING=true
-      - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
-      - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
+      CHOKIDAR_USEPOLLING: "true"
+      VITE_SUPABASE_URL: ${VITE_SUPABASE_URL:-}
+      VITE_SUPABASE_ANON_KEY: ${VITE_SUPABASE_ANON_KEY:-}
 
   backend:
     container_name: quiz-container-backend
@@ -26,31 +26,68 @@ services:
     volumes:
       - ./backend:/app
       - quiz-volume-backend:/app/node_modules
+    env_file:
+      - ./backend/.env
     environment:
-      - CHOKIDAR_USEPOLLING=true
-      - PORT=5000
-      - JWT_SECRET=${JWT_SECRET:-dev_jwt_secret_key_12345}
-      - SUPABASE_URL=${SUPABASE_URL}
-      - SUPABASE_JWT_SECRET=${SUPABASE_JWT_SECRET}
-      - SUPABASE_ANON_KEY=${SUPABASE_ANON_KEY:-${VITE_SUPABASE_ANON_KEY}}
-      - DATABASE_URL=${DATABASE_URL:-postgresql://postgres:${POSTGRES_PASSWORD:-postgres_password_123}@postgres:5432/${POSTGRES_DB:-quiz_devsecops}}
-    depends_on:
-      - postgres
+      CHOKIDAR_USEPOLLING: "true"
+      PORT: "5000"
 
-  postgres:
+      JWT_SECRET: ${JWT_SECRET:-dev_jwt_secret_key_12345}
+
+      DB_HOST: db
+      DB_PORT: "5432"
+      DB_NAME: ${POSTGRES_DB:-quiz_app}
+      DB_USER: ${POSTGRES_USER:-root}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-root}
+
+      DATABASE_URL: ${DATABASE_URL:-postgresql://root:root@db:5432/quiz_app}
+
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET:-}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
+
+    depends_on:
+      db:
+        condition: service_healthy
+
+  db:
     container_name: quiz-container-postgres
-    image: postgres:16-alpine
+    image: postgres:16
     restart: always
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-quiz_devsecops}
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres_password_123}
+      POSTGRES_USER: ${POSTGRES_USER:-root}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-root}
+      POSTGRES_DB: ${POSTGRES_DB:-quiz_app}
     ports:
-      - "5432:5432"
+      - "${POSTGRES_PORT:-5437}:5432"
     volumes:
-      - quiz-volume-postgres:/var/lib/postgresql/data
+      - quiz_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  pgadmin:
+    container_name: quiz-container-pgadmin
+    image: dpage/pgadmin4
+    restart: always
+    environment:
+      PGADMIN_DEFAULT_EMAIL: ${PGADMIN_DEFAULT_EMAIL:-admin@example.com}
+      PGADMIN_DEFAULT_PASSWORD: ${PGADMIN_DEFAULT_PASSWORD:-root}
+    ports:
+      - "${PGADMIN_PORT:-5054}:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
+    depends_on:
+      db:
+        condition: service_healthy
 
 volumes:
   quiz-volume-frontend:
   quiz-volume-backend:
-  quiz-volume-postgres:
+  quiz_postgres_data:
+    name: quiz_postgres_data
+  pgadmin_data:

@@ -1,4 +1,4 @@
-import express from "express";
+/* import express from "express";
 import dotenv from "dotenv";
 import cors from "cors";
 import db from "./database/database.js";
@@ -83,4 +83,104 @@ db.sync()
     console.error("Failed to sync database:", err);
   });
 
-export default app;
+export default app; */
+
+import express from "express";
+import cors from "cors";
+import "dotenv/config";
+import { sequelize, connectDB } from "./config/connect.db.js";
+
+// api for user
+
+import registerUser from "./Api/UserRoute/registerUser.js";
+import getUsers from "./Api/UserRoute/getUsers.js";
+import getUserById from "./Api/UserRoute/getUserById.js";
+import loginUser from "./Api/UserRoute/LoginUser.js";
+import updateUser from "./Api/UserRoute/updateUser.js";
+import deleteUser from "./Api/UserRoute/deleteUser.js";
+
+// api for  Group
+import createGroup from "./Api/Groups/createGroup.js";
+import getGroups from "./Api/Groups/getGroups.js";
+import getGroupById from "./Api/Groups/getGroupById.js";
+import deleteGroup from "./Api/Groups/deleteGroup.js";
+import updateGroup from "./Api/Groups/updateGroup.js";
+import joinGroup from "./Api/Groups/joinGroup.js";
+
+// api for  Group Member
+
+import getGroupMembersRouter from "./Api/GroupMember/getGroupMembers.js";
+import getGroupMemberByIdRouter from "./Api/GroupMember/getGroupMemberById.js";
+import joinGroupMemberRouter from "./Api/GroupMember/joinGroup.js";
+import leaveGroupRouter from "./Api/GroupMember/leaveGroup.js";
+
+// api for  Quiz
+
+import createQuizRouter from "./Api/Quizzes/createQuiz.js";
+import getQuizzes from "./Api/Quizzes/getQuizzes.js";
+import getQuizByIdRouter from "./Api/Quizzes/getQuizById.js";
+import deleteQuizRouter from "./Api/Quizzes/deleteQuiz.js";
+import updateQuizRouter from "./Api/Quizzes/updateQuiz.js";
+import submitQuizRouter from "./Api/Quizzes/takeQuiz.js";
+//
+
+const app = express();
+const PORT = process.env.PORT || 5000;
+
+app.use(cors());
+app.use(express.json());
+
+//
+// api user
+app.use("/api", getUsers);
+app.use("/api", getUserById);
+app.use("/api", registerUser);
+app.use("/api", loginUser);
+app.use("/api", updateUser);
+app.use("/api", deleteUser);
+
+// api for  Group
+app.use("/api", createGroup);
+app.use("/api", getGroups);
+app.use("/api", getGroupById);
+app.use("/api", updateGroup);
+app.use("/api", deleteGroup);
+app.use("/api", joinGroup);
+
+// api for  Group Member
+
+app.use("/api", getGroupMembersRouter);
+app.use("/api", getGroupMemberByIdRouter);
+app.use("/api", joinGroupMemberRouter);
+app.use("/api", leaveGroupRouter);
+
+// api for  Quiz
+app.use("/api", createQuizRouter);
+app.use("/api", getQuizzes);
+app.use("/api", getQuizByIdRouter);
+app.use("/api", deleteQuizRouter);
+app.use("/api", updateQuizRouter);
+app.use("/api", submitQuizRouter);
+
+//
+
+async function startServer() {
+  try {
+    // Connect to PostgreSQL
+    await connectDB();
+
+    // Create tables / synchronize models for development only
+    await sequelize.sync();
+
+    console.log("Database synced successfully");
+
+    app.listen(PORT, () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  } catch (error) {
+    console.error("Failed to start application:", error);
+    process.exit(1);
+  }
+}
+
+startServer();

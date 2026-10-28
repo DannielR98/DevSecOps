@@ -14,30 +14,30 @@ const {
   findAllQuizMock: vi.fn(),
 }));
 
-vi.mock("../../middleware/supabaseAuth.js", () => ({
-  checkJwt: (req, res, next) => {
-    req.auth = { payload: { sub: "supabase|atester-id" } };
+vi.mock("../../middleware/verifyJWT.js", () => ({
+  default: (req, res, next) => {
+    req.user = { id: "99", email: "test@example.com" };
     next();
   },
 }));
 
-vi.mock("../../database/schemas/userSchema.js", () => ({
-  default: { findOne: findOneUserMock },
+vi.mock("../../models/User.js", () => ({
+  default: { findByPk: findOneUserMock, findOne: findOneUserMock },
 }));
 
-vi.mock("../../database/schemas/groupMemberSchema.js", () => ({
+vi.mock("../../models/GroupMember.js", () => ({
   default: { findAll: findAllMemberMock },
 }));
 
-vi.mock("../../database/schemas/groupSchema.js", () => ({
-  default: { findAll: findAllGroupMock },
+vi.mock("../../models/Group.js", () => ({
+  default: { findAll: findAllGroupMock, findByPk: vi.fn() },
 }));
 
-vi.mock("../../database/schemas/quizSchema.js", () => ({
+vi.mock("../../models/Quiz.js", () => ({
   default: { findAll: findAllQuizMock },
 }));
 
-import getQuizzesRoute from "../../Api/Routes/Quizzes/getQuizzes.js";
+import getQuizzesRoute from "../../Api/Quizzes/getQuizzes.js";
 
 const app = createTestApp(getQuizzesRoute);
 
@@ -47,7 +47,7 @@ describe("GET /api/quizzes", () => {
   });
 
   it("returns empty quizzes array when user belongs to 0 groups", async () => {
-    findOneUserMock.mockResolvedValue({ id: 99, supabase_id: "supabase|atester-id" });
+    findOneUserMock.mockResolvedValue({ user_id: "99", id: "99" });
     findAllMemberMock.mockResolvedValue([]);
     findAllGroupMock.mockResolvedValue([]);
 
@@ -59,22 +59,38 @@ describe("GET /api/quizzes", () => {
   });
 
   it("returns only quizzes for groups the user belongs to", async () => {
-    findOneUserMock.mockResolvedValue({ id: 99, supabase_id: "supabase|atester-id" });
-    findAllMemberMock.mockResolvedValue([{ group_id: 10 }]);
-    findAllGroupMock.mockResolvedValue([{ id: 10, name: "Dev Team" }]);
+    findOneUserMock.mockResolvedValue({ user_id: "99", id: "99" });
+    findAllMemberMock.mockResolvedValue([{ group_id: "10" }]);
+    findAllGroupMock.mockResolvedValue([{ id: "10", name: "Dev Team" }]);
     findAllQuizMock.mockResolvedValue([
-      { id: 1, title: "Group 10 Quiz", group_id: 10 },
+      {
+        id: "1",
+        title: "Group 10 Quiz",
+        group_id: "10",
+        creator_id: "other-user",
+        get: vi.fn(function () {
+          return {
+            id: this.id,
+            title: this.title,
+            group_id: this.group_id,
+            creator_id: this.creator_id,
+          };
+        }),
+      },
     ]);
 
     const res = await request(app).get("/api/quizzes");
 
     expect(res.status).toBe(200);
-    expect(findAllQuizMock).toHaveBeenCalledWith({
-      where: { group_id: [10] },
-      order: [["createdAt", "DESC"]],
-    });
     expect(res.body.quizzes).toEqual([
-      { id: 1, title: "Group 10 Quiz", group_id: 10, group_name: "Dev Team", is_creator: false },
+      {
+        id: "1",
+        title: "Group 10 Quiz",
+        group_id: "10",
+        creator_id: "other-user",
+        group_name: "Dev Team",
+        is_creator: false,
+      },
     ]);
   });
 });

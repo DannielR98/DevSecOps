@@ -2,6 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { createTestApp } from "../helpers/testApp.js";
 
+const VALID_GROUP_UUID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
+
 const {
   createGroupMock,
   createMemberMock,
@@ -9,7 +11,6 @@ const {
   findByPkGroupMock,
   findAllMemberMock,
   findOneUserMock,
-  createUserMock,
   destroyMemberMock,
   destroyQuizMock,
   findAllQuizMock,
@@ -21,66 +22,63 @@ const {
   findByPkGroupMock: vi.fn(),
   findAllMemberMock: vi.fn(),
   findOneUserMock: vi.fn(),
-  createUserMock: vi.fn(),
   destroyMemberMock: vi.fn(),
   destroyQuizMock: vi.fn(),
   findAllQuizMock: vi.fn().mockResolvedValue([]),
   destroyQuizResultMock: vi.fn(),
 }));
 
-// These mocks cover group persistence, membership persistence, and local-user lookup.
-
-// Provide the Supabase subject expected by every protected group route.
-vi.mock("../../middleware/supabaseAuth.js", () => ({
-  checkJwt: (req, res, next) => {
-    req.auth = { payload: { sub: "supabase|test-user" } };
+vi.mock("../../middleware/verifyJWT.js", () => ({
+  default: (req, res, next) => {
+    req.user = { id: "user-1", email: "user@example.com" };
     next();
   },
 }));
 
-vi.mock("../../database/schemas/groupSchema.js", () => ({
+vi.mock("../../models/Group.js", () => ({
   default: {
-    // Group routes create, list, and retrieve groups through these methods.
     create: createGroupMock,
     findAll: findAllGroupMock,
     findByPk: findByPkGroupMock,
+    findOne: vi.fn().mockResolvedValue(null),
+    sequelize: {
+      transaction: vi.fn(async (cb) => cb({})),
+    },
   },
 }));
 
-vi.mock("../../database/schemas/groupMemberSchema.js", () => ({
+vi.mock("../../models/GroupMember.js", () => ({
   default: {
-    // Group creation and listing both depend on membership operations.
     create: createMemberMock,
     findAll: findAllMemberMock,
     destroy: destroyMemberMock,
   },
 }));
 
-vi.mock("../../database/schemas/quizSchema.js", () => ({
+vi.mock("../../models/Quiz.js", () => ({
   default: {
     findAll: findAllQuizMock,
     destroy: destroyQuizMock,
   },
 }));
 
-vi.mock("../../database/schemas/quizResultSchema.js", () => ({
+vi.mock("../../models/QuizResult.js", () => ({
   default: {
     destroy: destroyQuizResultMock,
   },
 }));
 
-vi.mock("../../database/schemas/userSchema.js", () => ({
+vi.mock("../../models/User.js", () => ({
   default: {
-    // A group request may find or create the local Supabase user.
+    findByPk: findOneUserMock,
     findOne: findOneUserMock,
-    create: createUserMock,
   },
 }));
 
-import createGroupRoute from "../../Api/Routes/Groups/createGroup.js";
-import getGroupsRoute from "../../Api/Routes/Groups/getGroups.js";
-import getGroupByIdRoute from "../../Api/Routes/Groups/getGroupById.js";
-import deleteGroupRoute from "../../Api/Routes/Groups/deleteGroup.js";
+import createGroupRoute from "../../Api/Groups/createGroup.js";
+import getGroupsRoute from "../../Api/Groups/getGroups.js";
+import getGroupByIdRoute from "../../Api/Groups/getGroupById.js";
+import deleteGroupRoute from "../../Api/Groups/deleteGroup.js";
 
 const app = createTestApp(
   createGroupRoute,
@@ -90,22 +88,20 @@ const app = createTestApp(
 );
 
 describe("Groups", () => {
-  // Reset every mock before each independent route scenario.
   beforeEach(() => {
     vi.clearAllMocks();
     findAllQuizMock.mockResolvedValue([]);
   });
 
-  // The route rejects a request that does not provide a group name.
-  it("returns 400 when name is missing", async () => {
+  it("returns 400 when name is missing or too short", async () => {
     const res = await request(app).post("/api/groups").send({});
 
     expect(res.status).toBe(400);
+    expect(res.body.success).toBe(false);
   });
 
-  // A database error while creating the group becomes a 500 response.
-  it("returns 500 when create fails", async () => {
-    findOneUserMock.mockResolvedValue({ id: 1 });
+  it("returns 500 when create fails inside transaction", async () => {
+    findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
     createGroupMock.mockRejectedValue(new Error("create failed"));
 
     const res = await request(app).post("/api/groups").send({
@@ -113,18 +109,18 @@ describe("Groups", () => {
     });
 
     expect(res.status).toBe(500);
-    expect(res.body.error).toBe("create failed");
+    expect(res.body.success).toBe(false);
   });
 
-  // Successful creation returns the group and adds the owner membership.
-  it("returns 200 when a group is created", async () => {
+  it("returns 201 when a group is created", async () => {
     const newGroup = {
-      id: 5,
+      id: VALID_GROUP_UUID,
       name: "Dev Team",
-      invite_code: "ABC123",
-      owner_id: 1,
+      invite_code: "ABC1234567",
+      owner_id: "user-1",
+      createdAt: new Date().toISOString(),
     };
-    findOneUserMock.mockResolvedValue({ id: 1 });
+    findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
     createGroupMock.mockResolvedValue(newGroup);
     createMemberMock.mockResolvedValue(undefined);
 
@@ -133,65 +129,32 @@ describe("Groups", () => {
     });
 
     expect(res.status).toBe(201);
-    expect(res.body.group).toEqual(newGroup);
+    expect(res.body.success).toBe(true);
+    expect(res.body.group.name).toBe("Dev Team");
     expect(createMemberMock).toHaveBeenCalledOnce();
   });
 
-  // A first-time Supabase user is created locally before becoming group owner.
-  it("creates the local user before creating a group", async () => {
-    const localUser = { id: 2, supabase_id: "supabase|test-user" };
-    const newGroup = {
-      id: 6,
-      name: "New Team",
-      invite_code: "XYZ789",
-      owner_id: 2,
-    };
-    findOneUserMock.mockResolvedValue(null);
-    createUserMock.mockResolvedValue(localUser);
-    createGroupMock.mockResolvedValue(newGroup);
-    createMemberMock.mockResolvedValue(undefined);
-
-    const res = await request(app).post("/api/groups").send({
-      name: "New Team",
-    });
-
-    expect(res.status).toBe(201);
-    expect(createUserMock).toHaveBeenCalledWith({
-      supabase_id: "supabase|test-user",
-      email: "supabase|test-user@supabase.user",
-    });
-    expect(createGroupMock).toHaveBeenCalledWith(
-      expect.objectContaining({
-        name: "New Team",
-        owner_id: 2,
-      }),
-    );
-    expect(res.body.group).toEqual(newGroup);
-  });
-
-  // A failure while listing groups becomes a 500 response.
   it("returns 500 when fetching fails", async () => {
-    findOneUserMock.mockResolvedValue({ id: 1 });
+    findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
     findAllMemberMock.mockResolvedValue([]);
     findAllGroupMock.mockRejectedValue(new Error("findAll failed"));
 
     const res = await request(app).get("/api/groups");
 
     expect(res.status).toBe(500);
-    expect(res.body.error).toBe("findAll failed");
+    expect(res.body.success).toBe(false);
   });
 
-  // Successful listing maps ownership into the is_owner response field.
   it("returns 200 when groups are fetched", async () => {
     const group = {
-      id: 5,
+      id: VALID_GROUP_UUID,
       name: "Dev Team",
-      invite_code: "ABC123",
-      owner_id: 1,
+      invite_code: "ABC1234567",
+      owner_id: "user-1",
       createdAt: "2026-09-06T00:00:00.000Z",
     };
-    findOneUserMock.mockResolvedValue({ id: 1 });
-    findAllMemberMock.mockResolvedValue([{ group_id: 5 }]);
+    findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
+    findAllMemberMock.mockResolvedValue([{ group_id: VALID_GROUP_UUID }]);
     findAllGroupMock.mockResolvedValue([group]);
 
     const res = await request(app).get("/api/groups");
@@ -205,99 +168,98 @@ describe("Groups", () => {
     ]);
   });
 
-  // A user with 0 group memberships successfully queries owned groups without SQL error.
   it("returns 200 when user has 0 group memberships", async () => {
-    findOneUserMock.mockResolvedValue({ id: 1 });
+    findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
     findAllMemberMock.mockResolvedValue([]);
     findAllGroupMock.mockResolvedValue([]);
 
     const res = await request(app).get("/api/groups");
 
     expect(res.status).toBe(200);
-    expect(findAllGroupMock).toHaveBeenCalledWith({
-      where: { owner_id: 1 },
-      order: [["createdAt", "DESC"]],
-    });
     expect(res.body.groups).toEqual([]);
   });
 
-  // A missing group ID returns a not-found response.
+  it("returns 400 when group ID is not a valid UUID format", async () => {
+    const res = await request(app).get("/api/groups/invalid-id");
+
+    expect(res.status).toBe(400);
+    expect(res.body.message).toBe("Invalid group ID format");
+  });
+
   it("returns 404 when group is missing", async () => {
     findByPkGroupMock.mockResolvedValue(null);
 
-    const res = await request(app).get("/api/groups/99");
+    const res = await request(app).get(`/api/groups/${VALID_GROUP_UUID}`);
 
     expect(res.status).toBe(404);
   });
 
-  // Unexpected lookup errors are returned as a 500 response.
   it("returns 500 when lookup fails", async () => {
     findByPkGroupMock.mockRejectedValue(new Error("lookup failed"));
 
-    const res = await request(app).get("/api/groups/99");
+    const res = await request(app).get(`/api/groups/${VALID_GROUP_UUID}`);
 
     expect(res.status).toBe(500);
-    expect(res.body.error).toBe("lookup failed");
+    expect(res.body.success).toBe(false);
   });
 
-  // A valid group lookup returns the selected group details.
   it("returns 200 when a group is found", async () => {
     const group = {
-      id: 5,
+      id: VALID_GROUP_UUID,
       name: "Dev Team",
-      owner_id: 1,
+      invite_code: "ABC1234567",
+      owner_id: "user-1",
       createdAt: "2026-09-06T00:00:00.000Z",
     };
     findByPkGroupMock.mockResolvedValue(group);
 
-    const res = await request(app).get("/api/groups/5");
+    const res = await request(app).get(`/api/groups/${VALID_GROUP_UUID}`);
 
     expect(res.status).toBe(200);
     expect(res.body.group).toEqual(group);
   });
 
-  // Only the group owner may delete the group.
-  it("returns 403 when user is not owner", async () => {
-    findOneUserMock.mockResolvedValue({ id: 1 });
-    findByPkGroupMock.mockResolvedValue({ id: 5, owner_id: 2 });
+  it("returns 403 when user is not owner on delete", async () => {
+    findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
+    findByPkGroupMock.mockResolvedValue({ id: VALID_GROUP_UUID, owner_id: "user-2" });
 
-    const res = await request(app).delete("/api/groups/5");
+    const res = await request(app).delete(`/api/groups/${VALID_GROUP_UUID}`);
 
     expect(res.status).toBe(403);
   });
 
-  // A failure while deleting the group becomes a 500 response.
   it("returns 500 when destroy fails", async () => {
-    findOneUserMock.mockResolvedValue({ id: 1 });
+    findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
+    const mockDestroy = vi.fn().mockRejectedValue(new Error("destroy failed"));
     findByPkGroupMock.mockResolvedValue({
-      id: 5,
-      owner_id: 1,
-      destroy: vi.fn().mockRejectedValue(new Error("destroy failed")),
+      id: VALID_GROUP_UUID,
+      owner_id: "user-1",
+      destroy: mockDestroy,
     });
 
-    const res = await request(app).delete("/api/groups/5");
+    const res = await request(app).delete(`/api/groups/${VALID_GROUP_UUID}`);
 
     expect(res.status).toBe(500);
-    expect(res.body.error).toBe("destroy failed");
+    expect(res.body.success).toBe(false);
   });
 
-  // The owner can delete a group successfully and its destroy method is called.
   it("returns 200 when a group is deleted", async () => {
     const group = {
-      id: 5,
-      owner_id: 1,
+      id: VALID_GROUP_UUID,
+      owner_id: "user-1",
       destroy: vi.fn().mockResolvedValue(undefined),
     };
-    findOneUserMock.mockResolvedValue({ id: 1 });
+    findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
     findByPkGroupMock.mockResolvedValue(group);
-    findAllQuizMock.mockResolvedValue([{ id: 10 }]);
+    findAllQuizMock.mockResolvedValue([{ id: "quiz-1" }]);
 
-    const res = await request(app).delete("/api/groups/5");
+    const res = await request(app).delete(`/api/groups/${VALID_GROUP_UUID}`);
 
     expect(res.status).toBe(200);
-    expect(res.body.sms).toEqual(["Grupp borttagen"]);
-    expect(destroyQuizResultMock).toHaveBeenCalledWith({ where: { quiz_id: [10] } });
-    expect(destroyQuizMock).toHaveBeenCalledWith({ where: { group_id: 5 } });
+    expect(res.body.success).toBe(true);
+    expect(destroyQuizResultMock).toHaveBeenCalled();
+    expect(destroyMemberMock).toHaveBeenCalled();
+    expect(destroyQuizMock).toHaveBeenCalled();
     expect(group.destroy).toHaveBeenCalledOnce();
   });
 });

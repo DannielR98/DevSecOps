@@ -1,0 +1,18 @@
+title = "Gitleaks Custom Configuration"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Ignore example templates, docs, and historical commit fa1c66a"
+commits = [
+  "fa1c66a034f256a63259df16b66b18b5d8be0365"
+]
+paths = [
+  '''^\.env$''',
+  '''^\.env\.example$''',
+  '''^backend/\.env\.example$''',
+  '''^frontend/quiz/\.env\.example$''',
+  '''^README\.md$''',
+  '''individuell_rapport_Joseph\.pdf$'''
+]

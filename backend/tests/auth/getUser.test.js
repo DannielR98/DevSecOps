@@ -2,27 +2,22 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { createTestApp } from "../helpers/testApp.js";
 
-const { findAllUserMock, findByPkUserMock } = vi.hoisted(() => ({
+const VALID_USER_UUID = "c0eebc99-9c0b-4ef8-bb6d-6bb9bd380a33";
+
+const { findAllUserMock, findOneUserMock } = vi.hoisted(() => ({
   findAllUserMock: vi.fn(),
-  findByPkUserMock: vi.fn(),
+  findOneUserMock: vi.fn(),
 }));
 
-vi.mock("../../middleware/supabaseAuth.js", () => ({
-  checkJwt: (req, res, next) => {
-    req.auth = { payload: { sub: "supabase|test-user" } };
-    next();
-  },
-}));
-
-vi.mock("../../database/schemas/userSchema.js", () => ({
+vi.mock("../../models/User.js", () => ({
   default: {
     findAll: findAllUserMock,
-    findByPk: findByPkUserMock,
+    findOne: findOneUserMock,
   },
 }));
 
-import getUsersRoute from "../../Api/Routes/auth/getUser.js";
-import getUserByIdRoute from "../../Api/Routes/auth/getUserId.js";
+import getUsersRoute from "../../Api/UserRoute/getUsers.js";
+import getUserByIdRoute from "../../Api/UserRoute/getUserById.js";
 
 const app = createTestApp(getUsersRoute, getUserByIdRoute);
 
@@ -33,7 +28,7 @@ describe("Auth User Lookup Routes", () => {
 
   describe("GET /api/users", () => {
     it("returns 200 and list of users", async () => {
-      const usersList = [{ id: 1, email: "a@test.com" }];
+      const usersList = [{ user_id: VALID_USER_UUID, email: "a@test.com" }];
       findAllUserMock.mockResolvedValue(usersList);
 
       const res = await request(app).get("/api/users");
@@ -48,37 +43,44 @@ describe("Auth User Lookup Routes", () => {
       const res = await request(app).get("/api/users");
 
       expect(res.status).toBe(500);
-      expect(res.body.error).toBe("DB error");
+      expect(res.body.message).toBe("Failed to fetch users");
     });
   });
 
   describe("GET /api/user/:userId", () => {
-    it("returns 404 when user is not found", async () => {
-      findByPkUserMock.mockResolvedValue(null);
-
+    it("returns 400 when user ID is not a valid UUID", async () => {
       const res = await request(app).get("/api/user/99");
 
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain("Invalid user ID");
+    });
+
+    it("returns 404 when user is not found", async () => {
+      findOneUserMock.mockResolvedValue(null);
+
+      const res = await request(app).get(`/api/user/${VALID_USER_UUID}`);
+
       expect(res.status).toBe(404);
-      expect(res.body.sms).toEqual(["User not found"]);
+      expect(res.body.message).toBe("User not found");
     });
 
     it("returns 200 and user when found", async () => {
-      const user = { id: 5, email: "user5@test.com" };
-      findByPkUserMock.mockResolvedValue(user);
+      const user = { user_id: VALID_USER_UUID, email: "user5@test.com" };
+      findOneUserMock.mockResolvedValue(user);
 
-      const res = await request(app).get("/api/user/5");
+      const res = await request(app).get(`/api/user/${VALID_USER_UUID}`);
 
       expect(res.status).toBe(200);
       expect(res.body.user).toEqual(user);
     });
 
     it("returns 500 when lookup fails", async () => {
-      findByPkUserMock.mockRejectedValue(new Error("Lookup failure"));
+      findOneUserMock.mockRejectedValue(new Error("Lookup failure"));
 
-      const res = await request(app).get("/api/user/5");
+      const res = await request(app).get(`/api/user/${VALID_USER_UUID}`);
 
       expect(res.status).toBe(500);
-      expect(res.body.error).toBe("Lookup failure");
+      expect(res.body.message).toBe("Failed to fetch user");
     });
   });
 });

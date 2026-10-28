@@ -13,6 +13,7 @@ on:
 permissions:
   contents: read
   security-events: write 
+  pull-requests: write
 
 jobs:
   ci:
@@ -22,6 +23,17 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # =========================
+      # 0. SECRET SCANNING (Gitleaks)
+      # =========================
+      - name: Secret Scanning (Gitleaks)
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
