@@ -33,7 +33,9 @@ export const checkJwt = async (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
     if (!authHeader || !authHeader.startsWith("Bearer ")) {
-      return res.status(401).json({ message: "Authorization header is required" });
+      return res
+        .status(401)
+        .json({ message: "Authorization header is required" });
     }
 
     const token = authHeader.split(" ")[1];
@@ -48,7 +50,7 @@ export const checkJwt = async (req, res, next) => {
         req.auth = { payload };
         req.user = payload;
         return next();
-      } catch (jwksErr) {
+      } catch (_jwksErr) {
         // Fall through to other verification strategies
       }
     }
@@ -61,7 +63,7 @@ export const checkJwt = async (req, res, next) => {
         req.auth = { payload: decoded };
         req.user = decoded;
         return next();
-      } catch (hmacErr) {
+      } catch (_hmacErr) {
         // Fall through
       }
     }
@@ -83,7 +85,7 @@ export const checkJwt = async (req, res, next) => {
           req.user = payload;
           return next();
         }
-      } catch (apiErr) {
+      } catch (_apiErr) {
         // Fall through
       }
     }

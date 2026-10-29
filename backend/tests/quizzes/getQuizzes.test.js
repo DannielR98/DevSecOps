@@ -15,7 +15,7 @@ const {
 }));
 
 vi.mock("../../middleware/verifyJWT.js", () => ({
-  default: (req, res, next) => {
+  default: (req, _res, next) => {
     req.user = { id: "99", email: "test@example.com" };
     next();
   },

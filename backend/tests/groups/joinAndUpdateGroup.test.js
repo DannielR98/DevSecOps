@@ -19,7 +19,7 @@ const {
 }));
 
 vi.mock("../../middleware/verifyJWT.js", () => ({
-  default: (req, res, next) => {
+  default: (req, _res, next) => {
     req.user = { id: "user-1", email: "user@example.com" };
     next();
   },
@@ -88,8 +88,15 @@ describe("Groups Join & Update Endpoints", () => {
 
     it("returns 409 when user is already a member", async () => {
       findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
-      findOneGroupMock.mockResolvedValue({ id: VALID_GROUP_UUID, name: "Test Team" });
-      findOneMemberMock.mockResolvedValue({ id: "5", group_id: VALID_GROUP_UUID, user_id: "user-1" });
+      findOneGroupMock.mockResolvedValue({
+        id: VALID_GROUP_UUID,
+        name: "Test Team",
+      });
+      findOneMemberMock.mockResolvedValue({
+        id: "5",
+        group_id: VALID_GROUP_UUID,
+        user_id: "user-1",
+      });
 
       const res = await request(app)
         .post("/api/groups/join")
@@ -110,7 +117,11 @@ describe("Groups Join & Update Endpoints", () => {
       findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
       findOneGroupMock.mockResolvedValue(group);
       findOneMemberMock.mockResolvedValue(null);
-      createMemberMock.mockResolvedValue({ id: "100", group_id: VALID_GROUP_UUID, user_id: "user-1" });
+      createMemberMock.mockResolvedValue({
+        id: "100",
+        group_id: VALID_GROUP_UUID,
+        user_id: "user-1",
+      });
 
       const res = await request(app)
         .post("/api/groups/join")
@@ -129,13 +140,17 @@ describe("Groups Join & Update Endpoints", () => {
 
   describe("PUT /api/groups/:id", () => {
     it("returns 400 when group ID is not a valid UUID format", async () => {
-      const res = await request(app).put("/api/groups/invalid-id").send({ name: "Valid Name" });
+      const res = await request(app)
+        .put("/api/groups/invalid-id")
+        .send({ name: "Valid Name" });
       expect(res.status).toBe(400);
       expect(res.body.message).toBe("Invalid group ID format");
     });
 
     it("returns 400 when group name is missing or too short", async () => {
-      const res = await request(app).put(`/api/groups/${VALID_GROUP_UUID}`).send({ name: "" });
+      const res = await request(app)
+        .put(`/api/groups/${VALID_GROUP_UUID}`)
+        .send({ name: "" });
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
     });
@@ -144,15 +159,22 @@ describe("Groups Join & Update Endpoints", () => {
       findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
       findByPkGroupMock.mockResolvedValue(null);
 
-      const res = await request(app).put(`/api/groups/${VALID_GROUP_UUID}`).send({ name: "New Name" });
+      const res = await request(app)
+        .put(`/api/groups/${VALID_GROUP_UUID}`)
+        .send({ name: "New Name" });
       expect(res.status).toBe(404);
     });
 
     it("returns 403 when user is not group owner", async () => {
       findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
-      findByPkGroupMock.mockResolvedValue({ id: VALID_GROUP_UUID, owner_id: "user-2" });
+      findByPkGroupMock.mockResolvedValue({
+        id: VALID_GROUP_UUID,
+        owner_id: "user-2",
+      });
 
-      const res = await request(app).put(`/api/groups/${VALID_GROUP_UUID}`).send({ name: "New Name" });
+      const res = await request(app)
+        .put(`/api/groups/${VALID_GROUP_UUID}`)
+        .send({ name: "New Name" });
       expect(res.status).toBe(403);
     });
 
@@ -170,7 +192,9 @@ describe("Groups Join & Update Endpoints", () => {
       findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
       findByPkGroupMock.mockResolvedValue(group);
 
-      const res = await request(app).put(`/api/groups/${VALID_GROUP_UUID}`).send({ name: "Updated Name" });
+      const res = await request(app)
+        .put(`/api/groups/${VALID_GROUP_UUID}`)
+        .send({ name: "Updated Name" });
 
       expect(res.status).toBe(200);
       expect(group.name).toBe("Updated Name");

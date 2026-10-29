@@ -84,6 +84,14 @@ jobs:
         working-directory: backend
         run: npm audit --audit-level=high
 
+      - name: Backend Lint
+        working-directory: backend
+        run: npm run lint
+
+      - name: Backend Lint and Fix
+        working-directory: backend
+        run: npm run lint -- --fix
+
       #  - name: Backend Lint
       #   working-directory: backend
       #  run: npm run lint

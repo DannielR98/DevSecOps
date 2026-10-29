@@ -29,7 +29,7 @@ const {
 }));
 
 vi.mock("../../middleware/verifyJWT.js", () => ({
-  default: (req, res, next) => {
+  default: (req, _res, next) => {
     req.user = { id: "user-1", email: "user@example.com" };
     next();
   },
@@ -221,7 +221,10 @@ describe("Groups", () => {
 
   it("returns 403 when user is not owner on delete", async () => {
     findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
-    findByPkGroupMock.mockResolvedValue({ id: VALID_GROUP_UUID, owner_id: "user-2" });
+    findByPkGroupMock.mockResolvedValue({
+      id: VALID_GROUP_UUID,
+      owner_id: "user-2",
+    });
 
     const res = await request(app).delete(`/api/groups/${VALID_GROUP_UUID}`);
 

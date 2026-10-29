@@ -27,9 +27,10 @@ export default defineConfig([
         {
           vars: "all",
           args: "all",
-          varsIgnorePattern: "^have_",
+          varsIgnorePattern: "^_",
           argsIgnorePattern: "^_",
           caughtErrors: "all",
+          caughtErrorsIgnorePattern: "^_",
           ignoreRestSiblings: true,
         },
       ],

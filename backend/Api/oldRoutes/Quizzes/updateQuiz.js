@@ -33,11 +33,11 @@ router.put("/quizzes/:id", checkJwt, async (req, res) => {
     }
 
     const updatedData = {};
-    if (title && title.trim() !== "") updatedData.title = title.trim();
+    if (title && title.trim() !== "") {updatedData.title = title.trim();}
     if (category && category.trim() !== "")
-      updatedData.category = category.trim();
+    {updatedData.category = category.trim();}
     if (questions && Array.isArray(questions))
-      updatedData.questions = questions;
+    {updatedData.questions = questions;}
 
     await quiz.update(updatedData);
 
