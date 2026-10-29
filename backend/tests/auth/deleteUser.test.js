@@ -10,7 +10,7 @@ const { findByPkMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("../../middleware/verifyJWT.js", () => ({
-  default: (req, res, next) => {
+  default: (req, _res, next) => {
     req.user = { id: VALID_USER_UUID, user_id: VALID_USER_UUID };
     next();
   },
@@ -39,7 +39,9 @@ describe("Auth > delete user", () => {
   });
 
   it("returns 403 when deleting another user's account", async () => {
-    const res = await request(app).delete(`/api/delete-user/${OTHER_USER_UUID}`);
+    const res = await request(app).delete(
+      `/api/delete-user/${OTHER_USER_UUID}`,
+    );
 
     expect(res.status).toBe(403);
     expect(res.body.message).toBe("You are not authorized to delete this user");
@@ -48,7 +50,9 @@ describe("Auth > delete user", () => {
   it("returns 404 when user does not exist", async () => {
     findByPkMock.mockResolvedValue(null);
 
-    const res = await request(app).delete(`/api/delete-user/${VALID_USER_UUID}`);
+    const res = await request(app).delete(
+      `/api/delete-user/${VALID_USER_UUID}`,
+    );
 
     expect(res.status).toBe(404);
     expect(res.body.message).toBe("User not found");
@@ -60,7 +64,9 @@ describe("Auth > delete user", () => {
       destroy: vi.fn().mockRejectedValue(new Error("destroy failed")),
     });
 
-    const res = await request(app).delete(`/api/delete-user/${VALID_USER_UUID}`);
+    const res = await request(app).delete(
+      `/api/delete-user/${VALID_USER_UUID}`,
+    );
 
     expect(res.status).toBe(500);
     expect(res.body.message).toBe("Failed to delete user");
@@ -73,7 +79,9 @@ describe("Auth > delete user", () => {
       destroy: mockDestroy,
     });
 
-    const res = await request(app).delete(`/api/delete-user/${VALID_USER_UUID}`);
+    const res = await request(app).delete(
+      `/api/delete-user/${VALID_USER_UUID}`,
+    );
 
     expect(res.status).toBe(200);
     expect(res.body.success).toBe(true);

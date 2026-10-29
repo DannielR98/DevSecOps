@@ -40,7 +40,7 @@ export const registerInputs: RegisterInputType[] = [
   ...inp,
   placeholder:
     inp.name === "confirmPassword"
-      ? `Please  Confirm Your  Password`
+      ? "Please  Confirm Your  Password"
       : `Please Enter Your ${inp.label}`,
 }));
 

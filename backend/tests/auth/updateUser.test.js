@@ -10,7 +10,7 @@ const { findByPkMock } = vi.hoisted(() => ({
 }));
 
 vi.mock("../../middleware/verifyJWT.js", () => ({
-  default: (req, res, next) => {
+  default: (req, _res, next) => {
     req.user = { id: VALID_USER_UUID, user_id: VALID_USER_UUID };
     next();
   },
