@@ -1,0 +1,501 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Quiz app backend - API Gateway HTTP API, Lambda functions and DynamoDB
+
+Parameters:
+  Stage:
+    Type: String
+    Default: prod
+    AllowedPattern: "[a-z0-9-]+"
+  AllowedOrigin:
+    Type: String
+    Default: http://localhost:3000
+    Description: Frontend origin allowed by CORS
+  JwtSecret:
+    Type: String
+    NoEcho: true
+    MinLength: 32
+    Description: HS256 secret used to sign tokens issued by /api/login
+  SupabaseUrl:
+    Type: String
+    Default: ""
+    Description: Supabase project URL (used to fetch the JWKS for Supabase tokens)
+  SupabaseJwtSecret:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: Optional legacy Supabase HS256 JWT secret
+
+Globals:
+  Function:
+    Runtime: nodejs22.x
+    Architectures: [arm64]
+    MemorySize: 256
+    Timeout: 10
+    CodeUri: dist/
+    Environment:
+      Variables:
+        USERS_TABLE: !Ref UsersTable
+        GROUPS_TABLE: !Ref GroupsTable
+        MEMBERS_TABLE: !Ref GroupMembersTable
+        QUIZZES_TABLE: !Ref QuizzesTable
+        RESULTS_TABLE: !Ref QuizResultsTable
+        UNIQUES_TABLE: !Ref UniqueKeysTable
+        JWT_SECRET: !Ref JwtSecret
+        SUPABASE_URL: !Ref SupabaseUrl
+        SUPABASE_JWT_SECRET: !Ref SupabaseJwtSecret
+
+Resources:
+  # ---------------------------------------------------------------- API
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      StageName: !Ref Stage
+      CorsConfiguration:
+        AllowOrigins: [!Ref AllowedOrigin]
+        AllowMethods: [GET, POST, PUT, DELETE, OPTIONS]
+        AllowHeaders: [Authorization, Content-Type]
+        MaxAge: 600
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 50
+        ThrottlingRateLimit: 25
+
+  # ---------------------------------------------------------------- IAM
+  FunctionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: DynamoDbAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - dynamodb:GetItem
+                  - dynamodb:PutItem
+                  - dynamodb:UpdateItem
+                  - dynamodb:DeleteItem
+                  - dynamodb:Query
+                  - dynamodb:BatchGetItem
+                  - dynamodb:BatchWriteItem
+                Resource:
+                  - !GetAtt UsersTable.Arn
+                  - !GetAtt GroupsTable.Arn
+                  - !Sub "${GroupsTable.Arn}/index/*"
+                  - !GetAtt GroupMembersTable.Arn
+                  - !Sub "${GroupMembersTable.Arn}/index/*"
+                  - !GetAtt QuizzesTable.Arn
+                  - !Sub "${QuizzesTable.Arn}/index/*"
+                  - !GetAtt QuizResultsTable.Arn
+                  - !Sub "${QuizResultsTable.Arn}/index/*"
+                  - !GetAtt UniqueKeysTable.Arn
+              - Effect: Allow
+                Action: dynamodb:Scan
+                Resource: !GetAtt UsersTable.Arn
+
+  # ---------------------------------------------------------------- DynamoDB
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      AttributeDefinitions:
+        - { AttributeName: user_id, AttributeType: S }
+      KeySchema:
+        - { AttributeName: user_id, KeyType: HASH }
+
+  # Lock items enforcing uniqueness (email, username, auth_id, invite code)
+  # and acting as lookup indexes for them.
+  UniqueKeysTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      AttributeDefinitions:
+        - { AttributeName: pk, AttributeType: S }
+      KeySchema:
+        - { AttributeName: pk, KeyType: HASH }
+
+  GroupsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      AttributeDefinitions:
+        - { AttributeName: id, AttributeType: S }
+        - { AttributeName: owner_id, AttributeType: S }
+      KeySchema:
+        - { AttributeName: id, KeyType: HASH }
+      GlobalSecondaryIndexes:
+        - IndexName: owner_id-index
+          KeySchema:
+            - { AttributeName: owner_id, KeyType: HASH }
+          Projection: { ProjectionType: ALL }
+
+  GroupMembersTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      AttributeDefinitions:
+        - { AttributeName: id, AttributeType: S }
+        - { AttributeName: group_id, AttributeType: S }
+        - { AttributeName: user_id, AttributeType: S }
+      KeySchema:
+        - { AttributeName: id, KeyType: HASH }
+      GlobalSecondaryIndexes:
+        - IndexName: group_id-index
+          KeySchema:
+            - { AttributeName: group_id, KeyType: HASH }
+          Projection: { ProjectionType: ALL }
+        - IndexName: user_id-index
+          KeySchema:
+            - { AttributeName: user_id, KeyType: HASH }
+          Projection: { ProjectionType: ALL }
+
+  QuizzesTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      AttributeDefinitions:
+        - { AttributeName: id, AttributeType: S }
+        - { AttributeName: group_id, AttributeType: S }
+        - { AttributeName: createdAt, AttributeType: S }
+      KeySchema:
+        - { AttributeName: id, KeyType: HASH }
+      GlobalSecondaryIndexes:
+        - IndexName: group_id-index
+          KeySchema:
+            - { AttributeName: group_id, KeyType: HASH }
+            - { AttributeName: createdAt, KeyType: RANGE }
+          Projection: { ProjectionType: ALL }
+
+  QuizResultsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      AttributeDefinitions:
+        - { AttributeName: id, AttributeType: S }
+        - { AttributeName: quiz_id, AttributeType: S }
+      KeySchema:
+        - { AttributeName: id, KeyType: HASH }
+      GlobalSecondaryIndexes:
+        - IndexName: quiz_id-index
+          KeySchema:
+            - { AttributeName: quiz_id, KeyType: HASH }
+          Projection: { ProjectionType: ALL }
+
+  # ---------------------------------------------------------------- Lambda functions
+  RegisterUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: registerUser.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/register
+            Method: POST
+
+  LoginUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: loginUser.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/login
+            Method: POST
+
+  GetUsersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: getUsers.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/users
+            Method: GET
+
+  GetUserByIdFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: getUserById.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/user/{user_id}
+            Method: GET
+
+  UpdateUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: updateUser.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/update-user/{user_id}
+            Method: PUT
+
+  DeleteUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: deleteUser.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/delete-user/{user_id}
+            Method: DELETE
+
+  CreateGroupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: createGroup.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/groups
+            Method: POST
+
+  GetGroupsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: getGroups.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/groups
+            Method: GET
+
+  GetGroupByIdFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: getGroupById.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/groups/{groupId}
+            Method: GET
+
+  UpdateGroupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: updateGroup.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/groups/{groupId}
+            Method: PUT
+
+  DeleteGroupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: deleteGroup.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/groups/{groupId}
+            Method: DELETE
+
+  JoinGroupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: joinGroup.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/groups/join
+            Method: POST
+
+  JoinGroupMemberFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: joinGroupMember.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/group-members/join
+            Method: POST
+
+  GetGroupMembersFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: getGroupMembers.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/groups/{groupId}/members
+            Method: GET
+
+  GetGroupMemberByIdFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: getGroupMemberById.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/groups/{groupId}/members/{memberId}
+            Method: GET
+
+  LeaveGroupFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: leaveGroup.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/groups/{groupId}/members/leave
+            Method: DELETE
+
+  CreateQuizFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: createQuiz.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/quizzes
+            Method: POST
+
+  GetQuizzesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: getQuizzes.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/quizzes
+            Method: GET
+
+  GetQuizByIdFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: getQuizById.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/quizzes/{id}
+            Method: GET
+
+  UpdateQuizFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: updateQuiz.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/quizzes/{id}
+            Method: PUT
+
+  DeleteQuizFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: deleteQuiz.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/quizzes/{id}
+            Method: DELETE
+
+  TakeQuizFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: takeQuiz.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/quizzes/{id}/submit
+            Method: POST
+
+
+Outputs:
+  ApiUrl:
+    Description: Base URL for the frontend (set VITE_API_URL to this value)
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${Stage}/api/"

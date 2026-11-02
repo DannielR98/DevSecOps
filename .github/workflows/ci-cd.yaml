@@ -43,6 +43,7 @@ jobs:
           cache-dependency-path: |
             frontend/quiz/package-lock.json
             backend/package-lock.json
+            serverless/package-lock.json
 
       # =========================
       # 1. FRONTEND: LINT, AUDIT & TEST
@@ -91,6 +92,26 @@ jobs:
         
       - name: Build backend
         working-directory: backend
+        run: npm run build
+
+      # =========================
+      # 2b. SERVERLESS BACKEND (Lambda + DynamoDB): AUDIT, TEST & BUILD
+      # =========================
+
+      - name: Install serverless dependencies
+        working-directory: serverless
+        run: npm ci
+
+      - name: Serverless Audit (SCA)
+        working-directory: serverless
+        run: npm audit --audit-level=high
+
+      - name: Run serverless tests
+        working-directory: serverless
+        run: npm test
+
+      - name: Build serverless handlers
+        working-directory: serverless
         run: npm run build
 
 
