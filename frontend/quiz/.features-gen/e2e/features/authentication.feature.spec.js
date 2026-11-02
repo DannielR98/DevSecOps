@@ -1,4 +1,4 @@
-// Generated from: e2e/features/authentication.feature
+// Generated from: e2e\features\authentication.feature
 import { test } from "playwright-bdd";
 
 test.describe('Inloggning med Supabase-testidentitet', () => {
@@ -18,7 +18,7 @@ test.beforeEach('BeforeEach Hooks', ({ $runScenarioHooks, page }) => $runScenari
 
 test.use({
   $test: [({}, use) => use(test), { scope: 'test', box: true }],
-  $uri: [({}, use) => use('e2e/features/authentication.feature'), { scope: 'test', box: true }],
+  $uri: [({}, use) => use('e2e\\features\\authentication.feature'), { scope: 'test', box: true }],
   $bddFileData: [({}, use) => use(bddFileData), { scope: "test", box: true }],
 });
 

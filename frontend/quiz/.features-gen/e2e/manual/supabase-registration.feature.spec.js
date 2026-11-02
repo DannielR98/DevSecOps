@@ -1,4 +1,4 @@
-// Generated from: e2e/manual/supabase-registration.feature
+// Generated from: e2e\manual\supabase-registration.feature
 import { test } from "playwright-bdd";
 
 test.describe('Registrering och inloggning via Supabase Auth', () => {
@@ -22,7 +22,7 @@ test.beforeEach('BeforeEach Hooks', ({ $runScenarioHooks, page }) => $runScenari
 
 test.use({
   $test: [({}, use) => use(test), { scope: 'test', box: true }],
-  $uri: [({}, use) => use('e2e/manual/supabase-registration.feature'), { scope: 'test', box: true }],
+  $uri: [({}, use) => use('e2e\\manual\\supabase-registration.feature'), { scope: 'test', box: true }],
   $bddFileData: [({}, use) => use(bddFileData), { scope: "test", box: true }],
 });
 

@@ -1,4 +1,4 @@
-// Generated from: e2e/features/groups.feature
+// Generated from: e2e\features\groups.feature
 import { test } from "playwright-bdd";
 
 test.describe('Skapa och gå med i grupp', () => {
@@ -25,7 +25,7 @@ test.beforeEach('BeforeEach Hooks', ({ $runScenarioHooks, page }) => $runScenari
 
 test.use({
   $test: [({}, use) => use(test), { scope: 'test', box: true }],
-  $uri: [({}, use) => use('e2e/features/groups.feature'), { scope: 'test', box: true }],
+  $uri: [({}, use) => use('e2e\\features\\groups.feature'), { scope: 'test', box: true }],
   $bddFileData: [({}, use) => use(bddFileData), { scope: "test", box: true }],
 });
 
