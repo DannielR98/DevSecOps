@@ -10,19 +10,45 @@ interface QuestionItem {
   correctAnswer: number;
 }
 
+// The API stores the correct answer as the option text, the form uses an index
+interface ApiQuestion {
+  question: string;
+  options: string[];
+  correctAnswer: string;
+}
+
+const toApiQuestions = (qs: QuestionItem[]): ApiQuestion[] =>
+  qs.map((q) => ({
+    question: q.question.trim(),
+    options: q.options.map((o) => o.trim()),
+    correctAnswer: q.options[q.correctAnswer].trim(),
+  }));
+
+const fromApiQuestions = (qs: ApiQuestion[]): QuestionItem[] =>
+  qs.map((q) => ({
+    question: q.question,
+    options: [...q.options],
+    correctAnswer: Math.max(0, q.options.indexOf(q.correctAnswer)),
+  }));
+
+const errorMessage = (err: unknown): string => {
+  const e = err as { response?: { data?: { message?: string; error?: string } }; message?: string };
+  return e.response?.data?.message || e.response?.data?.error || e.message || "Okänt fel";
+};
+
 interface QuizItem {
-  id: number;
+  id: string;
   title: string;
   category: string;
-  group_id: number;
+  group_id: string;
   group_name?: string;
   is_creator?: boolean;
-  questions: QuestionItem[];
+  questions: ApiQuestion[];
   createdAt: string;
 }
 
 interface GroupItem {
-  id: number;
+  id: string;
   name: string;
 }
 
@@ -53,7 +79,7 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
   const [quizzes, setQuizzes] = useState<QuizItem[]>([]);
   const [loading, setLoading] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
-  const [editingQuizId, setEditingQuizId] = useState<number | null>(null);
+  const [editingQuizId, setEditingQuizId] = useState<string | null>(null);
   const [activeQuiz, setActiveQuiz] = useState<QuizItem | null>(null);
   const [userAnswers, setUserAnswers] = useState<number[]>([]);
   const [quizScore, setQuizScore] = useState<{ score: number; total_questions: number; percentage: number } | null>(null);
@@ -61,7 +87,7 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
   // Form State
   const [title, setTitle] = useState("");
   const [category] = useState("DevSecOps");
-  const [selectedGroupId, setSelectedGroupId] = useState<number | "">("");
+  const [selectedGroupId, setSelectedGroupId] = useState<string>("");
   const [questions, setQuestions] = useState<QuestionItem[]>([
     { question: "", options: ["", "", "", ""], correctAnswer: 0 },
   ]);
@@ -138,8 +164,8 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
           body: {
             title: title.trim(),
             category,
-            group_id: Number(selectedGroupId),
-            questions,
+            group_id: selectedGroupId,
+            questions: toApiQuestions(questions),
           },
         });
       } else {
@@ -150,8 +176,8 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
           body: {
             title: title.trim(),
             category,
-            group_id: Number(selectedGroupId),
-            questions,
+            group_id: selectedGroupId,
+            questions: toApiQuestions(questions),
           },
         });
       }
@@ -160,10 +186,11 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
       fetchData();
     } catch (err) {
       console.error("Error saving quiz:", err);
+      alert(`Kunde inte spara quizet: ${errorMessage(err)}`);
     }
   };
 
-  const handleDeleteQuiz = async (quizId: number, quizTitle: string) => {
+  const handleDeleteQuiz = async (quizId: string, quizTitle: string) => {
     const confirmed = window.confirm(
       `Är du säker på att du vill ta bort quizet "${quizTitle}"?`
     );
@@ -204,7 +231,9 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
         endpoint: `/${activeQuiz.id}/submit`,
         method: "POST",
         token,
-        body: { answers: userAnswers },
+        body: {
+          answers: userAnswers.map((o, i) => activeQuiz.questions[i].options[o]),
+        },
       });
       setQuizScore(data.result);
     } catch (err) {
@@ -222,7 +251,7 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
         setGroups(groupList);
         if (groupList.length > 0) {
           setSelectedGroupId((prev) => {
-            const exists = groupList.some((g: GroupItem) => g.id === Number(prev));
+            const exists = groupList.some((g: GroupItem) => g.id === prev);
             return exists ? prev : groupList[0].id;
           });
           setShowCreateModal(true);
@@ -241,7 +270,7 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
     setSelectedGroupId(quiz.group_id);
     setQuestions(
       quiz.questions && quiz.questions.length > 0
-        ? JSON.parse(JSON.stringify(quiz.questions))
+        ? fromApiQuestions(quiz.questions)
         : [{ question: "", options: ["", "", "", ""], correctAnswer: 0 }]
     );
     setShowCreateModal(true);
@@ -563,7 +592,7 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
                 <label style={{ display: "block", fontWeight: 600, marginBottom: "0.25rem" }}>Målgrupp</label>
                 <select
                   value={selectedGroupId}
-                  onChange={(e) => setSelectedGroupId(Number(e.target.value))}
+                  onChange={(e) => setSelectedGroupId(e.target.value)}
                   style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid #d1d5db" }}
                 >
                   {groups.map((g) => (
