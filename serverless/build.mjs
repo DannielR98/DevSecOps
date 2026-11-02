@@ -15,7 +15,7 @@ await build({
   platform: "node",
   target: "node22",
   format: "cjs",
-  minify: true,
+  minify: false,
   external: ["@aws-sdk/*"],
 });
 
