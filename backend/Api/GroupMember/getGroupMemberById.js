@@ -1,4 +1,4 @@
-import express from "express";
+/* import express from "express";
 
 import Group from "../../models/Group.js";
 import GroupMember from "../../models/GroupMember.js";
@@ -123,5 +123,156 @@ router.get(
     }
   },
 );
+
+export default router;
+ */
+
+import express from "express";
+import { Op } from "sequelize";
+
+import Group from "../../models/Group.js";
+import GroupMember from "../../models/GroupMember.js";
+import User from "../../models/User.js";
+import { checkJwt } from "../../middleware/supabaseAuth.js";
+
+const router = express.Router();
+
+router.get("/groups/:groupId/members/:memberId", checkJwt, async (req, res) => {
+  try {
+    const { groupId, memberId } = req.params;
+
+    // 1. Validate UUID formats
+    const uuidRegex =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+    if (!uuidRegex.test(groupId) || !uuidRegex.test(memberId)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid group ID or member ID format",
+      });
+    }
+
+    // 2. Get authenticated user from the Supabase JWT
+    const authId = req.auth?.payload?.sub;
+    const tokenEmail = req.auth?.payload?.email ?? req.user?.email;
+
+    if (!authId && !tokenEmail) {
+      return res.status(401).json({
+        success: false,
+        message: "User information is missing from JWT",
+      });
+    }
+
+    // 3. Find the local user using auth_id
+    let currentUser = null;
+
+    if (authId) {
+      currentUser = await User.findOne({
+        where: { auth_id: authId },
+      });
+    }
+
+    // Fallback: find the user by email
+    if (!currentUser && tokenEmail) {
+      currentUser = await User.findOne({
+        where: {
+          email: {
+            [Op.iLike]: tokenEmail,
+          },
+        },
+      });
+    }
+
+    if (!currentUser) {
+      return res.status(401).json({
+        success: false,
+        message: "User not found for this JWT",
+      });
+    }
+
+    const userId = currentUser.user_id;
+
+    if (userId == null) {
+      return res.status(500).json({
+        success: false,
+        message: "Local user ID is missing",
+      });
+    }
+
+    // 4. Confirm that the group exists
+    const group = await Group.findByPk(groupId);
+
+    if (!group) {
+      return res.status(404).json({
+        success: false,
+        message: "Group not found",
+      });
+    }
+
+    // 5. Only group members can view member details
+    const currentMembership = await GroupMember.findOne({
+      where: {
+        group_id: groupId,
+        user_id: userId,
+      },
+    });
+
+    if (!currentMembership) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not a member of this group",
+      });
+    }
+
+    // 6. Find the requested membership
+    const member = await GroupMember.findOne({
+      where: {
+        id: memberId,
+        group_id: groupId,
+      },
+    });
+
+    if (!member) {
+      return res.status(404).json({
+        success: false,
+        message: "Group member not found",
+      });
+    }
+
+    // 7. Fetch the member's user details
+    const memberUser = await User.findByPk(member.user_id, {
+      attributes: ["user_id", "firstname", "surname", "username", "email"],
+    });
+
+    // 8. Return member details
+    return res.status(200).json({
+      success: true,
+      member: {
+        id: member.id,
+        group_id: member.group_id,
+        user_id: member.user_id,
+        role: member.role,
+        createdAt: member.createdAt,
+        user: memberUser
+          ? {
+              user_id: memberUser.user_id,
+              firstname: memberUser.firstname,
+              surname: memberUser.surname,
+              username: memberUser.username,
+              email: memberUser.email,
+            }
+          : null,
+      },
+    });
+  } catch (error) {
+    console.error("Error getting group member:", error);
+    console.error("Database error:", error.original?.message);
+
+    return res.status(500).json({
+      success: false,
+      message: "Could not get group member",
+    });
+  }
+});
 
 export default router;

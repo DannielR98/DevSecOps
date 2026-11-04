@@ -4,23 +4,33 @@ import { Op } from "sequelize";
 import Group from "../../models/Group.js";
 import GroupMember from "../../models/GroupMember.js";
 import User from "../../models/User.js";
-import verifyJWT from "../../middleware/verifyJWT.js";
+import { checkJwt } from "../../middleware/supabaseAuth.js";
 
 const router = express.Router();
 
-router.get("/groups", verifyJWT, async (req, res) => {
+router.get("/groups", checkJwt, async (req, res) => {
   try {
-    const tokenUserId = req.user?.id;
-    const tokenEmail = req.user?.email;
+    // 1. Get the authenticated Supabase user
+    const authId = req.auth?.payload?.sub;
+    const tokenEmail = req.auth?.payload?.email ?? req.user?.email;
 
-    // Find the database user using the JWT claims.
-    let user = null;
-
-    if (tokenUserId) {
-      user = await User.findByPk(tokenUserId);
+    if (!authId && !tokenEmail) {
+      return res.status(401).json({
+        success: false,
+        message: "User information is missing from the JWT",
+      });
     }
 
-    // Fallback in case the token ID does not match the database primary key.
+    // 2. Find the local user using the Supabase ID
+    let user = null;
+
+    if (authId) {
+      user = await User.findOne({
+        where: { auth_id: authId },
+      });
+    }
+
+    // 3. Fall back to email if the Supabase ID has no match
     if (!user && tokenEmail) {
       user = await User.findOne({
         where: {
@@ -37,9 +47,10 @@ router.get("/groups", verifyJWT, async (req, res) => {
       });
     }
 
-    const userId = user.user_id ?? user.id;
+    // 4. Use the local database user ID
+    const userId = user.user_id;
 
-    // Find groups where the user is a member.
+    // 5. Find groups the user has joined
     const memberEntries = await GroupMember.findAll({
       where: { user_id: userId },
       attributes: ["group_id"],
@@ -47,7 +58,7 @@ router.get("/groups", verifyJWT, async (req, res) => {
 
     const memberGroupIds = memberEntries.map((member) => member.group_id);
 
-    // Include groups the user owns or belongs to.
+    // 6. Find groups the user owns or has joined
     const whereClause =
       memberGroupIds.length > 0
         ? {
@@ -63,18 +74,22 @@ router.get("/groups", verifyJWT, async (req, res) => {
       order: [["createdAt", "DESC"]],
     });
 
+    // 7. Return groups to the frontend
     return res.status(200).json({
       groups: groups.map((group) => ({
         id: group.id,
         name: group.name,
         invite_code: group.invite_code,
         owner_id: group.owner_id,
-        is_owner: group.owner_id === userId,
+        is_owner: String(group.owner_id) === String(userId),
         createdAt: group.createdAt,
       })),
     });
   } catch (error) {
-    console.error("Error fetching groups:", error);
+    console.error("❌ GET /groups failed");
+    console.error("Message:", error.message);
+    console.error("Database error:", error.original?.message);
+    console.error("SQL:", error.sql);
 
     return res.status(500).json({
       success: false,

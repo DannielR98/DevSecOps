@@ -1,4 +1,4 @@
-import express from "express";
+/* import express from "express";
 import { Op } from "sequelize";
 
 import Group from "../../models/Group.js";
@@ -97,6 +97,138 @@ router.post("/groups/join", verifyJWT, async (req, res) => {
     });
   } catch (error) {
     console.error("Error joining group:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to join group",
+    });
+  }
+});
+
+export default router;
+ */
+import express from "express";
+import { Op } from "sequelize";
+
+import Group from "../../models/Group.js";
+import GroupMember from "../../models/GroupMember.js";
+import User from "../../models/User.js";
+import { checkJwt } from "../../middleware/supabaseAuth.js";
+
+const router = express.Router();
+
+router.post("/groups/join", checkJwt, async (req, res) => {
+  try {
+    // 1. Validate invite code
+    const { invite_code } = req.body;
+
+    if (typeof invite_code !== "string" || invite_code.trim() === "") {
+      return res.status(400).json({
+        success: false,
+        message: "Invite code is required",
+      });
+    }
+
+    const normalizedCode = invite_code.trim().toUpperCase();
+
+    // 2. Identify the authenticated user from the Supabase JWT
+    const authId = req.auth?.payload?.sub;
+    const tokenEmail = req.auth?.payload?.email ?? req.user?.email;
+
+    if (!authId && !tokenEmail) {
+      return res.status(401).json({
+        success: false,
+        message: "User information is missing from JWT",
+      });
+    }
+
+    // 3. Find the local user using auth_id
+    let user = null;
+
+    if (authId) {
+      user = await User.findOne({
+        where: { auth_id: authId },
+      });
+    }
+
+    // Fallback: find by email if no matching auth_id exists
+    if (!user && tokenEmail) {
+      user = await User.findOne({
+        where: {
+          email: {
+            [Op.iLike]: tokenEmail,
+          },
+        },
+      });
+    }
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    const userId = user.user_id;
+
+    if (userId == null) {
+      return res.status(500).json({
+        success: false,
+        message: "Local user ID is missing",
+      });
+    }
+
+    // 4. Find the group using its invite code
+    const group = await Group.findOne({
+      where: {
+        invite_code: normalizedCode,
+      },
+    });
+
+    if (!group) {
+      return res.status(404).json({
+        success: false,
+        message: "Invalid invite code. Group not found",
+      });
+    }
+
+    // 5. Check whether the user is already a member
+    const existingMembership = await GroupMember.findOne({
+      where: {
+        group_id: group.id,
+        user_id: userId,
+      },
+    });
+
+    if (existingMembership) {
+      return res.status(409).json({
+        success: false,
+        message: "You are already a member of this group",
+      });
+    }
+
+    // 6. Add the user to the group
+    await GroupMember.create({
+      group_id: group.id,
+      user_id: userId,
+      role: "member",
+    });
+
+    // 7. Return the joined group
+    return res.status(200).json({
+      success: true,
+      message: `Successfully joined group "${group.name}"`,
+      group: {
+        id: group.id,
+        name: group.name,
+        invite_code: group.invite_code,
+        owner_id: group.owner_id,
+        createdAt: group.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error("Error joining group:", error);
+    console.error("Database error:", error.original?.message);
 
     return res.status(500).json({
       success: false,
