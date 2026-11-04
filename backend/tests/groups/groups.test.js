@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+/* import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { createTestApp } from "../helpers/testApp.js";
 
@@ -264,5 +264,392 @@ describe("Groups", () => {
     expect(destroyMemberMock).toHaveBeenCalled();
     expect(destroyQuizMock).toHaveBeenCalled();
     expect(group.destroy).toHaveBeenCalledOnce();
+  });
+});
+ */
+
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import request from "supertest";
+import { createTestApp } from "../helpers/testApp.js";
+
+const VALID_GROUP_UUID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
+
+const {
+  createGroupMock,
+  createMemberMock,
+  findOneGroupMock,
+  findAllGroupMock,
+  findByPkGroupMock,
+  findAllMemberMock,
+  findOneUserMock,
+  destroyMemberMock,
+  destroyQuizMock,
+  findAllQuizMock,
+  destroyQuizResultMock,
+} = vi.hoisted(() => ({
+  createGroupMock: vi.fn(),
+  createMemberMock: vi.fn(),
+  findOneGroupMock: vi.fn(),
+  findAllGroupMock: vi.fn(),
+  findByPkGroupMock: vi.fn(),
+  findAllMemberMock: vi.fn(),
+  findOneUserMock: vi.fn(),
+  destroyMemberMock: vi.fn(),
+  destroyQuizMock: vi.fn(),
+  findAllQuizMock: vi.fn(),
+  destroyQuizResultMock: vi.fn(),
+}));
+
+const authenticatedUser = {
+  user_id: "user-1",
+  id: "user-1",
+  auth_id: "supabase-auth-id",
+  email: "user@example.com",
+};
+
+vi.mock("../../middleware/supabaseAuth.js", () => ({
+  checkJwt: (req, res, next) => {
+    req.auth = {
+      payload: {
+        sub: "supabase-auth-id",
+        email: "user@example.com",
+      },
+    };
+
+    req.user = {
+      id: "user-1",
+      email: "user@example.com",
+    };
+
+    next();
+  },
+}));
+
+vi.mock("../../models/User.js", () => ({
+  default: {
+    findOne: findOneUserMock,
+    findByPk: findOneUserMock,
+  },
+}));
+
+vi.mock("../../models/Group.js", () => ({
+  default: {
+    create: createGroupMock,
+    findOne: findOneGroupMock,
+    findAll: findAllGroupMock,
+    findByPk: findByPkGroupMock,
+    sequelize: {
+      transaction: vi.fn(async (callback) => callback({})),
+    },
+  },
+}));
+
+vi.mock("../../models/GroupMember.js", () => ({
+  default: {
+    create: createMemberMock,
+    findAll: findAllMemberMock,
+    destroy: destroyMemberMock,
+  },
+}));
+
+vi.mock("../../models/Quiz.js", () => ({
+  default: {
+    findAll: findAllQuizMock,
+    destroy: destroyQuizMock,
+  },
+}));
+
+vi.mock("../../models/QuizResult.js", () => ({
+  default: {
+    destroy: destroyQuizResultMock,
+  },
+}));
+
+import createGroupRoute from "../../Api/Groups/createGroup.js";
+import getGroupsRoute from "../../Api/Groups/getGroups.js";
+import getGroupByIdRoute from "../../Api/Groups/getGroupById.js";
+import deleteGroupRoute from "../../Api/Groups/deleteGroup.js";
+
+const app = createTestApp(
+  createGroupRoute,
+  getGroupsRoute,
+  getGroupByIdRoute,
+  deleteGroupRoute,
+);
+
+describe("Groups", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    findOneUserMock.mockResolvedValue(authenticatedUser);
+    findOneGroupMock.mockResolvedValue(null);
+    findAllGroupMock.mockResolvedValue([]);
+    findAllMemberMock.mockResolvedValue([]);
+    findAllQuizMock.mockResolvedValue([]);
+    destroyMemberMock.mockResolvedValue(1);
+    destroyQuizMock.mockResolvedValue(1);
+    destroyQuizResultMock.mockResolvedValue(1);
+  });
+
+  describe("POST /api/groups", () => {
+    it("returns 400 when name is missing", async () => {
+      const res = await request(app).post("/api/groups").send({});
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toBe("Validation failed");
+    });
+
+    it("returns 404 when local user is not found", async () => {
+      findOneUserMock.mockResolvedValue(null);
+
+      const res = await request(app)
+        .post("/api/groups")
+        .send({ name: "Dev Team" });
+
+      expect(res.status).toBe(404);
+      expect(res.body.success).toBe(false);
+    });
+
+    it("returns 500 when local user ID is missing", async () => {
+      findOneUserMock.mockResolvedValue({
+        auth_id: "supabase-auth-id",
+        email: "user@example.com",
+        user_id: null,
+      });
+
+      const res = await request(app)
+        .post("/api/groups")
+        .send({ name: "Dev Team" });
+
+      expect(res.status).toBe(500);
+      expect(res.body.message).toBe("The local user record is missing user_id");
+    });
+
+    it("returns 500 when group creation fails", async () => {
+      createGroupMock.mockRejectedValue(new Error("create failed"));
+
+      const res = await request(app)
+        .post("/api/groups")
+        .send({ name: "Dev Team" });
+
+      expect(res.status).toBe(500);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toBe("Failed to create group");
+    });
+
+    it("returns 201 when a group is created", async () => {
+      const newGroup = {
+        id: VALID_GROUP_UUID,
+        name: "Dev Team",
+        invite_code: "ABC1234567",
+        owner_id: "user-1",
+        createdAt: new Date().toISOString(),
+      };
+
+      createGroupMock.mockResolvedValue(newGroup);
+      createMemberMock.mockResolvedValue(undefined);
+
+      const res = await request(app)
+        .post("/api/groups")
+        .send({ name: "Dev Team" });
+
+      expect(res.status).toBe(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.message).toBe("Group created successfully");
+      expect(res.body.group.name).toBe("Dev Team");
+
+      expect(createGroupMock).toHaveBeenCalledOnce();
+      expect(createMemberMock).toHaveBeenCalledWith(
+        {
+          group_id: VALID_GROUP_UUID,
+          user_id: "user-1",
+          role: "owner",
+        },
+        expect.objectContaining({
+          transaction: expect.any(Object),
+        }),
+      );
+    });
+  });
+
+  describe("GET /api/groups", () => {
+    it("returns 200 with empty groups when user is not found", async () => {
+      findOneUserMock.mockResolvedValue(null);
+
+      const res = await request(app).get("/api/groups");
+
+      expect(res.status).toBe(200);
+      expect(res.body.groups).toEqual([]);
+    });
+
+    it("returns 500 when fetching groups fails", async () => {
+      findAllMemberMock.mockResolvedValue([]);
+      findAllGroupMock.mockRejectedValue(new Error("findAll failed"));
+
+      const res = await request(app).get("/api/groups");
+
+      expect(res.status).toBe(500);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toBe("Failed to fetch groups");
+    });
+
+    it("returns 200 when groups are fetched", async () => {
+      const group = {
+        id: VALID_GROUP_UUID,
+        name: "Dev Team",
+        invite_code: "ABC1234567",
+        owner_id: "user-1",
+        createdAt: "2026-09-06T00:00:00.000Z",
+      };
+
+      findAllMemberMock.mockResolvedValue([{ group_id: VALID_GROUP_UUID }]);
+
+      findAllGroupMock.mockResolvedValue([group]);
+
+      const res = await request(app).get("/api/groups");
+
+      expect(res.status).toBe(200);
+      expect(res.body.groups).toEqual([
+        {
+          ...group,
+          is_owner: true,
+        },
+      ]);
+    });
+
+    it("returns 200 when user has zero group memberships", async () => {
+      findAllMemberMock.mockResolvedValue([]);
+      findAllGroupMock.mockResolvedValue([]);
+
+      const res = await request(app).get("/api/groups");
+
+      expect(res.status).toBe(200);
+      expect(res.body.groups).toEqual([]);
+    });
+  });
+
+  describe("GET /api/groups/:id", () => {
+    it("returns 400 when group ID is invalid", async () => {
+      const res = await request(app).get("/api/groups/invalid-id");
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("Invalid group ID format");
+    });
+
+    it("returns 401 when authenticated user is not found", async () => {
+      findOneUserMock.mockResolvedValue(null);
+
+      const res = await request(app).get(`/api/groups/${VALID_GROUP_UUID}`);
+
+      expect(res.status).toBe(401);
+      expect(res.body.message).toBe("User not found for this JWT");
+    });
+
+    it("returns 404 when group is missing", async () => {
+      findByPkGroupMock.mockResolvedValue(null);
+
+      const res = await request(app).get(`/api/groups/${VALID_GROUP_UUID}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe("Group not found");
+    });
+
+    it("returns 500 when group lookup fails", async () => {
+      findByPkGroupMock.mockRejectedValue(new Error("lookup failed"));
+
+      const res = await request(app).get(`/api/groups/${VALID_GROUP_UUID}`);
+
+      expect(res.status).toBe(500);
+      expect(res.body.success).toBe(false);
+    });
+
+    it("returns 200 when a group is found", async () => {
+      const group = {
+        id: VALID_GROUP_UUID,
+        name: "Dev Team",
+        invite_code: "ABC1234567",
+        owner_id: "user-1",
+        createdAt: "2026-09-06T00:00:00.000Z",
+      };
+
+      findByPkGroupMock.mockResolvedValue(group);
+
+      const res = await request(app).get(`/api/groups/${VALID_GROUP_UUID}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.group).toEqual(group);
+    });
+  });
+
+  describe("DELETE /api/groups/:id", () => {
+    it("returns 400 when group ID is invalid", async () => {
+      const res = await request(app).delete("/api/groups/invalid-id");
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("Invalid group ID format");
+    });
+
+    it("returns 403 when user is not the group owner", async () => {
+      findByPkGroupMock.mockResolvedValue({
+        id: VALID_GROUP_UUID,
+        owner_id: "user-2",
+      });
+
+      const res = await request(app).delete(`/api/groups/${VALID_GROUP_UUID}`);
+
+      expect(res.status).toBe(403);
+      expect(res.body.message).toBe(
+        "You are not authorized to delete this group",
+      );
+    });
+
+    it("returns 404 when group does not exist", async () => {
+      findByPkGroupMock.mockResolvedValue(null);
+
+      const res = await request(app).delete(`/api/groups/${VALID_GROUP_UUID}`);
+
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe("Group not found");
+    });
+
+    it("returns 500 when deleting group fails", async () => {
+      const group = {
+        id: VALID_GROUP_UUID,
+        owner_id: "user-1",
+        destroy: vi.fn().mockRejectedValue(new Error("destroy failed")),
+      };
+
+      findByPkGroupMock.mockResolvedValue(group);
+
+      const res = await request(app).delete(`/api/groups/${VALID_GROUP_UUID}`);
+
+      expect(res.status).toBe(500);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toBe("Failed to delete group");
+    });
+
+    it("returns 200 when group is deleted", async () => {
+      const group = {
+        id: VALID_GROUP_UUID,
+        owner_id: "user-1",
+        destroy: vi.fn().mockResolvedValue(undefined),
+      };
+
+      findByPkGroupMock.mockResolvedValue(group);
+      findAllQuizMock.mockResolvedValue([{ id: "quiz-1" }, { id: "quiz-2" }]);
+
+      const res = await request(app).delete(`/api/groups/${VALID_GROUP_UUID}`);
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.message).toBe("Group deleted successfully");
+
+      expect(destroyQuizResultMock).toHaveBeenCalledOnce();
+      expect(destroyMemberMock).toHaveBeenCalledOnce();
+      expect(destroyQuizMock).toHaveBeenCalledOnce();
+      expect(group.destroy).toHaveBeenCalledOnce();
+    });
   });
 });
