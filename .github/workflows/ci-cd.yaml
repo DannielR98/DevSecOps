@@ -190,3 +190,121 @@ jobs:
             push: true
             tags: ${{ steps.meta-backend.outputs.tags }}
             labels: ${{ steps.meta-backend.outputs.labels }}
+
+  deploy-backend-aws:
+    name: Deploy serverless backend (AWS SAM)
+    needs: ci
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    concurrency: deploy-aws-backend
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      api-url: ${{ steps.api.outputs.url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: serverless/package-lock.json
+
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Build handlers
+        working-directory: serverless
+        run: |
+          npm ci
+          npm run build
+
+      - name: Deploy stack
+        working-directory: serverless
+        env:
+          JWT_SECRET: ${{ secrets.JWT_SECRET }}
+        run: |
+          sam deploy \
+            --stack-name quiz-serverless \
+            --region "${{ vars.AWS_REGION }}" \
+            --resolve-s3 \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --parameter-overrides \
+              "AllowedOrigin=${{ vars.FRONTEND_ORIGIN }}" \
+              "SupabaseUrl=${{ vars.SUPABASE_URL }}" \
+              "JwtSecret=$JWT_SECRET"
+
+      - name: Read API URL
+        id: api
+        run: |
+          url=$(aws cloudformation describe-stacks \
+            --stack-name quiz-serverless \
+            --region "${{ vars.AWS_REGION }}" \
+            --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" \
+            --output text)
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+  deploy-frontend-aws:
+    name: Deploy frontend (ECR + EC2)
+    needs: deploy-backend-aws
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    concurrency: deploy-aws-frontend
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ vars.AWS_REGION }}
+
+      - name: Log in to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend/quiz
+          file: ./frontend/quiz/Dockerfile.prod
+          platforms: linux/amd64
+          push: true
+          build-args: |
+            VITE_API_URL=${{ needs.deploy-backend-aws.outputs.api-url }}
+            VITE_SUPABASE_URL=${{ vars.SUPABASE_URL }}
+            VITE_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+          tags: |
+            ${{ steps.ecr.outputs.registry }}/quiz-frontend:latest
+            ${{ steps.ecr.outputs.registry }}/quiz-frontend:${{ github.sha }}
+
+      - name: Restart container on EC2 via SSM
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          REGION: ${{ vars.AWS_REGION }}
+          INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
+        run: |
+          id=$(aws ssm send-command \
+            --instance-ids "$INSTANCE_ID" \
+            --document-name AWS-RunShellScript \
+            --parameters "{\"commands\":[
+              \"aws ecr get-login-password --region $REGION | docker login --username AWS --password-stdin $REGISTRY\",
+              \"docker pull $REGISTRY/quiz-frontend:latest\",
+              \"docker rm -f \$(docker ps -aq) || true\",
+              \"docker run -d --name quiz-frontend --restart unless-stopped -p 80:80 $REGISTRY/quiz-frontend:latest\"
+            ]}" \
+            --query "Command.CommandId" --output text)
+          aws ssm wait command-executed --command-id "$id" --instance-id "$INSTANCE_ID"
