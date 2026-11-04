@@ -52,6 +52,7 @@ router.get("/groups/:id", verifyJWT, async (req, res) => {
 
 export default router;
  */
+
 import express from "express";
 import User from "../../models/User.js";
 import Group from "../../models/Group.js";

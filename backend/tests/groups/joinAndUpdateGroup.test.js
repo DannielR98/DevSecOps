@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+/* import { beforeEach, describe, expect, it, vi } from "vitest";
 import request from "supertest";
 import { createTestApp } from "../helpers/testApp.js";
 
@@ -173,6 +173,294 @@ describe("Groups Join & Update Endpoints", () => {
       const res = await request(app).put(`/api/groups/${VALID_GROUP_UUID}`).send({ name: "Updated Name" });
 
       expect(res.status).toBe(200);
+      expect(group.name).toBe("Updated Name");
+      expect(saveMock).toHaveBeenCalledOnce();
+    });
+  });
+});
+ */
+
+import { beforeEach, describe, expect, it, vi } from "vitest";
+import request from "supertest";
+import { createTestApp } from "../helpers/testApp.js";
+
+const VALID_GROUP_UUID = "a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11";
+
+const {
+  findOneUserMock,
+  findOneGroupMock,
+  findByPkGroupMock,
+  findOneMemberMock,
+  createMemberMock,
+} = vi.hoisted(() => ({
+  findOneUserMock: vi.fn(),
+  findOneGroupMock: vi.fn(),
+  findByPkGroupMock: vi.fn(),
+  findOneMemberMock: vi.fn(),
+  createMemberMock: vi.fn(),
+}));
+
+const authenticatedUser = {
+  user_id: "user-1",
+  id: "user-1",
+  auth_id: "supabase-auth-id",
+  email: "user@example.com",
+};
+
+vi.mock("../../middleware/supabaseAuth.js", () => ({
+  checkJwt: (req, res, next) => {
+    req.auth = {
+      payload: {
+        sub: "supabase-auth-id",
+        email: "user@example.com",
+      },
+    };
+
+    req.user = {
+      id: "user-1",
+      email: "user@example.com",
+    };
+
+    next();
+  },
+}));
+
+vi.mock("../../models/User.js", () => ({
+  default: {
+    findOne: findOneUserMock,
+    findByPk: findOneUserMock,
+  },
+}));
+
+vi.mock("../../models/Group.js", () => ({
+  default: {
+    findOne: findOneGroupMock,
+    findByPk: findByPkGroupMock,
+  },
+}));
+
+vi.mock("../../models/GroupMember.js", () => ({
+  default: {
+    findOne: findOneMemberMock,
+    create: createMemberMock,
+  },
+}));
+
+import joinGroupRoute from "../../Api/Groups/joinGroup.js";
+import updateGroupRoute from "../../Api/Groups/updateGroup.js";
+
+const app = createTestApp(joinGroupRoute, updateGroupRoute);
+
+describe("Groups Join & Update Endpoints", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+
+    findOneUserMock.mockResolvedValue(authenticatedUser);
+  });
+
+  describe("POST /api/groups/join", () => {
+    it("returns 400 when invite code is missing", async () => {
+      const res = await request(app).post("/api/groups/join").send({});
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toBe("Invite code is required");
+    });
+
+    it("returns 404 when user does not exist", async () => {
+      findOneUserMock.mockResolvedValue(null);
+
+      const res = await request(app)
+        .post("/api/groups/join")
+        .send({ invite_code: "CODE123" });
+
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe("User not found");
+    });
+
+    it("returns 500 when local user ID is missing", async () => {
+      findOneUserMock.mockResolvedValue({
+        auth_id: "supabase-auth-id",
+        email: "user@example.com",
+        user_id: null,
+      });
+
+      const res = await request(app)
+        .post("/api/groups/join")
+        .send({ invite_code: "CODE123" });
+
+      expect(res.status).toBe(500);
+      expect(res.body.message).toBe("Local user ID is missing");
+    });
+
+    it("returns 404 when group is not found with invite code", async () => {
+      findOneGroupMock.mockResolvedValue(null);
+
+      const res = await request(app)
+        .post("/api/groups/join")
+        .send({ invite_code: "INVALID" });
+
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe("Invalid invite code. Group not found");
+    });
+
+    it("returns 409 when user is already a member", async () => {
+      findOneGroupMock.mockResolvedValue({
+        id: VALID_GROUP_UUID,
+        name: "Test Team",
+      });
+
+      findOneMemberMock.mockResolvedValue({
+        id: "membership-1",
+        group_id: VALID_GROUP_UUID,
+        user_id: "user-1",
+      });
+
+      const res = await request(app)
+        .post("/api/groups/join")
+        .send({ invite_code: "CODE123" });
+
+      expect(res.status).toBe(409);
+      expect(res.body.message).toBe("You are already a member of this group");
+    });
+
+    it("returns 200 and joins group successfully", async () => {
+      const group = {
+        id: VALID_GROUP_UUID,
+        name: "Test Team",
+        invite_code: "CODE123",
+        owner_id: "owner-id",
+        createdAt: new Date().toISOString(),
+      };
+
+      findOneGroupMock.mockResolvedValue(group);
+      findOneMemberMock.mockResolvedValue(null);
+      createMemberMock.mockResolvedValue({
+        id: "membership-100",
+        group_id: VALID_GROUP_UUID,
+        user_id: "user-1",
+        role: "member",
+      });
+
+      const res = await request(app)
+        .post("/api/groups/join")
+        .send({ invite_code: " code123 " });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.message).toBe('Successfully joined group "Test Team"');
+      expect(res.body.group.id).toBe(VALID_GROUP_UUID);
+
+      expect(findOneGroupMock).toHaveBeenCalledWith({
+        where: {
+          invite_code: "CODE123",
+        },
+      });
+
+      expect(createMemberMock).toHaveBeenCalledWith({
+        group_id: VALID_GROUP_UUID,
+        user_id: "user-1",
+        role: "member",
+      });
+    });
+  });
+
+  describe("PUT /api/groups/:id", () => {
+    it("returns 400 when group ID is invalid", async () => {
+      const res = await request(app)
+        .put("/api/groups/invalid-id")
+        .send({ name: "Valid Name" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe("Invalid group ID format");
+    });
+
+    it("returns 400 when group name is missing or invalid", async () => {
+      const res = await request(app)
+        .put(`/api/groups/${VALID_GROUP_UUID}`)
+        .send({ name: "" });
+
+      expect(res.status).toBe(400);
+      expect(res.body.success).toBe(false);
+      expect(res.body.message).toBe("Validation failed");
+    });
+
+    it("returns 401 when authenticated user is not found", async () => {
+      findOneUserMock.mockResolvedValue(null);
+
+      const res = await request(app)
+        .put(`/api/groups/${VALID_GROUP_UUID}`)
+        .send({ name: "Updated Name" });
+
+      expect(res.status).toBe(401);
+      expect(res.body.message).toBe("User not found for this JWT");
+    });
+
+    it("returns 500 when local user ID is missing", async () => {
+      findOneUserMock.mockResolvedValue({
+        auth_id: "supabase-auth-id",
+        email: "user@example.com",
+        user_id: null,
+      });
+
+      const res = await request(app)
+        .put(`/api/groups/${VALID_GROUP_UUID}`)
+        .send({ name: "Updated Name" });
+
+      expect(res.status).toBe(500);
+      expect(res.body.message).toBe("Local user ID is missing");
+    });
+
+    it("returns 404 when group is missing", async () => {
+      findByPkGroupMock.mockResolvedValue(null);
+
+      const res = await request(app)
+        .put(`/api/groups/${VALID_GROUP_UUID}`)
+        .send({ name: "Updated Name" });
+
+      expect(res.status).toBe(404);
+      expect(res.body.message).toBe("Group not found");
+    });
+
+    it("returns 403 when user is not group owner", async () => {
+      findByPkGroupMock.mockResolvedValue({
+        id: VALID_GROUP_UUID,
+        owner_id: "user-2",
+      });
+
+      const res = await request(app)
+        .put(`/api/groups/${VALID_GROUP_UUID}`)
+        .send({ name: "Updated Name" });
+
+      expect(res.status).toBe(403);
+      expect(res.body.message).toBe(
+        "Only the group owner can edit group details",
+      );
+    });
+
+    it("returns 200 and updates group name", async () => {
+      const saveMock = vi.fn().mockResolvedValue(undefined);
+
+      const group = {
+        id: VALID_GROUP_UUID,
+        owner_id: "user-1",
+        name: "Old Name",
+        invite_code: "CODE123",
+        createdAt: "2026-09-06T00:00:00.000Z",
+        save: saveMock,
+      };
+
+      findByPkGroupMock.mockResolvedValue(group);
+
+      const res = await request(app)
+        .put(`/api/groups/${VALID_GROUP_UUID}`)
+        .send({ name: "Updated Name" });
+
+      expect(res.status).toBe(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.message).toBe("Group updated successfully");
+      expect(res.body.group.name).toBe("Updated Name");
+
       expect(group.name).toBe("Updated Name");
       expect(saveMock).toHaveBeenCalledOnce();
     });

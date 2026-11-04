@@ -107,6 +107,8 @@ router.post("/groups/join", verifyJWT, async (req, res) => {
 
 export default router;
  */
+
+
 import express from "express";
 import { Op } from "sequelize";
 
