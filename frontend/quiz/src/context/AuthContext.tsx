@@ -26,7 +26,9 @@ export interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const mapSupabaseUser = (session: Session | null): AuthUser | null => {
-  if (!session?.user) return null;
+  if (!session?.user) {
+    return null;
+  }
   const supaUser = session.user;
   const meta = supaUser.user_metadata || {};
 
@@ -53,7 +55,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authModalMode, setAuthModalMode] = useState<"login" | "signup">("login");
+  const [authModalMode, setAuthModalMode] = useState<"login" | "signup">(
+    "login",
+  );
 
   useEffect(() => {
     let mounted = true;
@@ -62,21 +66,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     supabase.auth
       .getSession()
       .then(({ data: { session } }) => {
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
         setSession(session);
         setUser(mapSupabaseUser(session));
         setIsLoading(false);
       })
       .catch((err) => {
         console.error("Error getting initial session:", err);
-        if (mounted) setIsLoading(false);
+        if (mounted) {
+          setIsLoading(false);
+        }
       });
 
     // Listen for auth state changes
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
       setSession(session);
       setUser(mapSupabaseUser(session));
       setIsLoading(false);
@@ -146,7 +156,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     </AuthContext.Provider>
   );
 }
-
+/* eslint-disable react-refresh/only-export-components */
 export function useAuth(): AuthContextType {
   const context = useContext(AuthContext);
   if (!context) {
@@ -154,4 +164,3 @@ export function useAuth(): AuthContextType {
   }
   return context;
 }
-

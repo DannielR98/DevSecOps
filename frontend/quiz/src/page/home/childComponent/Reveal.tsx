@@ -45,7 +45,7 @@ export default function Reveal({ children, direction = "left" }: RevealProps) {
   useEffect(() => {
     const element = ref.current;
 
-    if (!element) return;
+    if (!element) {return;}
 
     const observer = new IntersectionObserver(
       ([entry]) => {

@@ -1,11 +1,11 @@
-import { render, type RenderOptions } from '@testing-library/react'
-import type { ReactElement } from 'react'
-import { Provider } from 'react-redux'
-import { MemoryRouter } from 'react-router-dom'
-import { configureStore } from '@reduxjs/toolkit'
-import userSliceReducer from '../store/reduxSlice/userSlice/UserSlice'
-import authSliceReducer from '../store/reduxSlice/userSlice/authSlice'
-import loadingSliceReducer from '../store/reduxSlice/LoadingSlice/LoadingAndErrorSlice'
+import { render, type RenderOptions } from "@testing-library/react";
+import type { ReactElement } from "react";
+import { Provider } from "react-redux";
+import { MemoryRouter } from "react-router-dom";
+import { configureStore } from "@reduxjs/toolkit";
+import userSliceReducer from "../store/reduxSlice/userSlice/UserSlice";
+import authSliceReducer from "../store/reduxSlice/userSlice/authSlice";
+import loadingSliceReducer from "../store/reduxSlice/LoadingSlice/LoadingAndErrorSlice";
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function makeTestStore(preloadedState?: any) {
@@ -18,13 +18,13 @@ export function makeTestStore(preloadedState?: any) {
     } as any,
     preloadedState,
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  } as any) as any
+  } as any) as any;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type TestStore = any
+export type TestStore = any;
 
-interface ExtendedRenderOptions extends Omit<RenderOptions, 'wrapper'> {
+interface ExtendedRenderOptions extends Omit<RenderOptions, "wrapper"> {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   preloadedState?: any
   store?: TestStore
@@ -36,7 +36,7 @@ export function renderWithProviders(
   {
     preloadedState,
     store = makeTestStore(preloadedState),
-    route = '/',
+    route = "/",
     ...renderOptions
   }: ExtendedRenderOptions = {},
 ) {
@@ -45,7 +45,7 @@ export function renderWithProviders(
       <Provider store={store}>
         <MemoryRouter initialEntries={[route]}>{children}</MemoryRouter>
       </Provider>
-    )
+    );
   }
-  return { store, ...render(ui, { wrapper: Wrapper, ...renderOptions }) }
+  return { store, ...render(ui, { wrapper: Wrapper, ...renderOptions }) };
 }

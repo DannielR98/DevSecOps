@@ -22,7 +22,7 @@ const {
 }));
 
 vi.mock("../../middleware/verifyJWT.js", () => ({
-  default: (req, res, next) => {
+  default: (req, _res, next) => {
     req.user = { id: "user-1", email: "user@example.com" };
     next();
   },
@@ -77,7 +77,9 @@ describe("GroupMember Endpoints", () => {
     it("returns 404 when group is not found", async () => {
       findByPkGroupMock.mockResolvedValue(null);
 
-      const res = await request(app).get(`/api/groups/${VALID_GROUP_UUID}/members`);
+      const res = await request(app).get(
+        `/api/groups/${VALID_GROUP_UUID}/members`,
+      );
 
       expect(res.status).toBe(404);
       expect(res.body.message).toBe("Group not found");
@@ -85,12 +87,19 @@ describe("GroupMember Endpoints", () => {
 
     it("returns 200 and list of group members", async () => {
       const membersList = [
-        { id: VALID_MEMBER_UUID, group_id: VALID_GROUP_UUID, user_id: "user-1", role: "owner" },
+        {
+          id: VALID_MEMBER_UUID,
+          group_id: VALID_GROUP_UUID,
+          user_id: "user-1",
+          role: "owner",
+        },
       ];
       findByPkGroupMock.mockResolvedValue({ id: VALID_GROUP_UUID });
       findAllMemberMock.mockResolvedValue(membersList);
 
-      const res = await request(app).get(`/api/groups/${VALID_GROUP_UUID}/members`);
+      const res = await request(app).get(
+        `/api/groups/${VALID_GROUP_UUID}/members`,
+      );
 
       expect(res.status).toBe(200);
       expect(res.body.members).toEqual(membersList);
@@ -155,7 +164,11 @@ describe("GroupMember Endpoints", () => {
       findByPkGroupMock.mockResolvedValue({ id: VALID_GROUP_UUID });
       // First findOne for currentMembership check, second findOne for member lookup
       findOneMemberMock
-        .mockResolvedValueOnce({ id: VALID_MEMBER_UUID, group_id: VALID_GROUP_UUID, user_id: "user-1" })
+        .mockResolvedValueOnce({
+          id: VALID_MEMBER_UUID,
+          group_id: VALID_GROUP_UUID,
+          user_id: "user-1",
+        })
         .mockResolvedValueOnce(memberObj);
 
       const res = await request(app).get(
@@ -226,7 +239,10 @@ describe("GroupMember Endpoints", () => {
   describe("DELETE /api/groups/:groupId/members/leave", () => {
     it("returns 400 when group owner attempts to leave", async () => {
       findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
-      findByPkGroupMock.mockResolvedValue({ id: VALID_GROUP_UUID, owner_id: "user-1" });
+      findByPkGroupMock.mockResolvedValue({
+        id: VALID_GROUP_UUID,
+        owner_id: "user-1",
+      });
 
       const res = await request(app).delete(
         `/api/groups/${VALID_GROUP_UUID}/members/leave`,
@@ -239,7 +255,10 @@ describe("GroupMember Endpoints", () => {
     it("returns 200 when normal member leaves group successfully", async () => {
       const destroyMock = vi.fn().mockResolvedValue(undefined);
       findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
-      findByPkGroupMock.mockResolvedValue({ id: VALID_GROUP_UUID, owner_id: "owner-id" });
+      findByPkGroupMock.mockResolvedValue({
+        id: VALID_GROUP_UUID,
+        owner_id: "owner-id",
+      });
       findOneMemberMock.mockResolvedValue({
         id: VALID_MEMBER_UUID,
         group_id: VALID_GROUP_UUID,

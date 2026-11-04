@@ -51,11 +51,11 @@ router.get("/groups", verifyJWT, async (req, res) => {
     const whereClause =
       memberGroupIds.length > 0
         ? {
-            [Op.or]: [
-              { owner_id: userId },
-              { id: { [Op.in]: memberGroupIds } },
-            ],
-          }
+          [Op.or]: [
+            { owner_id: userId },
+            { id: { [Op.in]: memberGroupIds } },
+          ],
+        }
         : { owner_id: userId };
 
     const groups = await Group.findAll({

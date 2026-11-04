@@ -21,7 +21,7 @@ const {
 }));
 
 vi.mock("../../middleware/verifyJWT.js", () => ({
-  default: (req, res, next) => {
+  default: (req, _res, next) => {
     req.user = { id: "1", email: "test@example.com" };
     next();
   },
@@ -79,7 +79,9 @@ describe("Quizzes CRUD & Submit Endpoints", () => {
 
   describe("POST /api/quizzes", () => {
     it("returns 400 when title, group_id, or questions are missing/invalid", async () => {
-      const res = await request(app).post("/api/quizzes").send({ title: "Test Quiz" });
+      const res = await request(app)
+        .post("/api/quizzes")
+        .send({ title: "Test Quiz" });
       expect(res.status).toBe(400);
       expect(res.body.success).toBe(false);
     });
@@ -87,12 +89,16 @@ describe("Quizzes CRUD & Submit Endpoints", () => {
     it("returns 404 when user is not found", async () => {
       findOneUserMock.mockResolvedValue(null);
 
-      const res = await request(app).post("/api/quizzes").send({
-        title: "Test Quiz",
-        category: "DevSecOps",
-        group_id: VALID_GROUP_UUID,
-        questions: [{ question: "Q1", options: ["A", "B"], correctAnswer: "A" }],
-      });
+      const res = await request(app)
+        .post("/api/quizzes")
+        .send({
+          title: "Test Quiz",
+          category: "DevSecOps",
+          group_id: VALID_GROUP_UUID,
+          questions: [
+            { question: "Q1", options: ["A", "B"], correctAnswer: "A" },
+          ],
+        });
 
       expect(res.status).toBe(404);
       expect(res.body.message).toBe("User not found");
@@ -102,12 +108,16 @@ describe("Quizzes CRUD & Submit Endpoints", () => {
       findOneUserMock.mockResolvedValue({ user_id: "1", id: "1" });
       findByPkGroupMock.mockResolvedValue(null);
 
-      const res = await request(app).post("/api/quizzes").send({
-        title: "Test Quiz",
-        category: "DevSecOps",
-        group_id: VALID_GROUP_UUID,
-        questions: [{ question: "Q1", options: ["A", "B"], correctAnswer: "A" }],
-      });
+      const res = await request(app)
+        .post("/api/quizzes")
+        .send({
+          title: "Test Quiz",
+          category: "DevSecOps",
+          group_id: VALID_GROUP_UUID,
+          questions: [
+            { question: "Q1", options: ["A", "B"], correctAnswer: "A" },
+          ],
+        });
 
       expect(res.status).toBe(404);
       expect(res.body.message).toBe("Group not found");
@@ -122,16 +132,27 @@ describe("Quizzes CRUD & Submit Endpoints", () => {
         creator_id: "1",
       };
       findOneUserMock.mockResolvedValue({ user_id: "1", id: "1" });
-      findByPkGroupMock.mockResolvedValue({ id: VALID_GROUP_UUID, name: "Dev Team" });
-      findOneMemberMock.mockResolvedValue({ id: "50", group_id: VALID_GROUP_UUID, user_id: "1" });
+      findByPkGroupMock.mockResolvedValue({
+        id: VALID_GROUP_UUID,
+        name: "Dev Team",
+      });
+      findOneMemberMock.mockResolvedValue({
+        id: "50",
+        group_id: VALID_GROUP_UUID,
+        user_id: "1",
+      });
       createQuizMock.mockResolvedValue(createdQuiz);
 
-      const res = await request(app).post("/api/quizzes").send({
-        title: "Test Quiz",
-        category: "DevSecOps",
-        group_id: VALID_GROUP_UUID,
-        questions: [{ question: "Q1", options: ["A", "B"], correctAnswer: "A" }],
-      });
+      const res = await request(app)
+        .post("/api/quizzes")
+        .send({
+          title: "Test Quiz",
+          category: "DevSecOps",
+          group_id: VALID_GROUP_UUID,
+          questions: [
+            { question: "Q1", options: ["A", "B"], correctAnswer: "A" },
+          ],
+        });
 
       expect(res.status).toBe(201);
       expect(res.body.quiz).toEqual(createdQuiz);
@@ -167,8 +188,14 @@ describe("Quizzes CRUD & Submit Endpoints", () => {
 
     it("returns 403 when user is not a member of quiz group", async () => {
       findOneUserMock.mockResolvedValue({ user_id: "1", id: "1" });
-      findByPkQuizMock.mockResolvedValue({ id: "5", group_id: VALID_GROUP_UUID });
-      findByPkGroupMock.mockResolvedValue({ id: VALID_GROUP_UUID, owner_id: "other-user" });
+      findByPkQuizMock.mockResolvedValue({
+        id: "5",
+        group_id: VALID_GROUP_UUID,
+      });
+      findByPkGroupMock.mockResolvedValue({
+        id: VALID_GROUP_UUID,
+        owner_id: "other-user",
+      });
       findOneMemberMock.mockResolvedValue(null);
 
       const res = await request(app).get("/api/quizzes/5");
@@ -189,8 +216,15 @@ describe("Quizzes CRUD & Submit Endpoints", () => {
       };
       findOneUserMock.mockResolvedValue({ user_id: "1", id: "1" });
       findByPkQuizMock.mockResolvedValue(quizObj);
-      findByPkGroupMock.mockResolvedValue({ id: VALID_GROUP_UUID, owner_id: "1" });
-      findOneMemberMock.mockResolvedValue({ id: "50", group_id: VALID_GROUP_UUID, user_id: "1" });
+      findByPkGroupMock.mockResolvedValue({
+        id: VALID_GROUP_UUID,
+        owner_id: "1",
+      });
+      findOneMemberMock.mockResolvedValue({
+        id: "50",
+        group_id: VALID_GROUP_UUID,
+        user_id: "1",
+      });
 
       const res = await request(app).get("/api/quizzes/5");
 
@@ -204,11 +238,15 @@ describe("Quizzes CRUD & Submit Endpoints", () => {
       findOneUserMock.mockResolvedValue({ user_id: "1", id: "1" });
       findByPkQuizMock.mockResolvedValue(null);
 
-      const res = await request(app).put("/api/quizzes/5").send({
-        title: "New Title",
-        category: "General",
-        questions: [{ question: "Q1", options: ["A", "B"], correctAnswer: "A" }],
-      });
+      const res = await request(app)
+        .put("/api/quizzes/5")
+        .send({
+          title: "New Title",
+          category: "General",
+          questions: [
+            { question: "Q1", options: ["A", "B"], correctAnswer: "A" },
+          ],
+        });
 
       expect(res.status).toBe(404);
     });
@@ -221,14 +259,20 @@ describe("Quizzes CRUD & Submit Endpoints", () => {
         group_id: VALID_GROUP_UUID,
       });
 
-      const res = await request(app).put("/api/quizzes/5").send({
-        title: "New Title",
-        category: "General",
-        questions: [{ question: "Q1", options: ["A", "B"], correctAnswer: "A" }],
-      });
+      const res = await request(app)
+        .put("/api/quizzes/5")
+        .send({
+          title: "New Title",
+          category: "General",
+          questions: [
+            { question: "Q1", options: ["A", "B"], correctAnswer: "A" },
+          ],
+        });
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toBe("Only the quiz creator can update this quiz");
+      expect(res.body.message).toBe(
+        "Only the quiz creator can update this quiz",
+      );
     });
 
     it("returns 200 and updates quiz when authorized", async () => {
@@ -239,18 +283,24 @@ describe("Quizzes CRUD & Submit Endpoints", () => {
         title: "Old Title",
         category: "General",
         group_id: VALID_GROUP_UUID,
-        questions: [{ question: "Q1", options: ["A", "B"], correctAnswer: "A" }],
+        questions: [
+          { question: "Q1", options: ["A", "B"], correctAnswer: "A" },
+        ],
         update: updateMock,
       };
 
       findOneUserMock.mockResolvedValue({ user_id: "1", id: "1" });
       findByPkQuizMock.mockResolvedValue(quizObj);
 
-      const res = await request(app).put("/api/quizzes/5").send({
-        title: "Updated Title",
-        category: "General",
-        questions: [{ question: "Q1", options: ["A", "B"], correctAnswer: "A" }],
-      });
+      const res = await request(app)
+        .put("/api/quizzes/5")
+        .send({
+          title: "Updated Title",
+          category: "General",
+          questions: [
+            { question: "Q1", options: ["A", "B"], correctAnswer: "A" },
+          ],
+        });
 
       expect(res.status).toBe(200);
       expect(updateMock).toHaveBeenCalledWith(
@@ -315,10 +365,21 @@ describe("Quizzes CRUD & Submit Endpoints", () => {
         ],
       };
       findByPkQuizMock.mockResolvedValue(quizObj);
-      findByPkGroupMock.mockResolvedValue({ id: VALID_GROUP_UUID, owner_id: "1" });
-      findOneMemberMock.mockResolvedValue({ id: "50", group_id: VALID_GROUP_UUID, user_id: "1" });
+      findByPkGroupMock.mockResolvedValue({
+        id: VALID_GROUP_UUID,
+        owner_id: "1",
+      });
+      findOneMemberMock.mockResolvedValue({
+        id: "50",
+        group_id: VALID_GROUP_UUID,
+        user_id: "1",
+      });
       findOneUserMock.mockResolvedValue({ user_id: "1", id: "1" });
-      createQuizResultMock.mockResolvedValue({ id: "99", score: 2, total_questions: 2 });
+      createQuizResultMock.mockResolvedValue({
+        id: "99",
+        score: 2,
+        total_questions: 2,
+      });
 
       const res = await request(app)
         .post("/api/quizzes/5/submit")
