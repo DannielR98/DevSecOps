@@ -232,7 +232,7 @@ const authenticatedUser = {
 };
 
 vi.mock("../../middleware/supabaseAuth.js", () => ({
-  checkJwt: (req, res, next) => {
+  checkJwt: (req, _res, next) => {
     req.auth = {
       payload: {
         sub: "supabase-auth-id",
@@ -372,7 +372,7 @@ describe("Groups Join & Update Endpoints", () => {
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
-      expect(res.body.message).toBe('Successfully joined group "Test Team"');
+      expect(res.body.message).toBe("Successfully joined group \"Test Team\"");
       expect(res.body.group.id).toBe(VALID_GROUP_UUID);
 
       expect(findOneGroupMock).toHaveBeenCalledWith({

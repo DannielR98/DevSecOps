@@ -255,12 +255,12 @@ router.get("/groups/:groupId/members/:memberId", checkJwt, async (req, res) => {
         createdAt: member.createdAt,
         user: memberUser
           ? {
-              user_id: memberUser.user_id,
-              firstname: memberUser.firstname,
-              surname: memberUser.surname,
-              username: memberUser.username,
-              email: memberUser.email,
-            }
+            user_id: memberUser.user_id,
+            firstname: memberUser.firstname,
+            surname: memberUser.surname,
+            username: memberUser.username,
+            email: memberUser.email,
+          }
           : null,
       },
     });

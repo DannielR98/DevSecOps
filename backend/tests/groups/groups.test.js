@@ -308,7 +308,7 @@ const authenticatedUser = {
 };
 
 vi.mock("../../middleware/supabaseAuth.js", () => ({
-  checkJwt: (req, res, next) => {
+  checkJwt: (req, _res, next) => {
     req.auth = {
       payload: {
         sub: "supabase-auth-id",

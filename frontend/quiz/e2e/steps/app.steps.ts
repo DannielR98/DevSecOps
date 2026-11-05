@@ -3,7 +3,7 @@ import { test, createBdd } from "playwright-bdd";
 import type { Page, Route } from "@playwright/test";
 
 interface Group {
-  id: number;
+  id: string;
   name: string;
   invite_code: string;
   owner_id: number;
@@ -14,14 +14,14 @@ interface Group {
 interface Question {
   question: string;
   options: string[];
-  correctAnswer: number;
+  correctAnswer: string;
 }
 
 interface Quiz {
-  id: number;
+  id: string;
   title: string;
   category: string;
-  group_id: number;
+  group_id: string;
   questions: Question[];
   createdAt: string;
 }
@@ -40,7 +40,7 @@ const { Given, When, Then, Before } = createBdd(test);
 
 function createGroup(id: number, name: string, isOwner = true): Group {
   return {
-    id,
+    id: String(id),
     name,
     invite_code: "ABC123",
     owner_id: 1,
@@ -51,14 +51,14 @@ function createGroup(id: number, name: string, isOwner = true): Group {
 
 function createQuiz(id: number, groupId: number, title = "DevSecOps grunder"): Quiz {
   return {
-    id,
+    id: String(id),
     title,
     category: "DevSecOps",
-    group_id: groupId,
+    group_id: String(groupId),
     questions: [{
       question: "Vilket alternativ är säkrast?",
       options: ["Secure", "Insecure", "Unknown", "Disabled"],
-      correctAnswer: 0,
+      correctAnswer: "Secure",
     }],
     createdAt: "2026-01-01T00:00:00.000Z",
   };
@@ -117,7 +117,7 @@ async function handleApi(route: Route, state: ScenarioState) {
     const body = route.request().postDataJSON() as Omit<Quiz, "id" | "createdAt">;
     const quiz: Quiz = {
       ...body,
-      id: state.quizzes.length + 1,
+      id: String(state.quizzes.length + 1),
       createdAt: "2026-01-01T00:00:00.000Z",
     };
     state.quizCreated = quiz;
@@ -126,10 +126,10 @@ async function handleApi(route: Route, state: ScenarioState) {
     return;
   }
 
-  const submitMatch = path.match(/^quizzes\/(\d+)\/submit$/);
+  const submitMatch = path.match(    /^quizzes\/([^/]+)\/submit$/);
   if (submitMatch && method === "POST") {
-    const quiz = state.quizzes.find((item) => item.id === Number(submitMatch[1]));
-    const body = route.request().postDataJSON() as { answers: number[] };
+    const quiz = state.quizzes.find((item) => item.id === submitMatch[1]);
+    const body = route.request().postDataJSON() as { answers: string[] };
     const score = quiz?.questions.reduce(
       (total, question, index) => total + Number(body.answers[index] === question.correctAnswer),
       0,

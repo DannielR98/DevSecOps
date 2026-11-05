@@ -12,3 +12,8 @@ Thumbs.db
 
 # Dependencies
 node_modules/
+
+# Serverless build output
+serverless/dist/
+serverless/.aws-sam/
+serverless/samconfig.toml

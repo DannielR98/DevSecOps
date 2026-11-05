@@ -1,0 +1,27 @@
+{
+  "name": "quiz-serverless",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "build": "node build.mjs",
+    "validate": "sam validate --lint",
+    "deploy": "npm run build && sam deploy"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1161.0",
+    "@aws-sdk/lib-dynamodb": "^3.1161.0",
+    "bcryptjs": "^3.0.3",
+    "jose": "^6.2.15",
+    "uuid": "^14.0.3",
+    "zod": "^4.6.7"
+  },
+  "devDependencies": {
+    "aws-sdk-client-mock": "^4.1.0",
+    "esbuild": "^0.28.2",
+    "vitest": "^5.0.5"
+  }
+}

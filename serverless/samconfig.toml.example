@@ -1,0 +1,13 @@
+version = 0.1
+
+[default.deploy.parameters]
+stack_name = "quiz-serverless"
+region = "eu-north-1"
+resolve_s3 = true
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+disable_rollback = false
+parameter_overrides = [
+  "AllowedOrigin=http://frontend_server_URL",
+  "SupabaseUrl=https://your-project.supabase.co"
+]
