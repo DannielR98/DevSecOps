@@ -3,27 +3,27 @@ import { test, createBdd } from "playwright-bdd";
 import type { Page, Route } from "@playwright/test";
 
 interface Group {
-    id: string;
-    name: string;
-    invite_code: string;
-    owner_id: number;
-    is_owner: boolean;
-    createdAt: string;
+  id: string;
+  name: string;
+  invite_code: string;
+  owner_id: number;
+  is_owner: boolean;
+  createdAt: string;
 }
 
 interface Question {
-    question: string;
-    options: string[];
-    correctAnswer: string;
+  question: string;
+  options: string[];
+  correctAnswer: string;
 }
 
 interface Quiz {
-    id: string;
-    title: string;
-    category: string;
-    group_id: string;
-    questions: Question[];
-    createdAt: string;
+  id: string;
+  title: string;
+  category: string;
+  group_id: string;
+  questions: Question[];
+  createdAt: string;
 }
 
 interface ScenarioState {
@@ -39,29 +39,29 @@ const states = new WeakMap<Page, ScenarioState>();
 const { Given, When, Then, Before } = createBdd(test);
 
 function createGroup(id: number, name: string, isOwner = true): Group {
-    return {
-        id: String(id),
-        name,
-        invite_code: "ABC123",
-        owner_id: 1,
-        is_owner: isOwner,
-        createdAt: "2026-01-01T00:00:00.000Z",
-    };
+  return {
+    id: String(id),
+    name,
+    invite_code: "ABC123",
+    owner_id: 1,
+    is_owner: isOwner,
+    createdAt: "2026-01-01T00:00:00.000Z",
+  };
 }
 
 function createQuiz(id: number, groupId: number, title = "DevSecOps grunder"): Quiz {
-    return {
-        id: String(id),
-        title,
-        category: "DevSecOps",
-        group_id: String(groupId),
-        questions: [{
-            question: "Vilket alternativ är säkrast?",
-            options: ["Secure", "Insecure", "Unknown", "Disabled"],
-            correctAnswer: "Secure",
-        }],
-        createdAt: "2026-01-01T00:00:00.000Z",
-    };
+  return {
+    id: String(id),
+    title,
+    category: "DevSecOps",
+    group_id: String(groupId),
+    questions: [{
+      question: "Vilket alternativ är säkrast?",
+      options: ["Secure", "Insecure", "Unknown", "Disabled"],
+      correctAnswer: "Secure",
+    }],
+    createdAt: "2026-01-01T00:00:00.000Z",
+  };
 }
 
 async function fulfill(route: Route, body: unknown) {
@@ -73,80 +73,80 @@ async function fulfill(route: Route, body: unknown) {
 }
 
 async function handleApi(route: Route, state: ScenarioState) {
-    const path = new URL(route.request().url()).pathname.replace(/^\/api\/?/, "");
-    const method = route.request().method();
+  const path = new URL(route.request().url()).pathname.replace(/^\/api\/?/, "");
+  const method = route.request().method();
 
-    if (path === "sync-user" && method === "POST") {
-        state.profileSynced = true;
-        await fulfill(route, { user: { id: 1, supabase_id: "supabase|bdd-test-user" } });
-        return;
-    }
+  if (path === "sync-user" && method === "POST") {
+    state.profileSynced = true;
+    await fulfill(route, { user: { id: 1, supabase_id: "supabase|bdd-test-user" } });
+    return;
+  }
 
-    if (path === "users" && method === "GET") {
-        await fulfill(route, { users: [] });
-        return;
-    }
+  if (path === "users" && method === "GET") {
+    await fulfill(route, { users: [] });
+    return;
+  }
 
-    if (path === "groups" && method === "GET") {
-        await fulfill(route, { groups: state.groups });
-        return;
-    }
+  if (path === "groups" && method === "GET") {
+    await fulfill(route, { groups: state.groups });
+    return;
+  }
 
-    if (path === "groups" && method === "POST") {
-        const body = route.request().postDataJSON() as { name: string };
-        const group = createGroup(state.groups.length + 1, body.name);
-        state.groups.push(group);
-        await fulfill(route, { group });
-        return;
-    }
+  if (path === "groups" && method === "POST") {
+    const body = route.request().postDataJSON() as { name: string };
+    const group = createGroup(state.groups.length + 1, body.name);
+    state.groups.push(group);
+    await fulfill(route, { group });
+    return;
+  }
 
-    if (path === "groups/join" && method === "POST") {
-        const body = route.request().postDataJSON() as { invite_code: string };
-        const group = createGroup(2, "Inbjuden grupp", false);
-        state.groups.push(group);
-        await fulfill(route, { message: `Joined group ${body.invite_code} successfully!`, group });
-        return;
-    }
+  if (path === "groups/join" && method === "POST") {
+    const body = route.request().postDataJSON() as { invite_code: string };
+    const group = createGroup(2, "Inbjuden grupp", false);
+    state.groups.push(group);
+    await fulfill(route, { message: `Joined group ${body.invite_code} successfully!`, group });
+    return;
+  }
 
-    if (path === "quizzes" && method === "GET") {
-        await fulfill(route, { quizzes: state.quizzes });
-        return;
-    }
+  if (path === "quizzes" && method === "GET") {
+    await fulfill(route, { quizzes: state.quizzes });
+    return;
+  }
 
-    if (path === "quizzes" && method === "POST") {
-        const body = route.request().postDataJSON() as Omit<Quiz, "id" | "createdAt">;
-        const quiz: Quiz = {
-            ...body,
-            id: String(state.quizzes.length + 1),
-            createdAt: "2026-01-01T00:00:00.000Z",
-        };
-        state.quizCreated = quiz;
-        state.quizzes.push(quiz);
-        await fulfill(route, { quiz });
-        return;
-    }
+  if (path === "quizzes" && method === "POST") {
+    const body = route.request().postDataJSON() as Omit<Quiz, "id" | "createdAt">;
+    const quiz: Quiz = {
+      ...body,
+      id: String(state.quizzes.length + 1),
+      createdAt: "2026-01-01T00:00:00.000Z",
+    };
+    state.quizCreated = quiz;
+    state.quizzes.push(quiz);
+    await fulfill(route, { quiz });
+    return;
+  }
 
-    const submitMatch = path.match(    /^quizzes\/([^/]+)\/submit$/);
-    if (submitMatch && method === "POST") {
-            const quiz = state.quizzes.find((item) => item.id === submitMatch[1]);
-            const body = route.request().postDataJSON() as { answers: string[] };
-        const score = quiz?.questions.reduce(
-            (total, question, index) => total + Number(body.answers[index] === question.correctAnswer),
-            0,
-        ) ?? 0;
-        const totalQuestions = quiz?.questions.length ?? 0;
-        state.quizResult = {
-            score,
-            total_questions: totalQuestions,
-            percentage: totalQuestions === 0 ? 0 : Math.round((score / totalQuestions) * 100),
-        };
-        state.resultSavedForTestUser =
-            route.request().headers().authorization === "Bearer bdd-test-token";
-        await fulfill(route, { result: state.quizResult });
-        return;
-    }
+  const submitMatch = path.match(    /^quizzes\/([^/]+)\/submit$/);
+  if (submitMatch && method === "POST") {
+    const quiz = state.quizzes.find((item) => item.id === submitMatch[1]);
+    const body = route.request().postDataJSON() as { answers: string[] };
+    const score = quiz?.questions.reduce(
+      (total, question, index) => total + Number(body.answers[index] === question.correctAnswer),
+      0,
+    ) ?? 0;
+    const totalQuestions = quiz?.questions.length ?? 0;
+    state.quizResult = {
+      score,
+      total_questions: totalQuestions,
+      percentage: totalQuestions === 0 ? 0 : Math.round((score / totalQuestions) * 100),
+    };
+    state.resultSavedForTestUser =
+      route.request().headers().authorization === "Bearer bdd-test-token";
+    await fulfill(route, { result: state.quizResult });
+    return;
+  }
 
-    await fulfill(route, {});
+  await fulfill(route, {});
 }
 
 function stateFor(page: Page): ScenarioState {
