@@ -311,7 +311,7 @@ const authenticatedUser = {
 };
 
 vi.mock("../../middleware/supabaseAuth.js", () => ({
-  checkJwt: (req, res, next) => {
+  checkJwt: (req, _res, next) => {
     req.auth = {
       payload: {
         sub: "supabase-auth-id",
@@ -369,10 +369,6 @@ describe("GroupMember Endpoints", () => {
     // Default authenticated local user
     findOneUserMock.mockResolvedValue(authenticatedUser);
   });
-
-  const mockAuthenticatedUser = () => {
-    findOneUserMock.mockResolvedValue(authenticatedUser);
-  };
 
   describe("GET /api/groups/:groupId/members", () => {
     it("returns 400 when group ID is invalid UUID", async () => {
