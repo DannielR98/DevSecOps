@@ -152,16 +152,6 @@ jobs:
       ## npm run test:ui
 
   cd:
-    name: Continuous Deployment (Docker)
-    needs: ci
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
-
-    permissions:
-      contents: read
-      packages: write
-
-  cd:
       name: Continuous Deployment (Docker)
       needs: ci
       runs-on: ubuntu-latest
