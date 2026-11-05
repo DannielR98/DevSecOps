@@ -9,7 +9,7 @@ function App() {
 
   useEffect(() => {
     const getToken = async () => {
-      if (!isAuthenticated) return;
+      if (!isAuthenticated) {return;}
 
       try {
         const token = await getAccessTokenSilently();

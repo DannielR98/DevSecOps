@@ -131,6 +131,7 @@ export default function Navbar() {
           method: "POST",
           token: freshToken,
           body: {
+            auth_id: authUser.id,
             email: authUser.email,
             name: authUser.name,
             nickname: authUser.nickname,

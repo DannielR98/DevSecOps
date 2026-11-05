@@ -91,13 +91,15 @@ import "dotenv/config";
 import { sequelize, connectDB } from "./config/connect.db.js";
 
 // api for user
-
-import registerUser from "./Api/UserRoute/registerUser.js";
 import getUsers from "./Api/UserRoute/getUsers.js";
+
+/* 
+import registerUser from "./Api/UserRoute/registerUser.js";
 import getUserById from "./Api/UserRoute/getUserById.js";
 import loginUser from "./Api/UserRoute/LoginUser.js";
 import updateUser from "./Api/UserRoute/updateUser.js";
-import deleteUser from "./Api/UserRoute/deleteUser.js";
+import deleteUser from "./Api/UserRoute/deleteUser.js"; */
+import syncUserRoute from "./Api/UserRoute/syncUser.js";
 
 // api for  Group
 import createGroup from "./Api/Groups/createGroup.js";
@@ -132,13 +134,14 @@ app.use(express.json());
 
 //
 // api user
-app.use("/api", getUsers);
+/* 
 app.use("/api", getUserById);
 app.use("/api", registerUser);
 app.use("/api", loginUser);
 app.use("/api", updateUser);
-app.use("/api", deleteUser);
-
+app.use("/api", deleteUser); */
+app.use("/api", getUsers);
+app.use("/api", syncUserRoute);
 // api for  Group
 app.use("/api", createGroup);
 app.use("/api", getGroups);

@@ -8,7 +8,9 @@ const UUID_REGEX =
 const verifyJWT = async (req, res, next) => {
   // First, verify the JWT via Supabase (JWKS, HMAC, or Supabase Auth API)
   await checkJwt(req, res, async (err) => {
-    if (err) return next(err);
+    if (err) {
+      return next(err);
+    }
 
     try {
       const payload = req.user || req.auth?.payload || {};
@@ -65,7 +67,7 @@ const verifyJWT = async (req, res, next) => {
               "Member",
             username: safeUsername,
           });
-        } catch (createErr) {
+        } catch (_createErr) {
           // If creation conflicts with existing record, try lookup again
           try {
             dbUser = await User.findOne({
@@ -76,7 +78,7 @@ const verifyJWT = async (req, res, next) => {
                 ],
               },
             });
-          } catch (retryErr) {
+          } catch (_retryErr) {
             // ignore
           }
         }

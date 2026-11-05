@@ -20,7 +20,7 @@ export default function AuthModal({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  if (!isOpen) return null;
+  if (!isOpen) {return null;}
 
   const handleSubmit = async (e: FormEvent) => {
     e.preventDefault();
@@ -90,7 +90,7 @@ export default function AuthModal({
         backdropFilter: "blur(8px)",
       }}
       onClick={(e) => {
-        if (e.target === e.currentTarget) onClose();
+        if (e.target === e.currentTarget) {onClose();}
       }}
     >
       <div

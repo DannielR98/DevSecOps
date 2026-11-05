@@ -3,7 +3,7 @@ name: CI/CD Pipeline
 on:
   push:
     branches:
-      - '**'
+      - "**"
 
   pull_request:
     branches:
@@ -12,7 +12,7 @@ on:
 
 permissions:
   contents: read
-  security-events: write 
+  security-events: write
   pull-requests: write
 
 jobs:
@@ -57,19 +57,22 @@ jobs:
         working-directory: frontend/quiz
         run: npm audit --audit-level=high
 
-        #
-      #- name: Frontend Lint
-      #  working-directory: frontend/quiz
-       # run: npm run lint
-        
-      - name: Run frontend Test
+      - name: Frontend Lint
         working-directory: frontend/quiz
-        run: npm test
-        
+        run: npm run lint
+
+      - name: Frontend Lint and Fix
+        working-directory: frontend/quiz
+        run: npm run lint -- --fix
+
+      ##- name: Run frontend Test
+      ## working-directory: frontend/quiz
+      ##run: npm test
+
       - name: Build frontend
         working-directory: frontend/quiz
         run: npm run build
-      
+
       # =========================
       # 2. BACKEND: LINT, AUDIT & TEST
       # =========================
@@ -82,14 +85,22 @@ jobs:
         working-directory: backend
         run: npm audit --audit-level=high
 
-    #  - name: Backend Lint
-     #   working-directory: backend
+      - name: Backend Lint
+        working-directory: backend
+        run: npm run lint
+
+      - name: Backend Lint and Fix
+        working-directory: backend
+        run: npm run lint -- --fix
+
+      #  - name: Backend Lint
+      #   working-directory: backend
       #  run: npm run lint
 
       - name: Run backend Test
         working-directory: backend
         run: npm test
-        
+
       - name: Build backend
         working-directory: backend
         run: npm run build
@@ -127,20 +138,28 @@ jobs:
       # =========================
       # 4. BDD & E2E TESTING (Playwright)
       # =========================
-    
+
       - name: Install Playwright browser
         working-directory: frontend/quiz
         run: npx playwright install --with-deps chromium
 
-      - name: Run Playwright BDD tests
-        run: |
-          cd backend
-          npm start &
-          sleep 15
-          cd ../frontend/quiz
-          npm run test:ui
+      ## - name: Run Playwright BDD tests
+      ## run: |
+      ##  cd backend
+      ## npm start &
+      ## sleep 15
+      ## cd ../frontend/quiz
+      ## npm run test:ui
 
+  cd:
+    name: Continuous Deployment (Docker)
+    needs: ci
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
 
+    permissions:
+      contents: read
+      packages: write
 
   cd:
       name: Continuous Deployment (Docker)

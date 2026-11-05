@@ -27,12 +27,12 @@ interface Quiz {
 }
 
 interface ScenarioState {
-    groups: Group[];
-    quizzes: Quiz[];
-    profileSynced: boolean;
-    quizCreated: Quiz | null;
-    quizResult: { score: number; total_questions: number; percentage: number } | null;
-    resultSavedForTestUser: boolean;
+  groups: Group[];
+  quizzes: Quiz[];
+  profileSynced: boolean;
+  quizCreated: Quiz | null;
+  quizResult: { score: number; total_questions: number; percentage: number } | null;
+  resultSavedForTestUser: boolean;
 }
 
 const states = new WeakMap<Page, ScenarioState>();
@@ -65,11 +65,11 @@ function createQuiz(id: number, groupId: number, title = "DevSecOps grunder"): Q
 }
 
 async function fulfill(route: Route, body: unknown) {
-    await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify(body),
-    });
+  await route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify(body),
+  });
 }
 
 async function handleApi(route: Route, state: ScenarioState) {
@@ -150,126 +150,126 @@ async function handleApi(route: Route, state: ScenarioState) {
 }
 
 function stateFor(page: Page): ScenarioState {
-    const state = states.get(page);
-    if (!state) throw new Error("Scenario API fixtures are not initialized");
-    return state;
+  const state = states.get(page);
+  if (!state) {throw new Error("Scenario API fixtures are not initialized");}
+  return state;
 }
 
 async function openAuthenticatedApp(page: Page) {
-    await page.goto("/");
-    await expect(page.getByText(/Säkert autentiserad via Supabase Auth/)).toBeVisible();
+  await page.goto("/");
+  await expect(page.getByText(/Säkert autentiserad via Supabase Auth/)).toBeVisible();
 }
 
 Before(async ({ page }) => {
-    const state: ScenarioState = {
-        groups: [],
-        quizzes: [],
-        profileSynced: false,
-        quizCreated: null,
-        quizResult: null,
-        resultSavedForTestUser: false,
-    };
-    states.set(page, state);
-    await page.route("http://localhost:5000/api/**", (route) => handleApi(route, state));
+  const state: ScenarioState = {
+    groups: [],
+    quizzes: [],
+    profileSynced: false,
+    quizCreated: null,
+    quizResult: null,
+    resultSavedForTestUser: false,
+  };
+  states.set(page, state);
+  await page.route("http://localhost:5000/api/**", (route) => handleApi(route, state));
 });
 
 Given("jag är en ny besökare", async () => { });
 
 When("jag loggar in med en lokal Supabase-testidentitet", async ({ page }) => {
-    await openAuthenticatedApp(page);
+  await openAuthenticatedApp(page);
 });
 
 Then("ska jag vara inloggad", async ({ page }) => {
-    await expect(page.getByText(/Hej, BDD Test User!/)).toBeVisible();
+  await expect(page.getByText(/Hej, BDD Test User!/)).toBeVisible();
 });
 
 Then("testprofilen ska synkroniseras till den lokala databasen", async ({ page }) => {
-    await expect.poll(() => stateFor(page).profileSynced).toBe(true);
+  await expect.poll(() => stateFor(page).profileSynced).toBe(true);
 });
 
 Given("jag är inloggad via Supabase", async ({ page }) => {
-    await openAuthenticatedApp(page);
+  await openAuthenticatedApp(page);
 });
 
 When("jag skapar en ny grupp med namnet {string}", async ({ page }, name: string) => {
-    await openAuthenticatedApp(page);
-    await page.getByPlaceholder("Gruppnamn...").fill(name);
-    await page.getByRole("button", { name: "+ Skapa", exact: true }).click();
+  await openAuthenticatedApp(page);
+  await page.getByPlaceholder("Gruppnamn...").fill(name);
+  await page.getByRole("button", { name: "+ Skapa", exact: true }).click();
 });
 
 Then("ska gruppen skapas", async ({ page }) => {
-    await expect(page.getByText("Gruppen har skapats!")).toBeVisible();
-    await expect(page.getByText("Fredagsquiz")).toBeVisible();
+  await expect(page.getByText("Gruppen har skapats!")).toBeVisible();
+  await expect(page.getByText("Fredagsquiz")).toBeVisible();
 });
 
 Then("en unik {int}-teckens inbjudningskod ska skapas", async ({ page }, length: number) => {
-    const code = page.getByText("ABC123", { exact: true });
-    await expect(code).toBeVisible();
-    expect((await code.textContent())?.trim()).toMatch(new RegExp(`^[A-Z0-9]{${length}}$`));
+  const code = page.getByText("ABC123", { exact: true });
+  await expect(code).toBeVisible();
+  expect((await code.textContent())?.trim()).toMatch(new RegExp(`^[A-Z0-9]{${length}}$`));
 });
 
 Then("jag ska bli ägare av gruppen", async ({ page }) => {
-    await expect(page.getByText("Ägare", { exact: true })).toBeVisible();
+  await expect(page.getByText("Ägare", { exact: true })).toBeVisible();
 });
 
 Given("jag har fått en giltig inbjudningskod till en grupp", async ({ page }) => {
-    await openAuthenticatedApp(page);
+  await openAuthenticatedApp(page);
 });
 
 When("jag anger koden och klickar på Gå med", async ({ page }) => {
-    await page.getByPlaceholder("t.ex. EXAM24").fill("VQQMY8");
-    await page.getByRole("button", { name: /Gå med/ }).click();
+  await page.getByPlaceholder("t.ex. EXAM24").fill("VQQMY8");
+  await page.getByRole("button", { name: /Gå med/ }).click();
 });
 
 Then("ska jag läggas till som medlem i gruppen", async ({ page }) => {
-    await expect(page.getByText("Joined group VQQMY8 successfully!")).toBeVisible();
-    await expect(page.getByText("Inbjuden grupp")).toBeVisible();
+  await expect(page.getByText("Joined group VQQMY8 successfully!")).toBeVisible();
+  await expect(page.getByText("Inbjuden grupp")).toBeVisible();
 });
 
 Given("jag är medlem i en grupp", async ({ page }) => {
-    stateFor(page).groups = [createGroup(1, "Fredagsquiz")];
+  stateFor(page).groups = [createGroup(1, "Fredagsquiz")];
 });
 
-When('jag skapar ett quiz med kategorin {string} och frågor', async ({ page }, category: string) => {
-    expect(category).toBe("DevSecOps");
-    await openAuthenticatedApp(page);
-    await expect(page.getByText("Fredagsquiz")).toBeVisible();
-    await page.getByRole("button", { name: /Skapa nytt quiz/ }).click();
-    await page.getByPlaceholder("t.ex. Grunderna i DevSecOps").fill("DevSecOps grunder");
-    await page.getByPlaceholder("Skriv frågetext...").fill("Vilket alternativ är säkrast?");
-    for (const [index, option] of ["Secure", "Insecure", "Unknown", "Disabled"].entries()) {
-        await page.getByPlaceholder(`Alternativ ${index + 1}`).fill(option);
-    }
-    await page.getByRole("button", { name: "Spara quiz" }).click();
+When("jag skapar ett quiz med kategorin {string} och frågor", async ({ page }, category: string) => {
+  expect(category).toBe("DevSecOps");
+  await openAuthenticatedApp(page);
+  await expect(page.getByText("Fredagsquiz")).toBeVisible();
+  await page.getByRole("button", { name: /Skapa nytt quiz/ }).click();
+  await page.getByPlaceholder("t.ex. Grunderna i DevSecOps").fill("DevSecOps grunder");
+  await page.getByPlaceholder("Skriv frågetext...").fill("Vilket alternativ är säkrast?");
+  for (const [index, option] of ["Secure", "Insecure", "Unknown", "Disabled"].entries()) {
+    await page.getByPlaceholder(`Alternativ ${index + 1}`).fill(option);
+  }
+  await page.getByRole("button", { name: "Spara quiz" }).click();
 });
 
 Then("ska quizet sparas i databasen", async ({ page }) => {
-    await expect.poll(() => stateFor(page).quizCreated?.title).toBe("DevSecOps grunder");
-    expect(stateFor(page).quizCreated?.category).toBe("DevSecOps");
+  await expect.poll(() => stateFor(page).quizCreated?.title).toBe("DevSecOps grunder");
+  expect(stateFor(page).quizCreated?.category).toBe("DevSecOps");
 });
 
 Then("ska vara tillgängligt för gruppens medlemmar", async ({ page }) => {
-    await expect(page.getByRole("heading", { name: "DevSecOps grunder" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "DevSecOps grunder" })).toBeVisible();
 });
 
 Given("jag är medlem i en grupp med ett publicerat quiz", async ({ page }) => {
-    const state = stateFor(page);
-    state.groups = [createGroup(1, "Fredagsquiz")];
-    state.quizzes = [createQuiz(1, 1)];
+  const state = stateFor(page);
+  state.groups = [createGroup(1, "Fredagsquiz")];
+  state.quizzes = [createQuiz(1, 1)];
 });
 
 When("jag svarar på alla frågor i quizet och skickar in", async ({ page }) => {
-    await openAuthenticatedApp(page);
-    await page.getByRole("button", { name: /Starta quiz/ }).click();
-    await page.getByRole("radio", { name: "Secure", exact: true }).check();
-    await page.getByRole("button", { name: "Lämna in svar" }).click();
+  await openAuthenticatedApp(page);
+  await page.getByRole("button", { name: /Starta quiz/ }).click();
+  await page.getByRole("radio", { name: "Secure", exact: true }).check();
+  await page.getByRole("button", { name: "Lämna in svar" }).click();
 });
 
 Then("ska mitt poängresultat beräknas", async ({ page }) => {
-    await expect(page.getByText("Resultat: 1 / 1 (100%)")).toBeVisible();
-    expect(stateFor(page).quizResult?.percentage).toBe(100);
+  await expect(page.getByText("Resultat: 1 / 1 (100%)")).toBeVisible();
+  expect(stateFor(page).quizResult?.percentage).toBe(100);
 });
 
 Then("resultatet ska sparas kopplat till min användare", async ({ page }) => {
-    await expect.poll(() => stateFor(page).resultSavedForTestUser).toBe(true);
+  await expect.poll(() => stateFor(page).resultSavedForTestUser).toBe(true);
 });

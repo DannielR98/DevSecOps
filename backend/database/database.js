@@ -19,11 +19,11 @@ if (databaseUrl && (databaseUrl.startsWith("postgres://") || databaseUrl.startsW
     logging: process.env.DB_LOGGING === "true" ? console.log : false,
     dialectOptions: isRemote
       ? {
-          ssl: {
-            require: true,
-            rejectUnauthorized: false,
-          },
-        }
+        ssl: {
+          require: true,
+          rejectUnauthorized: false,
+        },
+      }
       : {},
   });
 } else if (process.env.DB_HOST && process.env.DB_USER) {
@@ -39,11 +39,11 @@ if (databaseUrl && (databaseUrl.startsWith("postgres://") || databaseUrl.startsW
       logging: process.env.DB_LOGGING === "true" ? console.log : false,
       dialectOptions: isSsl
         ? {
-            ssl: {
-              require: true,
-              rejectUnauthorized: false,
-            },
-          }
+          ssl: {
+            require: true,
+            rejectUnauthorized: false,
+          },
+        }
         : {},
     },
   );

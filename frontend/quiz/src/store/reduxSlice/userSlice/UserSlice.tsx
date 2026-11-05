@@ -125,9 +125,9 @@ const storageUser = localStorage.getItem("user");
 const parsedUser: StoragedUserType = storageUser
   ? JSON.parse(storageUser)
   : {
-      userStoraged: null,
-      token: null,
-    };
+    userStoraged: null,
+    token: null,
+  };
 interface StoragedUserType {
   userStoraged: UserType | null;
   token: string | null;

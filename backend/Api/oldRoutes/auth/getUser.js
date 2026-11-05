@@ -1,11 +1,11 @@
 import express from "express";
 
 import User from "../../../database/schemas/userSchema.js";
-import { checkJwt } from "../../../middleware/supabaseAuth.js";
+//import { checkJwt } from "../../../middleware/supabaseAuth.js";
 
 const router = express.Router();
 
-router.get("/users", async (req, res) => {
+router.get("/users", async (_req, res) => {
   try {
     const users = await User.findAll();
     return res.status(200).json({ users });
