@@ -65,9 +65,9 @@ jobs:
         working-directory: frontend/quiz
         run: npm run lint -- --fix
 
-      ##- name: Run frontend Test
-      ## working-directory: frontend/quiz
-      ##run: npm test
+      - name: Run frontend Test
+        working-directory: frontend/quiz
+        run: npm test
 
       - name: Build frontend
         working-directory: frontend/quiz
