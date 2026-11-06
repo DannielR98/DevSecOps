@@ -4,12 +4,11 @@ import { isUUID, requireUUID } from "./http-utils.js";
 
 export { HttpError, isUUID, requireUUID };
 
- export const respond = (status, body) => ({
-  
+export const respond = (status, body) => ({
   statusCode: status,
   headers: { "Content-Type": "application/json" },
   body: JSON.stringify(body),
-}); 
+});
 
 const parseBody = (event) => {
   if (!event.body) return {};
@@ -56,18 +55,16 @@ export const publicUser = (user) => {
 export const route =
   (fn, { auth = true } = {}) =>
   async (event) => {
-     if (
+    if (
       event.requestContext?.http?.method === "OPTIONS" ||
       event.httpMethod === "OPTIONS"
     ) {
       return {
         statusCode: 204,
-        headers: corsHeaders,
         body: "",
       };
     }
     try {
-      
       const ctx = {
         params: event.pathParameters ?? {},
         query: event.queryStringParameters ?? {},

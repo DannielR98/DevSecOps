@@ -170,6 +170,16 @@ describe("authentication", () => {
 describe("HTTP route wrapper", () => {
   const echo = route(async ({ body }) => [200, body], { auth: false });
 
+  it.each([
+    { requestContext: { http: { method: "OPTIONS" } } },
+    { httpMethod: "OPTIONS" },
+  ])("returns an empty preflight response before parsing or authentication", async (event) => {
+    const handler = vi.fn();
+    const response = await route(handler)({ ...event, body: "invalid json" });
+    expect(response).toEqual({ statusCode: 204, body: "" });
+    expect(handler).not.toHaveBeenCalled();
+  });
+
   it("parses JSON and base64-encoded bodies", async () => {
     const response = await echo({ body: Buffer.from('{"name":"test"}').toString("base64"), isBase64Encoded: true });
     expect(response.statusCode).toBe(200);
