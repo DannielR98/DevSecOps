@@ -13,6 +13,7 @@ Before({ tags: "@requires-live-supabase" }, async () => {
 Given("jag är på inloggningssidan", pendingLiveSupabaseStep);
 //When("jag väljer {string}", async ({}, _label: string) => {});
 When("jag väljer {string}", async (_fixtures, _label: string) => {});
+
 When(
   "jag registrerar mig med en unik e-postadress och ett giltigt lösenord",
   pendingLiveSupabaseStep,

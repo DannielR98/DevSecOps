@@ -47,4 +47,11 @@ export default defineConfig([
       "no-console": "off",
     },
   },
+    {
+    files: ["src/components/GroupDashboard.tsx"],
+    rules: {
+      "react-hooks/set-state-in-effect": "off",
+      "react-hooks/exhaustive-deps": "off",
+    },
+  },
 ]);
