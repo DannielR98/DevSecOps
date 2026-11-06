@@ -9,6 +9,10 @@ const { findAllUserMock, findOneUserMock } = vi.hoisted(() => ({
   findOneUserMock: vi.fn(),
 }));
 
+vi.mock("../../middleware/supabaseAuth.js", () => ({
+  default: (_req, _res, next) => next(),
+}));
+
 vi.mock("../../models/User.js", () => ({
   default: {
     findAll: findAllUserMock,

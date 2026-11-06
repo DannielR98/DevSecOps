@@ -1,7 +1,9 @@
 export interface UserType {
   supabase_id?: string;
+  auth_id?: string;
+  user_id?: string;
   name?: string;
-  id?: number;
+  id?: string | number;
   picture?: string;
   firstname: string;
   surname: string;

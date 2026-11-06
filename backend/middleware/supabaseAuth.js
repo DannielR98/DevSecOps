@@ -90,14 +90,6 @@ export const checkJwt = async (req, res, next) => {
       }
     }
 
-    // 4. Test environment / mock token fallback
-    if (process.env.NODE_ENV === "test" || token.includes("test")) {
-      const decoded = jwt.decode(token) || { sub: token };
-      req.auth = { payload: decoded };
-      req.user = decoded;
-      return next();
-    }
-
     return res.status(401).json({
       message: "Invalid or expired token",
     });

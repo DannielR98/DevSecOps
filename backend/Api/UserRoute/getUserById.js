@@ -1,12 +1,13 @@
 import express from "express";
 import { z } from "zod";
 import User from "../../models/User.js";
+import checkJwt from "../../middleware/supabaseAuth.js";
 
 const router = express.Router();
 
 const userIdSchema = z.uuid();
 
-router.get("/user/:user_id", async (req, res) => {
+router.get("/user/:user_id", checkJwt, async (req, res) => {
   const validation = userIdSchema.safeParse(req.params.user_id);
 
   if (!validation.success) {
@@ -21,6 +22,7 @@ router.get("/user/:user_id", async (req, res) => {
       where: {
         user_id: validation.data,
       },
+      attributes: { exclude: ["password"] },
     });
 
     if (!user) {

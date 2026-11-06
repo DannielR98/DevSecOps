@@ -998,4 +998,34 @@ describe("POST /api/quizzes/:id/submit", () => {
 
     expect(res.status).toBe(201);
   });
+
+  it("accepts frontend text answers and scores string correct answers", async () => {
+    findByPkQuizMock.mockResolvedValue({
+      ...makeQuiz(),
+      questions: [
+        { question: "First?", options: ["A", "B"], correctAnswer: "B" },
+        { question: "Second?", options: ["A", "B"], correctAnswer: "A" },
+      ],
+    });
+    createQuizResultMock.mockResolvedValue({ id: RESULT_UUID });
+
+    const res = await request(app)
+      .post(`/api/quizzes/${QUIZ_UUID}/submit`)
+      .send({ answers: ["B", "B"] });
+
+    expect(res.status).toBe(201);
+    expect(res.body.result).toMatchObject({ score: 1, total_questions: 2, percentage: 50 });
+    expect(createQuizResultMock).toHaveBeenCalledWith(
+      expect.objectContaining({ score: 1, total_questions: 2 }),
+    );
+  });
+
+  it("rejects answers not present among the options", async () => {
+    findByPkQuizMock.mockResolvedValue(makeQuiz());
+    const res = await request(app)
+      .post(`/api/quizzes/${QUIZ_UUID}/submit`)
+      .send({ answers: ["unknown", "4"] });
+    expect(res.status).toBe(400);
+    expect(createQuizResultMock).not.toHaveBeenCalled();
+  });
 });

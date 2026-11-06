@@ -1,12 +1,12 @@
 import express from "express";
 import User from "../../models/User.js";
+import checkJwt from "../../middleware/supabaseAuth.js";
 
 const router = express.Router();
 
-router.get("/users", async (_req, res) => {
+router.get("/users", checkJwt, async (_req, res) => {
   try {
-    const users = await User.findAll();
-    console.log(users);
+    const users = await User.findAll({ attributes: { exclude: ["password"] } });
 
     res.status(200).json({
       success: true,

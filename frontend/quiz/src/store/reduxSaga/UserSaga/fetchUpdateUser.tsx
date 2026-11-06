@@ -21,8 +21,9 @@ import type { UserType } from "../../../utilities/interfaces.js";
 /* ================= TYPES ================= */
 
 type UpdateUserPayload = {
-  data: UserType;
-  id: number;
+  data: Pick<UserType, "firstname" | "surname" | "username" | "email">;
+  id: string | number;
+  token: string;
 };
 
 type UpdateResponse = {
@@ -41,16 +42,12 @@ type UpdateErrorResponse = {
 /* ================= API ================= */
 
 async function UpdateUserApi(action: PayloadAction<UpdateUserPayload>) {
-  const storageUser = localStorage.getItem("user");
-
-  const token = storageUser ? JSON.parse(storageUser).token : null;
-
   const response = await apiRequest({
     api: `update-user/${action.payload.id}`,
     method: "PUT",
     endpoint: "",
     body: action.payload.data,
-    token,
+    token: action.payload.token,
   });
 
   return response as UpdateResponse;

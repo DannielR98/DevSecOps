@@ -63,41 +63,6 @@ export default function Navbar() {
   }, [dispatch]);
 
   useEffect(() => {
-    const saveAuth = async () => {
-      if (!isAuthenticated || !authUser) {
-        return;
-      }
-
-      try {
-        const freshToken = await getAccessTokenSilently();
-
-        dispatch(
-          setAuth({
-            isAuth: true,
-            token: freshToken,
-            userStorage: authUser,
-          }),
-        );
-      } catch (error) {
-        console.error("SUPABASE AUTH TOKEN ERROR:", error);
-      }
-    };
-
-    saveAuth();
-  }, [isAuthenticated, authUser, getAccessTokenSilently, dispatch]);
-
-  useEffect(() => {
-    if (!isAuth || !token) {
-      return;
-    }
-
-    dispatch({
-      type: "Fetch-USERS",
-      payload: token,
-    });
-  }, [isAuth, token, dispatch]);
-
-  useEffect(() => {
     if (!userStorage?.sub) {
       return;
     }
@@ -137,6 +102,7 @@ export default function Navbar() {
             nickname: authUser.nickname,
           },
         });
+        dispatch({ type: "Fetch-USERS", payload: freshToken });
       } catch (error) {
         console.error("SYNC USER ERROR:", error);
       }

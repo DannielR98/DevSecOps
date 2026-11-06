@@ -217,7 +217,7 @@ export default function DesktopNavBar({
               <div className={classes.dropdown}>
                 <Link
                   className={classes.dropdownLink}
-                  to={userOne?.id ? `/user-info/${userOne.id}` : "/"}
+                  to={userOne?.user_id || userOne?.id ? `/user-info/${userOne.user_id ?? userOne.id}` : "/"}
                   onClick={() => setMenuOpen(false)}
                 >
                   Användarinfo

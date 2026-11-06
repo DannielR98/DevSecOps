@@ -3,7 +3,7 @@ import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import Navbar from "../components/NavbarContainer/Navbar";
 import { renderWithProviders } from "./test-utils";
-import { mockUseAuth } from "./setup";
+import { mockApiRequest, mockUseAuth } from "./setup";
 
 const loggedOutAuth = () => ({
   isAuthenticated: false,
@@ -25,6 +25,23 @@ const loggedInAuthStorage = {
 };
 
 describe("Navbar Component", () => {
+  it("syncs before requesting users and passes the token", async () => {
+    mockUseAuth.mockReturnValue({
+      ...loggedOutAuth(),
+      isAuthenticated: true,
+      user: loggedInAuthStorage,
+    });
+    const { store } = renderWithProviders(<Navbar />);
+    const dispatch = vi.spyOn(store, "dispatch");
+    await waitFor(() => expect(mockApiRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ api: "sync-user", method: "POST", token: "test-token" }),
+    ));
+    await waitFor(() => expect(dispatch).toHaveBeenCalledWith({ type: "Fetch-USERS", payload: "test-token" }));
+    expect(dispatch.mock.calls.filter(([action]) =>
+      typeof action === "object" && action !== null && "type" in action && action.type === "Fetch-USERS",
+    )).toHaveLength(1);
+  });
+
   it("should render app title", () => {
     renderWithProviders(<Navbar />);
     expect(screen.getByText(/DevSecOps Quiz/i)).toBeInTheDocument();

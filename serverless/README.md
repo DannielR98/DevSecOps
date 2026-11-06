@@ -4,7 +4,7 @@ Alternative to the Express/PostgreSQL `backend/`, which remains available. The A
 
 ## Layout
 
-- `src/handlers/` – one Lambda handler per endpoint (22 in total)
+- `src/handlers/` – one Lambda handler per endpoint
 - `src/lib/repo.js` – DynamoDB data access layer
 - `src/lib/auth.js` – bearer token verification (Supabase JWKS / HS256 secrets, and tokens from `/api/login`) and first-use user provisioning
 - `template.yaml` – API Gateway, Lambda functions, IAM role, DynamoDB tables
@@ -50,3 +50,5 @@ Run `npm run lint` to check the serverless JavaScript, or `npm run lint:fix` to 
 - Existing Postgres data is not migrated.
 - Deleting a group/quiz cascades in batches, not in a single transaction.
 - Secrets are passed as `NoEcho` stack parameters and end up in Lambda environment variables; move them to SSM/Secrets Manager for stricter setups.
+
+`POST /api/sync-user` requires a bearer token. It returns the authenticated profile, creating it on first use through the existing token-authentication flow; identity is taken from the verified token rather than the request body.

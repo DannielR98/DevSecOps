@@ -157,7 +157,7 @@ const userSlice = createSlice({
     // Find user by Supabase / Auth ID
     setUser: (state, action: PayloadAction<string>) => {
       const findUser = state.users.find(
-        (u) => u.supabase_id === action.payload,
+        (u) => (u.auth_id ?? u.supabase_id) === action.payload,
       );
 
       if (findUser) {
@@ -166,12 +166,15 @@ const userSlice = createSlice({
     },
 
     // Find user by database ID
-    setUserById: (state, action: PayloadAction<number>) => {
-      const findUser = state.users.find((u) => u.id === action.payload);
+    setUserById: (state, action: PayloadAction<string | number>) => {
+      const findUser = state.users.find((u) => (u.user_id ?? u.id) === action.payload);
 
       if (findUser) {
         state.userOne = findUser;
       }
+    },
+    setUserProfile: (state, action: PayloadAction<UserType>) => {
+      state.userOne = action.payload;
     },
     setDeleteUser: (state, action: PayloadAction<number>) => {
       state.users = state.users.filter(
@@ -184,10 +187,10 @@ const userSlice = createSlice({
  
     setUpdateUser: (
       state,
-      action: PayloadAction<{ data: UserType; id: number }>,
+      action: PayloadAction<{ data: UserType; id: string | number }>,
     ) => {
       const findUser = state.users.findIndex(
-        (u) => Number(u.id) === Number(action.payload.id),
+        (u) => (u.user_id ?? u.id) === action.payload.id,
       );
 
       if (findUser !== -1) {
@@ -196,9 +199,12 @@ const userSlice = createSlice({
 
       if (
         state.user.userStoraged &&
-        Number(state.user.userStoraged.id) === Number(action.payload.id)
+        (state.user.userStoraged.user_id ?? state.user.userStoraged.id) === action.payload.id
       ) {
         state.user.userStoraged = action.payload.data;
+      }
+      if (state.userOne && (state.userOne.user_id ?? state.userOne.id) === action.payload.id) {
+        state.userOne = action.payload.data;
       }
 
       // 3. Update localStorage
@@ -228,6 +234,7 @@ export const {
   setUpdateUser,
   setUser,
   setUserById,
+  setUserProfile,
 } = userSlice.actions;
 
 export default userSlice.reducer;

@@ -5,6 +5,7 @@ import reducer, {
   setUserById,
   setDeleteUser,
   setUpdateUser,
+  setUserProfile,
 } from "../store/reduxSlice/userSlice/UserSlice";
 import type { UserType } from "../utilities/interfaces";
 
@@ -57,6 +58,17 @@ describe("UserSlice", () => {
   it("setUser finds user by supabase_id", () => {
     const state = reducer(baseState, setUser("supabase|2"));
     expect(state.userOne?.username).toBe("bo");
+  });
+
+  it("finds users by auth_id and preserves UUIDs in profile updates", () => {
+    const uuidUser = { ...user1, id: undefined, user_id: "abc-123", auth_id: "auth-123" };
+    const found = reducer({ ...baseState, users: [uuidUser] }, setUser("auth-123"));
+    expect(found.userOne?.user_id).toBe("abc-123");
+    const updated = { ...uuidUser, firstname: "Updated" };
+    const state = reducer(found, setUpdateUser({ data: updated, id: "abc-123" }));
+    expect(state.userOne?.firstname).toBe("Updated");
+    expect(state.users[0].firstname).toBe("Updated");
+    expect(reducer(baseState, setUserProfile(uuidUser)).userOne).toEqual(uuidUser);
   });
 
   it("setUser keeps userOne when supabase_id is unknown", () => {

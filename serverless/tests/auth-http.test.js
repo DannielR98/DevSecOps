@@ -29,6 +29,13 @@ const { authenticate, createJWT, verifyToken } = await import("../src/lib/auth.j
 const { route } = await import("../src/lib/http.js");
 const { users } = await import("../src/lib/repo.js");
 const { __data } = await import("../src/lib/db.js");
+const { handler: syncUser } = await import("../src/handlers/syncUser.js");
+const { handler: getUsers } = await import("../src/handlers/getUsers.js");
+const { handler: getUserById } = await import("../src/handlers/getUserById.js");
+const { handler: updateUser } = await import("../src/handlers/updateUser.js");
+const { handler: createGroup } = await import("../src/handlers/createGroup.js");
+const { handler: createQuiz } = await import("../src/handlers/createQuiz.js");
+const { handler: takeQuiz } = await import("../src/handlers/takeQuiz.js");
 
 const secret = "test-secret-test-secret-test-secret-123";
 const otherSecret = "other-secret-other-secret-other-secret-123";
@@ -100,8 +107,63 @@ describe("authentication", () => {
       .setSubject("jwks-user")
       .sign(privateKey);
 
-    const user = await authenticate({ headers: { Authorization: `Bearer ${token}` } });
-    expect(user).toMatchObject({ auth_id: "jwks-user", email: "jwks@example.com" });
+    const response = await syncUser({
+      headers: { Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ auth_id: "ignored" }),
+    });
+    expect(response.statusCode).toBe(200);
+    expect(JSON.parse(response.body).user).toMatchObject({
+      auth_id: "jwks-user",
+      email: "jwks@example.com",
+    });
+  });
+
+  it("supports the frontend sync, profile and quiz flow with a Supabase token", async () => {
+    vi.stubEnv("SUPABASE_JWT_SECRET", otherSecret);
+    const token = await new SignJWT({
+      sub: "frontend-user",
+      email: "frontend@example.com",
+      user_metadata: { username: "frontend", firstname: "Front", surname: "End" },
+    }).setProtectedHeader({ alg: "HS256" }).sign(encode(otherSecret));
+    const call = async (handler, body, params) => {
+      const response = await handler({
+        headers: { Authorization: `Bearer ${token}` },
+        body: body === undefined ? undefined : JSON.stringify(body),
+        pathParameters: params,
+      });
+      return { status: response.statusCode, body: JSON.parse(response.body) };
+    };
+
+    expect((await syncUser({ headers: {} })).statusCode).toBe(401);
+    const synced = await call(syncUser, { auth_id: "another-user", email: "wrong@example.com" });
+    expect(synced.status).toBe(200);
+    expect(synced.body.user).toMatchObject({ auth_id: "frontend-user", email: "frontend@example.com" });
+    expect(synced.body.user).not.toHaveProperty("password");
+    const userId = synced.body.user.user_id;
+    expect((await call(syncUser, {})).body.user.user_id).toBe(userId);
+    const list = await call(getUsers);
+    expect(list.body.users).toHaveLength(1);
+    expect(list.body.users[0]).toMatchObject({ auth_id: "frontend-user", user_id: userId });
+    expect((await call(getUserById, undefined, { user_id: userId })).body.user.user_id).toBe(userId);
+    const updated = await call(updateUser, {
+      firstname: "Updated",
+      surname: "End",
+      username: "frontend",
+      email: "frontend@example.com",
+    }, { user_id: userId });
+    expect(updated.status).toBe(200);
+    expect(updated.body.user.firstname).toBe("Updated");
+
+    const group = await call(createGroup, { name: "Team" });
+    expect(group.status).toBe(201);
+    const quiz = await call(createQuiz, {
+      title: "Test", category: "General", group_id: group.body.group.id,
+      questions: [{ question: "Question?", options: ["A", "B"], correctAnswer: "B" }],
+    });
+    expect(quiz.status).toBe(201);
+    const result = await call(takeQuiz, { answers: ["B"] }, { id: quiz.body.quiz.id });
+    expect(result.status).toBe(201);
+    expect(result.body.result).toMatchObject({ score: 1, total_questions: 1, percentage: 100 });
   });
 });
 

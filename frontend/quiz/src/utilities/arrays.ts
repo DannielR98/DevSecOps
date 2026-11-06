@@ -83,9 +83,4 @@ export const updateUserInputs: UpdateUserInputType[] = [
     type: "email",
     label: "Email",
   },
-  {
-    name: "password",
-    type: "password",
-    label: "Password",
-  },
 ];

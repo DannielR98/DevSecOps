@@ -247,6 +247,19 @@ Resources:
             Path: /api/users
             Method: GET
 
+  SyncUserFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: syncUser.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/sync-user
+            Method: POST
+
   GetUserByIdFunction:
     Type: AWS::Serverless::Function
     Properties:

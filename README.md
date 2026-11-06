@@ -205,6 +205,8 @@ docker-compose up -d --build
 - **Frontend Applikation**: `http://localhost:3000/`
 - **Backend Express API**: `http://localhost:5000/api/`
 
+Express-API:et kräver en verifierad token för användarlistning, profilsynkronisering och profilrutter. Profiländringar gäller applikationens databas; de ändrar inte e-postadress eller lösenord i Supabase Auth. Quiz-inlämning accepterar svarstext som frontend skickar samt äldre svar i form av alternativens index.
+
 ---
 
 ## Serverless: Lambda och DynamoDB

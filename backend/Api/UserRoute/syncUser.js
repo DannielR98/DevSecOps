@@ -1,16 +1,18 @@
 import express from "express";
 import User from "../../models/User.js";
+import checkJwt from "../../middleware/supabaseAuth.js";
 
 const router = express.Router();
 
-router.post("/sync-user", async (req, res) => {
+router.post("/sync-user", checkJwt, async (req, res) => {
   try {
-    const { auth_id, email, name, nickname } = req.body;
+    const { name, nickname } = req.body;
+    const { sub: auth_id, email } = req.auth.payload;
 
     if (!auth_id) {
       return res.status(400).json({
         success: false,
-        message: "auth_id is required",
+        message: "Authenticated user ID is required",
       });
     }
 
@@ -42,10 +44,13 @@ router.post("/sync-user", async (req, res) => {
       });
     }
 
+    const userData = user.toJSON();
+    delete userData.password;
+
     return res.status(200).json({
       success: true,
       message: "User synced successfully",
-      user,
+      user: userData,
     });
   } catch (error) {
     console.error("Error syncing user:", error);

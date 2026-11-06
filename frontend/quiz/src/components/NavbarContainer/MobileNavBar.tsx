@@ -446,7 +446,7 @@ export default function MobileNavBar({
               </div>
 
               <Link
-                to={userOne?.id ? `/user-info/${userOne.id}` : "/"}
+                to={userOne?.user_id || userOne?.id ? `/user-info/${userOne.user_id ?? userOne.id}` : "/"}
                 className={`${classes.navLink} ${classes.userInfoLink}`}
                 onClick={closeMenu}
               >

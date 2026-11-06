@@ -4,16 +4,18 @@ import { useDispatch, useSelector } from "react-redux";
 import type { RootState } from "../../../store/store";
 import type { UpdaterUserType } from "../../../utilities/interfaces";
 import EditSection from "./childComponent/EditSection";
+import { useAuth } from "../../../context/AuthContext";
+import { toast } from "react-toastify";
 
 export default function UpdateUserInfo() {
-  const { user } = useSelector((state: RootState) => state.userSlice);
+  const { userOne } = useSelector((state: RootState) => state.userSlice);
+  const { getAccessTokenSilently } = useAuth();
   const [isEdit, setIsEdit] = useState(false);
   const [updateInputValue, setUpdateInputValue] = useState<UpdaterUserType>({
     firstname: "",
     surname: "",
     username: "",
     email: "",
-    password: "",
   });
   const dispatch = useDispatch();
 
@@ -27,35 +29,39 @@ export default function UpdateUserInfo() {
   const handleEdit = () => {
     setIsEdit(true);
     setUpdateInputValue({
-      firstname: user?.userStoraged?.firstname ?? "",
-      surname: user?.userStoraged?.surname ?? "",
-      username: user?.userStoraged?.username ?? "",
-      email: user?.userStoraged?.email ?? "",
-      password: "",
+      firstname: userOne?.firstname ?? "",
+      surname: userOne?.surname ?? "",
+      username: userOne?.username ?? "",
+      email: userOne?.email ?? "",
     });
   };
-  const handleSave = () => {
-    const id = user?.userStoraged?.id;
+  const handleSave = async () => {
+    const id = userOne?.user_id ?? userOne?.id;
     if (!id) {
+      toast.error("Användarprofilen är inte laddad.");
       return;
     }
 
-    dispatch({
-      type: "Fetch-UPDATE-USER",
-      payload: { id: Number(id), data: updateInputValue },
-    });
+    try {
+      const token = await getAccessTokenSilently();
+      dispatch({
+        type: "Fetch-UPDATE-USER",
+        payload: { id, data: updateInputValue, token },
+      });
+    } catch (error) {
+      console.error("Could not retrieve authentication token:", error);
+      toast.error("Kunde inte hämta inloggningen. Försök igen.");
+      return;
+    }
     setIsEdit(false);
     setUpdateInputValue({
       firstname: "",
       surname: "",
       username: "",
       email: "",
-      password: "",
     });
   };
 
-  console.log("updateInputValue", updateInputValue);
-  console.log("user", user);
   return (
     <div>
       <EditSection
