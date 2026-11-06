@@ -25,4 +25,4 @@ build
 *.njsproj
 *.sln
 *.sw?
-test-result/
+test-result/*
