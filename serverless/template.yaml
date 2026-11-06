@@ -25,13 +25,22 @@ Parameters:
     NoEcho: true
     Default: ""
     Description: Optional legacy Supabase HS256 JWT secret
+  FunctionArchitecture:
+    Type: String
+    Default: arm64
+    AllowedValues: [arm64, x86_64]
+  FunctionTimeout:
+    Type: Number
+    Default: 10
+    MinValue: 1
+    MaxValue: 900
 
 Globals:
   Function:
     Runtime: nodejs22.x
-    Architectures: [arm64]
+    Architectures: [!Ref FunctionArchitecture]
     MemorySize: 256
-    Timeout: 10
+    Timeout: !Ref FunctionTimeout
     CodeUri: dist/
     Environment:
       Variables:
@@ -41,6 +50,7 @@ Globals:
         QUIZZES_TABLE: !Ref QuizzesTable
         RESULTS_TABLE: !Ref QuizResultsTable
         UNIQUES_TABLE: !Ref UniqueKeysTable
+        DYNAMODB_ENDPOINT: ""
         JWT_SECRET: !Ref JwtSecret
         SUPABASE_URL: !Ref SupabaseUrl
         SUPABASE_JWT_SECRET: !Ref SupabaseJwtSecret

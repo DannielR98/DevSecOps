@@ -1,0 +1,6 @@
+{
+  "supabaseUrl": "https://your-project.supabase.co",
+  "supabaseAnonKey": "your-public-anon-key",
+  "supabaseJwtSecret": "",
+  "frontendOrigin": "http://localhost:3000"
+}
