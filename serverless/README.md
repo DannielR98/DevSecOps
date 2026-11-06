@@ -29,6 +29,7 @@ Requires AWS credentials and the [SAM CLI](https://docs.aws.amazon.com/serverles
 
 ```bash
 npm ci
+npm run lint
 npm test
 npm run build
 sam deploy --guided \
@@ -36,6 +37,10 @@ sam deploy --guided \
 ```
 
 The `ApiUrl` stack output is the value for the frontend's `VITE_API_URL` (build-time variable; defaults to `http://localhost:5000/api/`).
+
+Run `npm run lint` to check the serverless JavaScript, or `npm run lint:fix` to apply supported automatic fixes. CI runs the lint check before building and deploying.
+
+`npm test` runs the handler lifecycle, authentication, HTTP parsing, and DynamoDB repository tests using in-memory or mocked dependencies. These tests do not deploy resources or verify AWS IAM, API Gateway, CORS, or real DynamoDB behavior.
 
 ## Behaviour changes compared to the Express backend
 
