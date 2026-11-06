@@ -48,7 +48,9 @@ router.get("/quizzes/:id/results", checkJwt, async (req, res) => {
     }
 
     const best = new Map();
+    const attempts = new Map();
     for (const result of results) {
+      attempts.set(result.user_id, (attempts.get(result.user_id) ?? 0) + 1);
       const previous = best.get(result.user_id);
       const comparison = previous ? result.score * previous.total_questions - previous.score * result.total_questions : 1;
       if (!previous || comparison > 0 || (comparison === 0 &&
@@ -63,6 +65,7 @@ router.get("/quizzes/:id/results", checkJwt, async (req, res) => {
     return res.json({
       results: [...best.values()].map(({ user_id, score, total_questions }) => ({
         user_id, username: names.get(user_id) ?? "Borttagen användare", score, total_questions,
+        attempt_count: attempts.get(user_id),
         percentage: Math.round(score / total_questions * 100),
       })).sort((a, b) => b.score * a.total_questions - a.score * b.total_questions ||
         a.username.localeCompare(b.username) || a.user_id.localeCompare(b.user_id)),

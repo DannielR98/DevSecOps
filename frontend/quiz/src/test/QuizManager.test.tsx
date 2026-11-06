@@ -93,7 +93,10 @@ describe("QuizManager Component", () => {
         ] };
       }
       if (endpoint === "/10/results?view=leaderboard") {
-        return { results: [{ user_id: "u", username: "Alice", score: 2, total_questions: 2, percentage: 100 }] };
+        return { results: [
+          { user_id: "u", username: "Alice", score: 2, total_questions: 2, percentage: 100, attempt_count: 3 },
+          { user_id: "v", username: "Bob", score: 1, total_questions: 2, percentage: 50, attempt_count: 1 },
+        ] };
       }
       return { quizzes: [demoQuiz] };
     });
@@ -101,6 +104,7 @@ describe("QuizManager Component", () => {
     await user.click(await screen.findByRole("button", { name: "Mina resultat för Säkerhetsquiz" }));
     expect(await screen.findByText("1/2 (50%)")).toBeInTheDocument();
     expect(screen.getAllByRole("meter")).toHaveLength(2);
+    expect(screen.queryByText(/Totalt antal försök/)).not.toBeInTheDocument();
     expect(apiRequest).toHaveBeenCalledWith(expect.objectContaining({
       endpoint: "/10/results?view=mine", token: "test-token",
     }));
@@ -108,6 +112,8 @@ describe("QuizManager Component", () => {
     await user.click(screen.getByRole("button", { name: "Deltagarnas bästa resultat för Säkerhetsquiz" }));
     expect(await screen.findByText("Alice")).toBeInTheDocument();
     expect(screen.getByRole("meter", { name: "Alice" })).toHaveAttribute("aria-valuenow", "100");
+    expect(screen.getByText("Totalt antal försök: 3")).toBeInTheDocument();
+    expect(screen.getByText("Totalt antal försök: 1")).toBeInTheDocument();
   });
 
   it("shows empty and error states for quiz results", async () => {

@@ -77,14 +77,16 @@ describe("quiz results", () => {
       { id: "a", user_id: "alice", score: 2, total_questions: 4, createdAt: "2026-01-01" },
       { id: "b", user_id: "alice", score: 2, total_questions: 3, createdAt: "2026-01-02" },
       { id: "c", user_id: "bob", score: 3, total_questions: 4, createdAt: "2026-01-03" },
+      { id: "d", user_id: "alice", score: 0, total_questions: 2, createdAt: "2026-01-04" },
     ]);
     mocks.users.mockResolvedValue([{ user_id: "alice", username: "Alice" }, { user_id: "bob", username: "Bob" }]);
     const response = await auth(request(app).get(`${path}?view=leaderboard`));
     expect(response.status).toBe(200);
     expect(response.body.results).toEqual([
-      { user_id: "bob", username: "Bob", score: 3, total_questions: 4, percentage: 75 },
-      { user_id: "alice", username: "Alice", score: 2, total_questions: 3, percentage: 67 },
+      { user_id: "bob", username: "Bob", score: 3, total_questions: 4, percentage: 75, attempt_count: 1 },
+      { user_id: "alice", username: "Alice", score: 2, total_questions: 3, percentage: 67, attempt_count: 3 },
     ]);
+    expect(mocks.results).toHaveBeenCalledWith({ where: { quiz_id: quizId }, raw: true });
   });
 
   it("uses unrounded percentages and selects the earliest attempt when tied", async () => {
@@ -97,8 +99,8 @@ describe("quiz results", () => {
     mocks.users.mockResolvedValue([{ user_id: "alice", username: "Alice" }, { user_id: "bob", username: "Bob" }]);
     const response = await auth(request(app).get(`${path}?view=leaderboard`));
     expect(response.body.results).toEqual([
-      { user_id: "bob", username: "Bob", score: 67, total_questions: 100, percentage: 67 },
-      { user_id: "alice", username: "Alice", score: 2, total_questions: 3, percentage: 67 },
+      { user_id: "bob", username: "Bob", score: 67, total_questions: 100, percentage: 67, attempt_count: 1 },
+      { user_id: "alice", username: "Alice", score: 2, total_questions: 3, percentage: 67, attempt_count: 3 },
     ]);
   });
 

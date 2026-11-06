@@ -211,16 +211,18 @@ describe("groups, members and quizzes", () => {
     expect((await call(getQuizResults, { token: alice.token, params, query: mine })).body.results).toEqual([]);
     await call(takeQuiz, { token: alice.token, params, body: { answers: ["3", "green"] } });
     await call(takeQuiz, { token: alice.token, params, body: { answers: ["4", "blue"] } });
+    await call(takeQuiz, { token: alice.token, params, body: { answers: ["3", "green"] } });
     await call(takeQuiz, { token: bob.token, params, body: { answers: ["4", "green"] } });
     await resultsRepo.create({ quiz_id: quiz.id, user_id: bob.id, score: 2, total_questions: 5 });
     const personal = await call(getQuizResults, { token: alice.token, params, query: mine });
     expect(personal.status).toBe(200);
-    expect(personal.body.results).toHaveLength(2);
-    expect(personal.body.results.map((r) => r.percentage).sort((a, b) => a - b)).toEqual([0, 100]);
+    expect(personal.body.results).toHaveLength(3);
+    expect(personal.body.results.map((r) => r.percentage).sort((a, b) => a - b)).toEqual([0, 0, 100]);
     expect(personal.body.results.every((r) => !("user_id" in r))).toBe(true);
     const leaders = await call(getQuizResults, { token: bob.token, params, query: leaderboard });
     expect(leaders.body.results).toMatchObject([
-      { username: "alice", percentage: 100 }, { username: "bob", percentage: 50 },
+      { username: "alice", percentage: 100, attempt_count: 3 },
+      { username: "bob", percentage: 50, attempt_count: 2 },
     ]);
     expect(leaders.body.results).toHaveLength(2);
     expect(leaders.body.results[1]).toMatchObject({ score: 1, total_questions: 2 });
@@ -266,8 +268,8 @@ describe("groups, members and quizzes", () => {
     });
     expect(response.status).toBe(200);
     expect(response.body.results).toMatchObject([
-      { username: "bob", score: 67, total_questions: 100, percentage: 67 },
-      { username: "alice", score: 2, total_questions: 3, percentage: 67 },
+      { username: "bob", score: 67, total_questions: 100, percentage: 67, attempt_count: 1 },
+      { username: "alice", score: 2, total_questions: 3, percentage: 67, attempt_count: 3 },
     ]);
   });
 

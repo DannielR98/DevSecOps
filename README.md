@@ -207,7 +207,7 @@ docker-compose up -d --build
 
 Express-API:et kräver en verifierad token för användarlistning, profilsynkronisering och profilrutter. Profiländringar gäller applikationens databas; de ändrar inte e-postadress eller lösenord i Supabase Auth. Quiz-inlämning accepterar svarstext som frontend skickar samt äldre svar i form av alternativens index.
 
-Varje quiz har grafer för dina egna försök och deltagarnas bästa resultat, rangordnade efter andel rätt. Endast nuvarande gruppmedlemmar och gruppägaren kan se dem; individuella försök visas bara för den som gjorde dem. Topplistan inkluderar även sparade resultat från tidigare medlemmar.
+Varje quiz har grafer för dina egna försök och deltagarnas bästa resultat, rangordnade efter andel rätt. Topplistan visar även varje deltagares totala antal genomförda försök, inklusive försök efter det bästa resultatet. Endast nuvarande gruppmedlemmar och gruppägaren kan se dem; individuella försök visas bara för den som gjorde dem. Topplistan inkluderar även sparade resultat från tidigare medlemmar.
 
 ---
 

@@ -5,15 +5,16 @@ import type { RootState } from "../store/store";
 import { apiRequest } from "../utilities/HeaderFunction";
 
 type View = "mine" | "leaderboard";
-interface Result {
-  id?: string;
-  user_id?: string;
-  username?: string;
-  createdAt?: string;
+interface ResultScore {
   score: number;
   total_questions: number;
   percentage: number;
 }
+
+type Result = ResultScore & (
+  | { id: string; createdAt: string }
+  | { user_id: string; username: string; attempt_count: number }
+);
 
 interface Props {
   quizId: string;
@@ -65,7 +66,7 @@ export default function QuizResults({ quizId, quizTitle, view, onClose }: Props)
         <h2 id="quiz-results-heading">{heading}: {quizTitle}</h2>
         <p>{view === "mine"
           ? "Andel rätt vid varje genomförande."
-          : "Deltagarnas bästa andel rätt, inklusive tidigare medlemmar."}</p>
+          : "Deltagarnas bästa andel rätt och totalt antal försök, inklusive tidigare medlemmar."}</p>
         {loading ? <p role="status">Laddar resultat...</p> : error ? (
           <p role="alert">{error}</p>
         ) : results.length === 0 ? (
@@ -73,15 +74,18 @@ export default function QuizResults({ quizId, quizTitle, view, onClose }: Props)
         ) : (
           <div aria-label={heading}>
             {results.map((result, index) => {
-              const label = view === "mine"
-                ? `Försök ${index + 1} – ${new Date(result.createdAt!).toLocaleString("sv-SE")}`
+              const label = "createdAt" in result
+                ? `Försök ${index + 1} – ${new Date(result.createdAt).toLocaleString("sv-SE")}`
                 : result.username;
               return (
-                <div key={result.id ?? result.user_id} style={{ marginBottom: "1rem" }}>
+                <div key={"id" in result ? result.id : result.user_id} style={{ marginBottom: "1rem" }}>
                   <div style={{ display: "flex", justifyContent: "space-between", gap: "1rem" }}>
                     <span>{label}</span>
                     <span>{result.score}/{result.total_questions} ({result.percentage}%)</span>
                   </div>
+                  {"attempt_count" in result && (
+                    <div>Totalt antal försök: {result.attempt_count}</div>
+                  )}
                   <div role="meter" aria-label={label} aria-valuemin={0} aria-valuemax={100}
                     aria-valuenow={result.percentage}
                     style={{ backgroundColor: "#e5e7eb", borderRadius: "4px", height: "14px", marginTop: "0.3rem" }}>
