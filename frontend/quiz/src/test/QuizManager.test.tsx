@@ -77,6 +77,100 @@ describe("QuizManager Component", () => {
     ).toBeInTheDocument();
   });
 
+  it("shows personal attempts and the participants' best results", async () => {
+    const user = userEvent.setup();
+    const auth = {
+      isAuthenticated: true,
+      getAccessTokenSilently: vi.fn().mockResolvedValue("test-token"),
+    };
+    mockUseAuth.mockReturnValue(auth);
+    mockQuizBackend(async ({ api, endpoint }: { api: string; endpoint?: string }) => {
+      if (api === "groups") { return { groups: demoGroups }; }
+      if (endpoint === "/10/results?view=mine") {
+        return { results: [
+          { id: "1", score: 1, total_questions: 2, percentage: 50, createdAt: "2026-03-01T10:00:00Z" },
+          { id: "2", score: 2, total_questions: 2, percentage: 100, createdAt: "2026-03-02T10:00:00Z" },
+        ] };
+      }
+      if (endpoint === "/10/results?view=leaderboard") {
+        return { results: [{ user_id: "u", username: "Alice", score: 2, total_questions: 2, percentage: 100 }] };
+      }
+      return { quizzes: [demoQuiz] };
+    });
+    renderWithProviders(<QuizManager />);
+    await user.click(await screen.findByRole("button", { name: "Mina resultat för Säkerhetsquiz" }));
+    expect(await screen.findByText("1/2 (50%)")).toBeInTheDocument();
+    expect(screen.getAllByRole("meter")).toHaveLength(2);
+    expect(apiRequest).toHaveBeenCalledWith(expect.objectContaining({
+      endpoint: "/10/results?view=mine", token: "test-token",
+    }));
+    await user.click(screen.getByRole("button", { name: "Stäng" }));
+    await user.click(screen.getByRole("button", { name: "Deltagarnas bästa resultat för Säkerhetsquiz" }));
+    expect(await screen.findByText("Alice")).toBeInTheDocument();
+    expect(screen.getByRole("meter", { name: "Alice" })).toHaveAttribute("aria-valuenow", "100");
+  });
+
+  it("shows empty and error states for quiz results", async () => {
+    const user = userEvent.setup();
+    mockUseAuth.mockReturnValue({ isAuthenticated: true, getAccessTokenSilently: vi.fn().mockResolvedValue("token") });
+    mockQuizBackend(async ({ api, endpoint }: { api: string; endpoint?: string }) => {
+      if (api === "groups") { return { groups: demoGroups }; }
+      if (endpoint?.includes("view=mine")) { return { results: [] }; }
+      if (endpoint?.includes("view=leaderboard")) { throw new Error("offline"); }
+      return { quizzes: [demoQuiz] };
+    });
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    renderWithProviders(<QuizManager />);
+    await user.click(await screen.findByRole("button", { name: "Mina resultat för Säkerhetsquiz" }));
+    expect(await screen.findByText("Inga resultat att visa ännu.")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Stäng" }));
+    await user.click(screen.getByRole("button", { name: "Deltagarnas bästa resultat för Säkerhetsquiz" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("Kunde inte hämta resultaten");
+    log.mockRestore();
+  });
+
+  it("reloads results when reopening the dialog and shows graph values", async () => {
+    const user = userEvent.setup();
+    mockUseAuth.mockReturnValue({ isAuthenticated: true, getAccessTokenSilently: vi.fn().mockResolvedValue("token") });
+    let attempts = 0;
+    mockQuizBackend(async ({ api, endpoint }: { api: string; endpoint?: string }) => {
+      if (api === "groups") { return { groups: demoGroups }; }
+      if (endpoint === "/10/results?view=mine") {
+        attempts += 1;
+        return { results: [{ id: "1", score: attempts - 1, total_questions: 1,
+          percentage: (attempts - 1) * 100, createdAt: "2026-03-01T10:00:00Z" }] };
+      }
+      return { quizzes: [demoQuiz] };
+    });
+    renderWithProviders(<QuizManager />);
+    const open = await screen.findByRole("button", { name: "Mina resultat för Säkerhetsquiz" });
+    await user.click(open);
+    expect(await screen.findByText("0/1 (0%)")).toBeInTheDocument();
+    expect(screen.getByRole("meter")).toHaveAttribute("aria-valuenow", "0");
+    await user.click(screen.getByRole("button", { name: "Stäng" }));
+    await user.click(open);
+    expect(await screen.findByText("1/1 (100%)")).toBeInTheDocument();
+    expect(screen.getByRole("meter")).toHaveAttribute("aria-valuenow", "100");
+    expect(attempts).toBe(2);
+  });
+
+  it("displays loading until the result request completes", async () => {
+    const user = userEvent.setup();
+    mockUseAuth.mockReturnValue({ isAuthenticated: true, getAccessTokenSilently: vi.fn().mockResolvedValue("token") });
+    let resolveResults: (value: { results: never[] }) => void = () => {};
+    const pending = new Promise<{ results: never[] }>((resolve) => { resolveResults = resolve; });
+    mockQuizBackend(async ({ api, endpoint }: { api: string; endpoint?: string }) => {
+      if (api === "groups") { return { groups: demoGroups }; }
+      if (endpoint === "/10/results?view=mine") { return pending; }
+      return { quizzes: [demoQuiz] };
+    });
+    renderWithProviders(<QuizManager />);
+    await user.click(await screen.findByRole("button", { name: "Mina resultat för Säkerhetsquiz" }));
+    expect(screen.getByRole("status")).toHaveTextContent("Laddar resultat");
+    resolveResults({ results: [] });
+    expect(await screen.findByText("Inga resultat att visa ännu.")).toBeInTheDocument();
+  });
+
   it("should open quiz player, answer and submit for a result", async () => {
     const user = userEvent.setup();
     mockQuizBackend(async ({ api, endpoint }: { api: string; endpoint?: string }) => {
