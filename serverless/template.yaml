@@ -218,6 +218,19 @@ Resources:
           Projection: { ProjectionType: ALL }
 
   # ---------------------------------------------------------------- Lambda functions
+  GetQuizResultsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: getQuizResults.handler
+      Role: !GetAtt FunctionRole.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /api/quizzes/{id}/results
+            Method: GET
+
   RegisterUserFunction:
     Type: AWS::Serverless::Function
     Properties:

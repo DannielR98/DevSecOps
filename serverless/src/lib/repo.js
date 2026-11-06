@@ -98,6 +98,7 @@ const USER_CONFLICT = "Email, username, or auth_id already exists";
 
 export const users = {
   get: (userId) => get(table.users, { user_id: userId }),
+  getMany: (ids) => (ids.length ? batchGet(table.users, "user_id", ids) : []),
 
   async byUnique(key) {
     const lock = await get(table.uniques, { pk: key });

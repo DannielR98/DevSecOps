@@ -38,8 +38,10 @@ const { handler: getQuizzes } = await import("../src/handlers/getQuizzes.js");
 const { handler: getQuizById } = await import("../src/handlers/getQuizById.js");
 const { handler: updateQuiz } = await import("../src/handlers/updateQuiz.js");
 const { handler: takeQuiz } = await import("../src/handlers/takeQuiz.js");
+const { handler: getQuizResults } = await import("../src/handlers/getQuizResults.js");
 const { handler: deleteQuiz } = await import("../src/handlers/deleteQuiz.js");
 const db = await import("../src/lib/db.js");
+const { quizResults: resultsRepo } = await import("../src/lib/repo.js");
 
 const call = async (fn, { token, body, params, query } = {}) => {
   const res = await fn({
@@ -194,6 +196,83 @@ describe("users", () => {
 });
 
 describe("groups, members and quizzes", () => {
+  it("restricts personal results and exposes only each participant's best score to members", async () => {
+    const alice = await signUp("alice");
+    const bob = await signUp("bob");
+    const outsider = await signUp("outsider");
+    const group = (await call(createGroup, { token: alice.token, body: { name: "Team" } })).body.group;
+    expect((await call(joinGroup, { token: bob.token, body: { invite_code: group.invite_code } })).status).toBe(200);
+    const quiz = (await call(createQuiz, {
+      token: alice.token, body: { title: "Quiz", category: "Math", group_id: group.id, questions },
+    })).body.quiz;
+    const params = { id: quiz.id };
+    const mine = { view: "mine" };
+    const leaderboard = { view: "leaderboard" };
+    expect((await call(getQuizResults, { token: alice.token, params, query: mine })).body.results).toEqual([]);
+    await call(takeQuiz, { token: alice.token, params, body: { answers: ["3", "green"] } });
+    await call(takeQuiz, { token: alice.token, params, body: { answers: ["4", "blue"] } });
+    await call(takeQuiz, { token: alice.token, params, body: { answers: ["3", "green"] } });
+    await call(takeQuiz, { token: bob.token, params, body: { answers: ["4", "green"] } });
+    await resultsRepo.create({ quiz_id: quiz.id, user_id: bob.id, score: 2, total_questions: 5 });
+    const personal = await call(getQuizResults, { token: alice.token, params, query: mine });
+    expect(personal.status).toBe(200);
+    expect(personal.body.results).toHaveLength(3);
+    expect(personal.body.results.map((r) => r.percentage).sort((a, b) => a - b)).toEqual([0, 0, 100]);
+    expect(personal.body.results.every((r) => !("user_id" in r))).toBe(true);
+    const leaders = await call(getQuizResults, { token: bob.token, params, query: leaderboard });
+    expect(leaders.body.results).toMatchObject([
+      { username: "alice", percentage: 100, attempt_count: 3 },
+      { username: "bob", percentage: 50, attempt_count: 2 },
+    ]);
+    expect(leaders.body.results).toHaveLength(2);
+    expect(leaders.body.results[1]).toMatchObject({ score: 1, total_questions: 2 });
+    const bobPersonal = await call(getQuizResults, { token: bob.token, params, query: mine });
+    expect(bobPersonal.body.results).toHaveLength(2);
+    expect(bobPersonal.body.results.map((r) => r.percentage).sort((a, b) => a - b)).toEqual([40, 50]);
+    expect((await call(leaveGroup, { token: bob.token, params: { groupId: group.id } })).status).toBe(200);
+    expect((await call(getQuizResults, { token: bob.token, params, query: mine })).status).toBe(403);
+    expect((await call(getQuizResults, { token: bob.token, params, query: leaderboard })).status).toBe(403);
+    const afterLeaving = await call(getQuizResults, { token: alice.token, params, query: leaderboard });
+    expect(afterLeaving.body.results).toMatchObject([
+      { username: "alice", percentage: 100 }, { username: "bob", percentage: 50 },
+    ]);
+    expect((await call(getQuizResults, { token: outsider.token, params, query: leaderboard })).status).toBe(403);
+    expect((await call(getQuizResults, { token: outsider.token, params, query: mine })).status).toBe(403);
+    expect((await call(getQuizResults, { params, query: mine })).status).toBe(401);
+    expect((await call(getQuizResults, { token: alice.token, params, query: {} })).status).toBe(400);
+    expect((await call(getQuizResults, { token: alice.token, params: { id: "invalid" }, query: mine })).status).toBe(400);
+    expect((await call(getQuizResults, {
+      token: alice.token, params: { id: "00000000-0000-4000-8000-000000000001" }, query: mine,
+    })).status).toBe(404);
+  });
+
+  it("uses unrounded percentages and resolves tied attempts deterministically", async () => {
+    const alice = await signUp("alice");
+    const bob = await signUp("bob");
+    const group = (await call(createGroup, { token: alice.token, body: { name: "Team" } })).body.group;
+    const quiz = (await call(createQuiz, {
+      token: alice.token, body: { title: "Quiz", category: "Math", group_id: group.id, questions },
+    })).body.quiz;
+    await call(getQuizResults, { token: alice.token, params: { id: quiz.id }, query: { view: "mine" } });
+    const rows = [
+      { id: "c", user_id: alice.id, score: 2, total_questions: 3, createdAt: "2026-01-03T00:00:00.000Z" },
+      { id: "b", user_id: alice.id, score: 4, total_questions: 6, createdAt: "2026-01-01T00:00:00.000Z" },
+      { id: "a", user_id: alice.id, score: 2, total_questions: 3, createdAt: "2026-01-01T00:00:00.000Z" },
+      { id: "d", user_id: bob.id, score: 67, total_questions: 100, createdAt: "2026-01-02T00:00:00.000Z" },
+    ];
+    for (const row of rows) {
+      db.__data[TABLES.results].set(row.id, { ...row, quiz_id: quiz.id });
+    }
+    const response = await call(getQuizResults, {
+      token: alice.token, params: { id: quiz.id }, query: { view: "leaderboard" },
+    });
+    expect(response.status).toBe(200);
+    expect(response.body.results).toMatchObject([
+      { username: "bob", score: 67, total_questions: 100, percentage: 67, attempt_count: 1 },
+      { username: "alice", score: 2, total_questions: 3, percentage: 67, attempt_count: 3 },
+    ]);
+  });
+
   it("rejects invalid group and quiz input before storing data", async () => {
     const alice = await signUp("alice");
     const group = await call(createGroup, { token: alice.token, body: { name: "" } });

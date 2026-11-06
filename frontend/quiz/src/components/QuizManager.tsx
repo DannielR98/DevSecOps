@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useSelector } from "react-redux";
 import type { RootState } from "../store/store";
 import { apiRequest } from "../utilities/HeaderFunction";
+import QuizResults from "./QuizResults";
 
 interface QuestionItem {
   question: string;
@@ -81,6 +82,7 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingQuizId, setEditingQuizId] = useState<string | null>(null);
   const [activeQuiz, setActiveQuiz] = useState<QuizItem | null>(null);
+  const [resultsView, setResultsView] = useState<{ quiz: QuizItem; view: "mine" | "leaderboard" } | null>(null);
   const [userAnswers, setUserAnswers] = useState<number[]>([]);
   const [quizScore, setQuizScore] = useState<{
     score: number;
@@ -465,6 +467,18 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
                   >
                     Starta quiz 🚀
                   </button>
+                  <button type="button" onClick={() => setResultsView({ quiz, view: "mine" })}
+                    aria-label={`Mina resultat för ${quiz.title}`}
+                    style={{ padding: "0.5rem 1rem", backgroundColor: "#e0e7ff", color: "#1e40af",
+                      border: "none", borderRadius: "6px", fontWeight: 600, cursor: "pointer" }}>
+                    Mina resultat
+                  </button>
+                  <button type="button" onClick={() => setResultsView({ quiz, view: "leaderboard" })}
+                    aria-label={`Deltagarnas bästa resultat för ${quiz.title}`}
+                    style={{ padding: "0.5rem 1rem", backgroundColor: "#e0e7ff", color: "#1e40af",
+                      border: "none", borderRadius: "6px", fontWeight: 600, cursor: "pointer" }}>
+                    Deltagarnas bästa resultat
+                  </button>
                   {quiz.is_creator && (
                     <div style={{ display: "flex", gap: "0.5rem" }}>
                       <button
@@ -506,6 +520,12 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
             );
           })}
         </div>
+      )}
+
+      {resultsView && (
+        <QuizResults key={`${resultsView.quiz.id}-${resultsView.view}`}
+          quizId={resultsView.quiz.id} quizTitle={resultsView.quiz.title} view={resultsView.view}
+          onClose={() => setResultsView(null)} />
       )}
 
       // Active Quiz Player Modal
