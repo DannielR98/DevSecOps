@@ -1,12 +1,14 @@
 # DevSecOps Quiz-plattform
 
-Säker och modern Quiz-plattform byggd med **React**, **Express**, **PostgreSQL** och **Supabase Auth** för DevSecOps kurs.
+Quiz-plattform byggd med **React** och **Supabase Auth** för DevSecOps-kursen. Projektet har två alternativa backends: **Express/PostgreSQL** och **AWS Lambda/DynamoDB**. Båda finns kvar i projektet.
 
 ---
 
 ## Arkitekturbeskrivning
 
 ### Systemöversikt
+
+Lokalt använder Docker Compose Express-backenden:
 
 ```
 ┌─────────────────┐      ┌─────────────────────┐      ┌─────────────────┐
@@ -24,18 +26,32 @@ Säker och modern Quiz-plattform byggd med **React**, **Express**, **PostgreSQL*
 └─────────────────┘      └─────────────────────┘
 ```
 
+Serverless-alternativet använder i stället:
+
+```text
+Frontend (React) → API Gateway → Lambda-funktioner → DynamoDB
+        ↕                           ↕
+    Supabase Auth              JWT-verifiering
+```
+
+Frontend använder en backend åt gången. Backend-alternativen har separata databaser: PostgreSQL-data migreras inte automatiskt till DynamoDB.
+
 ### Komponentbeskrivning
 
 | Komponent | Teknologi | Ansvar |
 |-----------|-----------|--------|
 | **Frontend** | React + Vite + TypeScript | Användargränssnitt, Supabase Auth-inloggning, JWT-hantering |
-| **Backend** | Express.js + Node.js | REST API, JWT-verifiering, affärslogik |
-| **Databas** | PostgreSQL + Sequelize ORM | Persistens av användare, grupper, quiz, resultat (SQLite som test-fallback) |
+| **Express-backend** | Express.js + Node.js | REST API, JWT-verifiering, affärslogik |
+| **Express-databas** | PostgreSQL + Sequelize ORM | Persistens av användare, grupper, quiz och resultat |
+| **Serverless-backend** | API Gateway + AWS Lambda + Node.js | Alternativt REST API och affärslogik, definierat med AWS SAM |
+| **Serverless-databas** | DynamoDB | Separat persistens för användare, grupper, quiz och resultat |
 | **Supabase** | Supabase Auth (JWT) | Autentisering, säker lösenordshantering, JWT-utfärdande |
 | **Docker** | Docker Compose | Containerisering (Frontend, Backend, PostgreSQL) |
 
 
 ### Dataflöde - Autentisering
+
+Följande beskriver Express-alternativet. Serverless-backenden kan verifiera Supabase-token med JWKS eller en konfigurerad HS256-hemlighet och skapar en användarprofil i DynamoDB vid första användningen. Se [serverless-dokumentationen](./serverless/README.md) för detaljer och skillnader.
 
 1. Användare klickar på "Logga in" eller "Skapa konto" i frontend
 2. Användare autentiserar sig via Supabase Auth Modal (e-post och lösenord)
@@ -77,7 +93,7 @@ Säker och modern Quiz-plattform byggd med **React**, **Express**, **PostgreSQL*
 
 ## Säkerhet & Autentisering (Supabase Auth-integration)
 
-Projektet använder **Supabase Auth** för autentisering och användarhantering:
+Projektet använder **Supabase Auth** för autentisering och användarhantering. Följande punkter beskriver Express-alternativet:
 
 - **JWT-verifiering**: Backend verifierar alla inkommande tokens med Supabase JWT Secret.
 - **Inga lösenord i den lokala databasen**: Lösenord, kryptering och kontoregistrering hanteras helt av Supabase.
@@ -162,7 +178,7 @@ Feature: Skapa och genomföra quiz
 
 ---
 
-## Snabbstart (Docker)
+## Snabbstart: Express och PostgreSQL (Docker)
 
 ### 1. Miljövariabler (.env)
 Säkerställ att `.env` eller `docker-compose.yaml` innehåller Supabase- och PostgreSQL-inställningarna:
@@ -188,6 +204,26 @@ docker-compose up -d --build
 
 - **Frontend Applikation**: `http://localhost:3000/`
 - **Backend Express API**: `http://localhost:5000/api/`
+
+---
+
+## Serverless: Lambda och DynamoDB
+
+Serverless-backenden är ett alternativ till Express-backenden, inte en del av Docker Compose. Den består av Lambda-funktioner bakom API Gateway och DynamoDB-tabeller, definierade i [serverless/template.yaml](./serverless/template.yaml).
+
+För att kontrollera och bygga den lokalt:
+
+```bash
+cd serverless
+npm ci
+npm run lint
+npm test
+npm run build
+```
+
+Testerna använder mockade eller minnesbaserade beroenden och kräver inte AWS-åtkomst. De verifierar inte en faktisk AWS-deploy.
+
+Deploy kräver AWS-behörighet och SAM CLI. Se [serverless/README.md](./serverless/README.md) för deploy, parametrar, datamodell och skillnader mot Express. Efter deploy används stackens `ApiUrl` som frontendens `VITE_API_URL` vid bygge; utan variabeln används det lokala Express-API:t. Kontrollera API- och autentiseringsskillnaderna innan ni byter backend.
 
 ---
 
@@ -228,6 +264,13 @@ DevSecOps/
 │   ├── Dockerfile
 │   └── package.json
 │
+├── serverless/                    # Alternativ backend: Lambda och DynamoDB
+│   ├── src/handlers/              # Lambda-handlers för API:et
+│   ├── src/lib/                   # Auth, databasåtkomst och gemensam logik
+│   ├── tests/                     # Serverless-tester
+│   ├── template.yaml              # AWS SAM-resurser
+│   └── README.md                  # Deploy och serverless-dokumentation
+│
 ├── frontend/quiz/
 │   ├── src/
 │   │   ├── components/
@@ -266,14 +309,18 @@ Vid varje push eller pull request körs följande steg:
 | Steg | Beskrivning | Syfte |
 |------|-------------|-------|
 | **Checkout** | Hämta kod från repo |  |
-| **Node.js setup** | Installera Node.js 20 + npm-caching |  |
+| **Node.js setup** | Installera Node.js 22 + npm-caching |  |
 | **Frontend Audit (SCA)** | `npm audit --audit-level=high` | Upptäck sårbara beroenden |
-| **Frontend Test** | `npm test` | Kör enhetstester |
+| **Frontend Lint** | `npm run lint` | Kontrollera frontend-kod |
 | **Frontend Build** | `npm run build` | Verifiera att bygget lyckas |
 | **Backend Audit (SCA)** | `npm audit --audit-level=high` | Upptäck sårbara beroenden |
 | **Backend Test** | `npm test` | Kör enhetstester |
 | **Backend Build** | `npm run build` | Verifiera att bygget lyckas |
+| **Serverless Audit och lint** | `npm audit --audit-level=high`, `npm run lint` | Kontrollera beroenden och kod |
+| **Serverless test och build** | `npm test`, `npm run build` | Kör tester och bygg Lambda-handlers |
 | **Semgrep SAST** | Statisk kodanalys | Upptäck säkerhetsbrister i koden |
+
+Frontend-teststeget är för närvarande utkommenterat i workflowet.
 
 ### CD-delen (Continuous Deployment)
 
@@ -286,3 +333,4 @@ Vid push till `main` eller `dev` byggs och publiceras Docker-images:
 | **Build Frontend** | Bygg och pusha frontend-image | `ghcr.io/...-frontend` |
 | **Build Backend** | Bygg och pusha backend-image | `ghcr.io/...-backend` |
 
+Vid push till `main`, efter godkänd CI, deployar AWS-jobbet serverless-backenden med SAM till stacken `quiz-serverless`. Därefter byggs frontend med stackens API-adress, pushas till ECR och startas på EC2 via SSM. GHCR-jobbet ovan körs separat och deployar inte Express-backenden.

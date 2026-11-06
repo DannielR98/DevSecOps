@@ -1,6 +1,6 @@
 # Serverless backend (AWS Lambda + DynamoDB)
 
-Replacement for the Express/PostgreSQL `backend/`. Same REST API (`/api/...`), implemented as one Lambda function per endpoint behind an API Gateway HTTP API, with DynamoDB for storage. Everything is defined in `template.yaml` (AWS SAM).
+Alternative to the Express/PostgreSQL `backend/`, which remains available. The API uses `/api/...` routes and is implemented as one Lambda function per endpoint behind an API Gateway HTTP API, with DynamoDB for storage. Everything is defined in `template.yaml` (AWS SAM); see the behavior differences below before switching backends.
 
 ## Layout
 
