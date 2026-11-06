@@ -1,5 +1,5 @@
 import { useAuth } from "../../../context/AuthContext";
-import { useParams } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import type { RootState } from "../../../store/store";
 import { useDispatch, useSelector } from "react-redux";
 import { useEffect } from "react";
@@ -138,8 +138,6 @@ export default function UserInfoPage() {
 
   const { id } = useParams();
 
-  const userId = Number(id);
-
   const {
     getAccessTokenSilently,
     isAuthenticated,
@@ -154,18 +152,15 @@ export default function UserInfoPage() {
     const fetchUser = async () => {
       if (!isAuthenticated) {return;}
 
-      if (!id || Number.isNaN(userId)) {return;}
+      if (!id) {return;}
 
       try {
         const token = await getAccessTokenSilently();
 
-        console.log("AUTH TOKEN EXISTS:", !!token);
-        console.log("USER ID:", userId);
-
         dispatch({
           type: "Fetch-USER",
           payload: {
-            id: userId,
+            id,
             token,
           },
         });
@@ -175,9 +170,7 @@ export default function UserInfoPage() {
     };
 
     fetchUser();
-  }, [isAuthenticated, id, userId, getAccessTokenSilently, dispatch]);
-
-  console.log("USER BY ID:", userOne);
+  }, [isAuthenticated, id, getAccessTokenSilently, dispatch]);
 
   if (authLoading) {
     return <div className={classes.loading}>Loading Auth...</div>;
@@ -206,6 +199,7 @@ export default function UserInfoPage() {
             <span className={classes.label}>First Name</span>
             <span className={classes.value}>{userOne.firstname}</span>
           </div>
+          <Link to="/update-user">Redigera profil</Link>
 
           <div className={classes.infoItem}>
             <span className={classes.label}>Surname</span>

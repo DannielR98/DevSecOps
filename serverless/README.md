@@ -1,10 +1,10 @@
 # Serverless backend (AWS Lambda + DynamoDB)
 
-Replacement for the Express/PostgreSQL `backend/`. Same REST API (`/api/...`), implemented as one Lambda function per endpoint behind an API Gateway HTTP API, with DynamoDB for storage. Everything is defined in `template.yaml` (AWS SAM).
+Alternative to the Express/PostgreSQL `backend/`, which remains available. The API uses `/api/...` routes and is implemented as one Lambda function per endpoint behind an API Gateway HTTP API, with DynamoDB for storage. Everything is defined in `template.yaml` (AWS SAM); see the behavior differences below before switching backends.
 
 ## Layout
 
-- `src/handlers/` – one Lambda handler per endpoint (22 in total)
+- `src/handlers/` – one Lambda handler per endpoint
 - `src/lib/repo.js` – DynamoDB data access layer
 - `src/lib/auth.js` – bearer token verification (Supabase JWKS / HS256 secrets, and tokens from `/api/login`) and first-use user provisioning
 - `template.yaml` – API Gateway, Lambda functions, IAM role, DynamoDB tables
@@ -23,12 +23,33 @@ Replacement for the Express/PostgreSQL `backend/`. Same REST API (`/api/...`), i
 
 Uniqueness that Postgres enforced with unique constraints (email, username, auth_id, invite code) is enforced with lock items in `UniqueKeys`, written in the same transaction as the owning item. Emails are stored lowercase.
 
+## Local frontend and API with DynamoDB Local (Windows)
+
+Prerequisites: Node.js 22, Docker Desktop running with Linux containers, PowerShell, and SAM CLI. The first run downloads the DynamoDB Local and SAM Lambda images. Ports 3000 and 3001 must be free.
+
+1. Install dependencies in `serverless` and `frontend/quiz` with `npm ci`.
+2. Copy `serverless/local/config.example.json` to `serverless/local/config.json`. Set the Supabase project URL and **public anon/publishable key**. The file is ignored by Git; do not put a service-role key in it. The Supabase project is still remote, so use a test project/account if appropriate.
+3. From `serverless`, run:
+
+   ```powershell
+   npm run local
+   ```
+
+Open `http://localhost:3000`. The local API is at `http://localhost:3001/api/`. The script builds the handlers, creates an isolated Docker network and an in-memory DynamoDB Local instance, creates the tables and indexes from the SAM template, then starts Vite and SAM. Stop the foreground script with Ctrl+C. **All local DynamoDB data is discarded on stop**, and the temporary container and network are removed.
+
+The script uses dummy AWS credentials and a generated local application JWT secret; it does not create or access AWS DynamoDB tables. It selects a local Lambda architecture matching the host and a 60-second timeout to accommodate emulation; deployed defaults remain arm64 and 10 seconds. Supabase asymmetric JWTs are verified against the configured project's JWKS. If the project uses legacy HS256 tokens, set `supabaseJwtSecret` in the ignored `serverless/local/config.json`, or set `SUPABASE_JWT_SECRET` in the PowerShell environment before starting. A non-empty configuration value takes precedence; do not commit the secret. This secret is also stored temporarily in the generated SAM environment file and removed during normal cleanup. The frontend and Supabase URL/key are supplied by the script rather than the root Docker Compose configuration.
+
+An abrupt termination (for example, closing the terminal or Docker Desktop) can prevent cleanup. If that happens, remove the specific `quiz-dynamodb-<suffix>` container and `quiz-local-<suffix>` network shown by `docker ps -a` and `docker network ls`; a temporary `quiz-local-<suffix>` directory may also remain in the system temp directory.
+
+Re-run `npm run build` in `serverless` after handler changes. Restart the script after changes to `template.yaml` or local configuration. Local SAM does not reproduce every deployed API Gateway, IAM or CORS behavior; verify those separately in a test deployment.
+
 ## Deploy
 
 Requires AWS credentials and the [SAM CLI](https://docs.aws.amazon.com/serverless-application-model/latest/developerguide/install-sam-cli.html).
 
 ```bash
 npm ci
+npm run lint
 npm test
 npm run build
 sam deploy --guided \
@@ -36,6 +57,10 @@ sam deploy --guided \
 ```
 
 The `ApiUrl` stack output is the value for the frontend's `VITE_API_URL` (build-time variable; defaults to `http://localhost:5000/api/`).
+
+Run `npm run lint` to check the serverless JavaScript, or `npm run lint:fix` to apply supported automatic fixes. CI runs the lint check before building and deploying.
+
+`npm test` runs the handler lifecycle, authentication, HTTP parsing, and DynamoDB repository tests using in-memory or mocked dependencies. These tests do not deploy resources or verify AWS IAM, API Gateway, CORS, or real DynamoDB behavior.
 
 ## Behaviour changes compared to the Express backend
 
@@ -45,3 +70,5 @@ The `ApiUrl` stack output is the value for the frontend's `VITE_API_URL` (build-
 - Existing Postgres data is not migrated.
 - Deleting a group/quiz cascades in batches, not in a single transaction.
 - Secrets are passed as `NoEcho` stack parameters and end up in Lambda environment variables; move them to SSM/Secrets Manager for stricter setups.
+
+`POST /api/sync-user` requires a bearer token. It returns the authenticated profile, creating it on first use through the existing token-authentication flow; identity is taken from the verified token rather than the request body.

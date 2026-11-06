@@ -18,7 +18,7 @@ const verifyJWT = async (req, res, next) => {
       const email = payload.email;
 
       if (!rawId && !email) {
-        return next();
+        return res.status(401).json({ message: "Invalid authentication token" });
       }
 
       // Find user by auth_id, user_id (if UUID), or email
@@ -27,7 +27,7 @@ const verifyJWT = async (req, res, next) => {
         const orConditions = [];
         if (rawId) {
           orConditions.push({ auth_id: String(rawId) });
-          if (UUID_REGEX.test(String(rawId))) {
+          if (!payload.sub && payload.user_id && UUID_REGEX.test(String(rawId))) {
             orConditions.push({ user_id: String(rawId) });
           }
         }
@@ -41,7 +41,8 @@ const verifyJWT = async (req, res, next) => {
           });
         }
       } catch (findErr) {
-        console.warn("User lookup in verifyJWT warning:", findErr.message);
+        console.error("User lookup in verifyJWT failed:", findErr);
+        return res.status(500).json({ message: "Failed to resolve authenticated user" });
       }
 
       // Auto-provision user in PostgreSQL if authenticated in Supabase but not yet synced
@@ -67,7 +68,11 @@ const verifyJWT = async (req, res, next) => {
               "Member",
             username: safeUsername,
           });
-        } catch (_createErr) {
+        } catch (createErr) {
+          if (createErr.name !== "SequelizeUniqueConstraintError") {
+            console.error("User provisioning failed:", createErr);
+            return res.status(500).json({ message: "Failed to resolve authenticated user" });
+          }
           // If creation conflicts with existing record, try lookup again
           try {
             dbUser = await User.findOne({
@@ -78,8 +83,9 @@ const verifyJWT = async (req, res, next) => {
                 ],
               },
             });
-          } catch (_retryErr) {
-            // ignore
+          } catch (retryErr) {
+            console.error("User lookup after provisioning conflict failed:", retryErr);
+            return res.status(500).json({ message: "Failed to resolve authenticated user" });
           }
         }
       }
@@ -94,19 +100,13 @@ const verifyJWT = async (req, res, next) => {
         };
         req.dbUser = dbUser;
       } else {
-        req.user = {
-          ...payload,
-          id: rawId,
-          user_id: rawId,
-          auth_id: rawId,
-          email,
-        };
+        return res.status(401).json({ message: "Authenticated user not found" });
       }
 
       return next();
     } catch (e) {
       console.error("Error in verifyJWT user resolution:", e);
-      return next();
+      return res.status(500).json({ message: "Failed to resolve authenticated user" });
     }
   });
 };

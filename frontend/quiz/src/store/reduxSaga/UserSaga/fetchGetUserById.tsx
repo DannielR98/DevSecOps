@@ -12,7 +12,7 @@ import {
   setLoading,
 } from "../../reduxSlice/LoadingSlice/LoadingAndErrorSlice.js";
 
-import { setUserById } from "../../reduxSlice/userSlice/UserSlice.js";
+import { setUserProfile } from "../../reduxSlice/userSlice/UserSlice.js";
 
 import type { UserType } from "../../../utilities/interfaces.js";
 
@@ -27,7 +27,7 @@ type GetUserErrorResponse = {
 };
 
 type GetUserPayload = {
-  id: number;
+  id: string;
   token: string;
 };
 
@@ -54,8 +54,8 @@ function* FetchUserById(action: PayloadAction<GetUserPayload>): SagaIterator {
 
     console.log("GET USER DATA:", data);
 
-    if (data.user?.id !== undefined) {
-      yield put(setUserById(data.user.id));
+    if (data.user) {
+      yield put(setUserProfile(data.user));
     }
   } catch (error: unknown) {
     console.error("GET USER ERROR:", error);

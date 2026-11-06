@@ -287,16 +287,22 @@ router.post("/quizzes/:id/submit", checkJwt, async (req, res) => {
       });
     }
 
-    // 9. Validate answer indexes
+    // Accept text answers and the legacy index representation.
+    const normalizedAnswers = [];
+    const correctAnswers = [];
     for (let i = 0; i < answers.length; i++) {
       const answer = answers[i];
       const question = questions[i];
 
+      const options = question.options;
+      const answerIndex = typeof answer === "string" && Array.isArray(options)
+        ? options.indexOf(answer)
+        : answer;
       if (
-        !Number.isInteger(answer) ||
-        !Array.isArray(question.options) ||
-        answer < 0 ||
-        answer >= question.options.length
+        !Number.isInteger(answerIndex) ||
+        !Array.isArray(options) ||
+        answerIndex < 0 ||
+        answerIndex >= options.length
       ) {
         return res.status(400).json({
           success: false,
@@ -304,23 +310,24 @@ router.post("/quizzes/:id/submit", checkJwt, async (req, res) => {
         });
       }
 
-      if (
-        !Number.isInteger(question.correctAnswer) ||
-        question.correctAnswer < 0 ||
-        question.correctAnswer >= question.options.length
-      ) {
+      const correctIndex = typeof question.correctAnswer === "string"
+        ? options.indexOf(question.correctAnswer)
+        : question.correctAnswer;
+      if (!Number.isInteger(correctIndex) || correctIndex < 0 || correctIndex >= options.length) {
         return res.status(500).json({
           success: false,
           message: `Invalid correct answer configuration for question ${i + 1}`,
         });
       }
+      normalizedAnswers.push(answerIndex);
+      correctAnswers.push(correctIndex);
     }
 
     // 10. Calculate score
     let score = 0;
 
-    questions.forEach((question, index) => {
-      if (answers[index] === question.correctAnswer) {
+    normalizedAnswers.forEach((answer, index) => {
+      if (answer === correctAnswers[index]) {
         score += 1;
       }
     });

@@ -106,7 +106,7 @@ jobs:
         run: npm run build
 
       # =========================
-      # 2b. SERVERLESS BACKEND (Lambda + DynamoDB): AUDIT, TEST & BUILD
+      # 2b. SERVERLESS BACKEND (Lambda + DynamoDB): LINT, AUDIT, TEST & BUILD
       # =========================
 
       - name: Install serverless dependencies
@@ -116,6 +116,10 @@ jobs:
       - name: Serverless Audit (SCA)
         working-directory: serverless
         run: npm audit --audit-level=high
+
+      - name: Serverless Lint
+        working-directory: serverless
+        run: npm run lint
 
       - name: Run serverless tests
         working-directory: serverless

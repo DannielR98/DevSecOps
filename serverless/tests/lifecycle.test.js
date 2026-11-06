@@ -20,14 +20,19 @@ process.env.JWT_SECRET = "test-secret-test-secret-test-secret-123";
 const { handler: registerUser } = await import("../src/handlers/registerUser.js");
 const { handler: loginUser } = await import("../src/handlers/loginUser.js");
 const { handler: getUsers } = await import("../src/handlers/getUsers.js");
+const { handler: getUserById } = await import("../src/handlers/getUserById.js");
 const { handler: updateUser } = await import("../src/handlers/updateUser.js");
+const { handler: deleteUser } = await import("../src/handlers/deleteUser.js");
 const { handler: createGroup } = await import("../src/handlers/createGroup.js");
 const { handler: getGroups } = await import("../src/handlers/getGroups.js");
+const { handler: getGroupById } = await import("../src/handlers/getGroupById.js");
 const { handler: updateGroup } = await import("../src/handlers/updateGroup.js");
 const { handler: deleteGroup } = await import("../src/handlers/deleteGroup.js");
 const { handler: joinGroup } = await import("../src/handlers/joinGroup.js");
 const { handler: leaveGroup } = await import("../src/handlers/leaveGroup.js");
 const { handler: getGroupMembers } = await import("../src/handlers/getGroupMembers.js");
+const { handler: getGroupMemberById } = await import("../src/handlers/getGroupMemberById.js");
+const { handler: joinGroupMember } = await import("../src/handlers/joinGroupMember.js");
 const { handler: createQuiz } = await import("../src/handlers/createQuiz.js");
 const { handler: getQuizzes } = await import("../src/handlers/getQuizzes.js");
 const { handler: getQuizById } = await import("../src/handlers/getQuizById.js");
@@ -75,6 +80,22 @@ beforeEach(() => {
 });
 
 describe("users", () => {
+  it("reports invalid registration and login fields", async () => {
+    const registration = await call(registerUser, { body: { email: "not-an-email" } });
+    expect(registration.status).toBe(400);
+    expect(registration.body).toMatchObject({ success: false, message: "Validation failed" });
+    expect(registration.body.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ field: "email" }),
+      expect.objectContaining({ field: "username" }),
+    ]));
+    const login = await call(loginUser, { body: { user: "", password: "" } });
+    expect(login.status).toBe(400);
+    expect(login.body.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ field: "user" }),
+      expect.objectContaining({ field: "password" }),
+    ]));
+  });
+
   it("registers, logs in by username or email and hides password hashes", async () => {
     const alice = await signUp("alice");
 
@@ -142,9 +163,90 @@ describe("users", () => {
     });
     expect(clash.status).toBe(409);
   });
+
+  it("looks up users without exposing passwords and restricts account deletion", async () => {
+    const alice = await signUp("alice");
+    const bob = await signUp("bob");
+    const missingId = "00000000-0000-4000-8000-000000000001";
+
+    expect((await call(getUserById, { token: alice.token, params: { user_id: "bad" } })).status).toBe(400);
+    expect((await call(getUserById, { token: alice.token, params: { user_id: missingId } })).status).toBe(404);
+    const found = await call(getUserById, { token: bob.token, params: { user_id: alice.id } });
+    expect(found.status).toBe(200);
+    expect(found.body.user).toMatchObject({ user_id: alice.id, username: "alice" });
+    expect(found.body.user).not.toHaveProperty("password");
+
+    expect((await call(deleteUser, { token: bob.token, params: { user_id: alice.id } })).status).toBe(403);
+    expect((await call(deleteUser, { token: alice.token, params: { user_id: alice.id } })).status).toBe(200);
+    expect((await call(getUserById, { token: bob.token, params: { user_id: alice.id } })).status).toBe(404);
+
+    const registeredAgain = await call(registerUser, {
+      body: {
+        auth_id: "auth-alice",
+        firstname: "Alice",
+        surname: "Tester",
+        username: "alice",
+        email: "alice@example.com",
+      },
+    });
+    expect(registeredAgain.status).toBe(201);
+  });
 });
 
 describe("groups, members and quizzes", () => {
+  it("rejects invalid group and quiz input before storing data", async () => {
+    const alice = await signUp("alice");
+    const group = await call(createGroup, { token: alice.token, body: { name: "" } });
+    expect(group.status).toBe(400);
+    expect(group.body.errors).toEqual(expect.arrayContaining([expect.objectContaining({ field: "name" })]));
+    const quiz = await call(createQuiz, {
+      token: alice.token,
+      body: {
+        title: "Test",
+        category: "Math",
+        group_id: "not-a-uuid",
+        questions: [{ question: "2+2?", options: ["3", "4"], correctAnswer: "5" }],
+      },
+    });
+    expect(quiz.status).toBe(400);
+    expect(quiz.body.errors).toEqual(expect.arrayContaining([
+      expect.objectContaining({ field: "group_id" }),
+      expect.objectContaining({ field: "questions.0.correctAnswer" }),
+    ]));
+    expect(db.__data[TABLES.groups]?.size ?? 0).toBe(0);
+    expect(db.__data[TABLES.quizzes]?.size ?? 0).toBe(0);
+  });
+
+  it("validates invite codes and restricts member lookup to group members", async () => {
+    const alice = await signUp("alice");
+    const bob = await signUp("bob");
+    const carol = await signUp("carol");
+    const group = (await call(createGroup, { token: alice.token, body: { name: "Team" } })).body.group;
+    const missingId = "00000000-0000-4000-8000-000000000001";
+
+    expect((await call(getGroupById, { token: alice.token, params: { groupId: "bad" } })).status).toBe(400);
+    expect((await call(getGroupById, { token: alice.token, params: { groupId: missingId } })).status).toBe(404);
+    expect((await call(getGroupById, { token: alice.token, params: { groupId: group.id } })).body.group.id).toBe(group.id);
+    expect((await call(joinGroupMember, { token: bob.token, body: {} })).status).toBe(400);
+    expect((await call(joinGroupMember, { token: bob.token, body: { invite_code: "missing" } })).status).toBe(404);
+
+    const joined = await call(joinGroupMember, {
+      token: bob.token,
+      body: { invite_code: ` ${group.invite_code.toLowerCase()} ` },
+    });
+    expect(joined.status).toBe(201);
+    expect((await call(joinGroupMember, { token: bob.token, body: { invite_code: group.invite_code } })).status).toBe(409);
+
+    const params = { groupId: group.id, memberId: joined.body.member.id };
+    expect((await call(getGroupMemberById, { token: carol.token, params })).status).toBe(403);
+    expect((await call(getGroupMemberById, { token: alice.token, params: { ...params, memberId: "bad" } })).status).toBe(400);
+    expect((await call(getGroupMemberById, { token: alice.token, params: { ...params, memberId: missingId } })).status).toBe(404);
+    const found = await call(getGroupMemberById, { token: alice.token, params });
+    expect(found.status).toBe(200);
+    expect(found.body.member.user).toMatchObject({ user_id: bob.id, username: "bob" });
+    expect(found.body.member.user).not.toHaveProperty("password");
+  });
+
   it("runs the full group/quiz lifecycle", async () => {
     const alice = await signUp("alice");
     const bob = await signUp("bob");
@@ -251,6 +353,7 @@ describe("groups, members and quizzes", () => {
 
   it("lets only the creator delete a quiz and removes its results", async () => {
     const alice = await signUp("alice");
+    const bob = await signUp("bob");
     const group = (await call(createGroup, { token: alice.token, body: { name: "G" } })).body
       .group;
     const quiz = (
@@ -266,6 +369,8 @@ describe("groups, members and quizzes", () => {
     });
     expect(db.__data[TABLES.results].size).toBe(1);
 
+    expect((await call(deleteQuiz, { token: bob.token, params: { id: quiz.id } })).status).toBe(403);
+    expect(db.__data[TABLES.quizzes].size).toBe(1);
     const del = await call(deleteQuiz, { token: alice.token, params: { id: quiz.id } });
     expect(del.status).toBe(200);
     expect(db.__data[TABLES.results].size).toBe(0);
