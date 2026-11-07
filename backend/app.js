@@ -125,6 +125,7 @@ import getQuizByIdRouter from "./Api/Quizzes/getQuizById.js";
 import deleteQuizRouter from "./Api/Quizzes/deleteQuiz.js";
 import updateQuizRouter from "./Api/Quizzes/updateQuiz.js";
 import submitQuizRouter from "./Api/Quizzes/takeQuiz.js";
+import getQuizResultsRouter from "./Api/Quizzes/getQuizResults.js";
 //
 
 const app = express();
@@ -166,6 +167,7 @@ app.use("/api", getQuizByIdRouter);
 app.use("/api", deleteQuizRouter);
 app.use("/api", updateQuizRouter);
 app.use("/api", submitQuizRouter);
+app.use("/api", getQuizResultsRouter);
 
 //
 
