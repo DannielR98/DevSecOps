@@ -319,6 +319,10 @@ const states = new WeakMap<Page, ScenarioState>();
 
 const { Given, When, Then, Before } = createBdd(test);
 
+// --------------------------------------------------
+// Test data
+// --------------------------------------------------
+
 function createGroup(id: number, name: string, isOwner = true): Group {
   return {
     id: String(id),
@@ -351,6 +355,10 @@ function createQuiz(
   };
 }
 
+// --------------------------------------------------
+// API mock helpers
+// --------------------------------------------------
+
 async function fulfill(route: Route, body: unknown) {
   await route.fulfill({
     status: 200,
@@ -361,6 +369,7 @@ async function fulfill(route: Route, body: unknown) {
 
 async function handleApi(route: Route, state: ScenarioState) {
   const pathname = new URL(route.request().url()).pathname;
+
   const apiIndex = pathname.lastIndexOf("/api/");
 
   const path =
@@ -368,7 +377,12 @@ async function handleApi(route: Route, state: ScenarioState) {
 
   const method = route.request().method();
 
+  console.log("BDD API REQUEST:", method, path);
+
+  // ------------------------------------------------
   // Synchronize test user
+  // ------------------------------------------------
+
   if (path === "sync-user" && method === "POST") {
     state.profileSynced = true;
 
@@ -382,13 +396,22 @@ async function handleApi(route: Route, state: ScenarioState) {
     return;
   }
 
+  // ------------------------------------------------
   // Get users
+  // ------------------------------------------------
+
   if (path === "users" && method === "GET") {
-    await fulfill(route, { users: [] });
+    await fulfill(route, {
+      users: [],
+    });
+
     return;
   }
 
+  // ------------------------------------------------
   // Get groups
+  // ------------------------------------------------
+
   if (path === "groups" && method === "GET") {
     await fulfill(route, {
       groups: state.groups,
@@ -397,7 +420,10 @@ async function handleApi(route: Route, state: ScenarioState) {
     return;
   }
 
+  // ------------------------------------------------
   // Create group
+  // ------------------------------------------------
+
   if (path === "groups" && method === "POST") {
     const body = route.request().postDataJSON() as {
       name: string;
@@ -407,11 +433,17 @@ async function handleApi(route: Route, state: ScenarioState) {
 
     state.groups.push(group);
 
-    await fulfill(route, { group });
+    await fulfill(route, {
+      group,
+    });
+
     return;
   }
 
+  // ------------------------------------------------
   // Join group
+  // ------------------------------------------------
+
   if (path === "groups/join" && method === "POST") {
     const body = route.request().postDataJSON() as {
       invite_code: string;
@@ -429,7 +461,10 @@ async function handleApi(route: Route, state: ScenarioState) {
     return;
   }
 
+  // ------------------------------------------------
   // Get quizzes
+  // ------------------------------------------------
+
   if (path === "quizzes" && method === "GET") {
     await fulfill(route, {
       quizzes: state.quizzes,
@@ -438,7 +473,10 @@ async function handleApi(route: Route, state: ScenarioState) {
     return;
   }
 
+  // ------------------------------------------------
   // Create quiz
+  // ------------------------------------------------
+
   if (path === "quizzes" && method === "POST") {
     const body = route.request().postDataJSON() as Omit<
       Quiz,
@@ -454,11 +492,17 @@ async function handleApi(route: Route, state: ScenarioState) {
     state.quizCreated = quiz;
     state.quizzes.push(quiz);
 
-    await fulfill(route, { quiz });
+    await fulfill(route, {
+      quiz,
+    });
+
     return;
   }
 
+  // ------------------------------------------------
   // Submit quiz
+  // ------------------------------------------------
+
   const submitMatch = path.match(/^quizzes\/([^/]+)\/submit$/);
 
   if (submitMatch && method === "POST") {
@@ -494,9 +538,18 @@ async function handleApi(route: Route, state: ScenarioState) {
     return;
   }
 
-  // Default response for unhandled API routes
+  // ------------------------------------------------
+  // Default response
+  // ------------------------------------------------
+
+  console.log("BDD UNHANDLED API REQUEST:", method, path);
+
   await fulfill(route, {});
 }
+
+// --------------------------------------------------
+// Scenario state
+// --------------------------------------------------
 
 function stateFor(page: Page): ScenarioState {
   const state = states.get(page);
@@ -508,13 +561,61 @@ function stateFor(page: Page): ScenarioState {
   return state;
 }
 
-// Mocked UI test identity.
-// This is NOT a real Supabase authentication session.
+// --------------------------------------------------
+// Open application with browser diagnostics
+// --------------------------------------------------
+
 async function openAuthenticatedApp(page: Page) {
-  await page.goto("/");
+  page.on("pageerror", (error) => {
+    console.error("BROWSER PAGE ERROR:", error.message);
+  });
+
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      console.error("BROWSER CONSOLE ERROR:", message.text());
+    }
+  });
+
+  page.on("requestfailed", (request) => {
+    console.error(
+      "BROWSER REQUEST FAILED:",
+      request.url(),
+      request.failure()?.errorText,
+    );
+  });
+
+  await page.goto("/", {
+    waitUntil: "domcontentloaded",
+  });
+
+  await page.waitForTimeout(2000);
+
+  const pageState = await page.locator("body").evaluate((body) => {
+    const style = window.getComputedStyle(body);
+
+    return {
+      visibility: style.visibility,
+      display: style.display,
+      opacity: style.opacity,
+      bodyHTML: body.innerHTML.substring(0, 1000),
+      rootHTML:
+        document.getElementById("root")?.innerHTML.substring(0, 1000) ?? null,
+    };
+  });
+
+  console.log("BDD PAGE STATE:", pageState);
+
+  await page.screenshot({
+    path: "test-results/bdd-page-state.png",
+    fullPage: true,
+  });
 
   await expect(page.locator("body")).toBeVisible();
 }
+
+// --------------------------------------------------
+// Before hook
+// --------------------------------------------------
 
 Before(async ({ page }) => {
   const state: ScenarioState = {
@@ -529,10 +630,15 @@ Before(async ({ page }) => {
   states.set(page, state);
 
   // Intercept API requests regardless of hostname.
-  await page.route("**/api/**", (route) => handleApi(route, state));
+  await page.route("**/api/**", async (route) => {
+    await handleApi(route, state);
+  });
 });
 
+// --------------------------------------------------
 // Authentication scenario
+// --------------------------------------------------
+
 Given("jag är en ny besökare", async () => {});
 
 When("jag loggar in med en lokal Supabase-testidentitet", async ({ page }) => {
@@ -550,7 +656,10 @@ Then(
   },
 );
 
+// --------------------------------------------------
 // Groups
+// --------------------------------------------------
+
 Given("jag är inloggad via Supabase", async ({ page }) => {
   await openAuthenticatedApp(page);
 });
@@ -593,10 +702,17 @@ Then(
 );
 
 Then("jag ska bli ägare av gruppen", async ({ page }) => {
-  await expect(page.getByText("Ägare", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Ägare", {
+      exact: true,
+    }),
+  ).toBeVisible();
 });
 
+// --------------------------------------------------
 // Join group
+// --------------------------------------------------
+
 Given(
   "jag har fått en giltig inbjudningskod till en grupp",
   async ({ page }) => {
@@ -607,7 +723,11 @@ Given(
 When("jag anger koden och klickar på Gå med", async ({ page }) => {
   await page.getByPlaceholder("t.ex. EXAM24").fill("VQQMY8");
 
-  await page.getByRole("button", { name: /Gå med/ }).click();
+  await page
+    .getByRole("button", {
+      name: /Gå med/,
+    })
+    .click();
 });
 
 Then("ska jag läggas till som medlem i gruppen", async ({ page }) => {
@@ -618,7 +738,10 @@ Then("ska jag läggas till som medlem i gruppen", async ({ page }) => {
   await expect(page.getByText("Inbjuden grupp")).toBeVisible();
 });
 
+// --------------------------------------------------
 // Create quiz
+// --------------------------------------------------
+
 Given("jag är medlem i en grupp", async ({ page }) => {
   stateFor(page).groups = [createGroup(1, "Fredagsquiz")];
 });
@@ -676,7 +799,10 @@ Then("ska vara tillgängligt för gruppens medlemmar", async ({ page }) => {
   ).toBeVisible();
 });
 
+// --------------------------------------------------
 // Complete quiz
+// --------------------------------------------------
+
 Given("jag är medlem i en grupp med ett publicerat quiz", async ({ page }) => {
   const state = stateFor(page);
 
