@@ -57,13 +57,13 @@ jobs:
         working-directory: frontend/quiz
         run: npm audit --audit-level=high
 
-      - name: Frontend Lint
-        working-directory: frontend/quiz
-        run: npm run lint
-
       - name: Frontend Lint and Fix
         working-directory: frontend/quiz
         run: npm run lint -- --fix
+
+      - name: Frontend Lint
+        working-directory: frontend/quiz
+        run: npm run lint
 
       - name: Run frontend Test
         working-directory: frontend/quiz
@@ -141,8 +141,7 @@ jobs:
       # =========================
       # 4. BDD & E2E TESTING (Playwright)
       # =========================
-     
-     
+
       # =========================
       # 4. BDD & E2E TESTING (Playwright)
       # =========================
@@ -169,8 +168,6 @@ jobs:
             frontend/quiz/test-results/
             frontend/quiz/playwright-report/
           retention-days: 7
-
-
 
       ## - name: Run Playwright BDD tests
       ## run: |
