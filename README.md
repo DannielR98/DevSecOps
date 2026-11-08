@@ -338,3 +338,5 @@ Vid push till `main` eller `dev` byggs och publiceras Docker-images:
 | **Build Backend** | Bygg och pusha backend-image | `ghcr.io/...-backend` |
 
 Vid push till `main`, efter godkänd CI, deployar AWS-jobbet serverless-backenden med SAM till stacken `quiz-serverless`. Därefter byggs frontend med stackens API-adress, pushas till ECR och startas på EC2 via SSM. GHCR-jobbet ovan körs separat och deployar inte Express-backenden.
+
+EC2-jobbet hämtar frontend-avbilden med commitens SHA och kontrollerar att containern svarar på port 80. SSM-utdata visas i jobbets logg. En befintlig frontend-container från samma ECR-repository ersätts, men andra containrar tas inte bort; en annan tjänst på port 80 måste stoppas eller flyttas manuellt. Instansen behöver AWS CLI, Docker, Bash, curl, SSM Agent och behörighet att hämta avbilden från ECR.
