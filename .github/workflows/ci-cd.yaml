@@ -146,6 +146,15 @@ jobs:
       - name: Install Playwright browser
         working-directory: frontend/quiz
         run: npx playwright install --with-deps chromium
+        
+      - name: Run Playwright BDD tests
+        working-directory: frontend/quiz
+        env:
+          TEST_ENV: local
+          CI: true
+        run: |
+          npx bddgen
+          npx playwright test
 
       ## - name: Run Playwright BDD tests
       ## run: |

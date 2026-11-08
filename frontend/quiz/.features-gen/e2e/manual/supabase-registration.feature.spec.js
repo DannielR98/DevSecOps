@@ -3,15 +3,15 @@ import { test } from "playwright-bdd";
 
 test.describe('Registrering och inloggning via Supabase Auth', () => {
 
-  test('Ny användare registrerar sig och loggar in med samma uppgifter', { tag: ['@requires-live-supabase'] }, async ({ Given, When, Then, And }) => { 
-    await Given('jag är på inloggningssidan'); 
-    await When('jag väljer "Registrera dig"'); 
-    await And('jag registrerar mig med en unik e-postadress och ett giltigt lösenord'); 
-    await Then('ska ett konto skapas i Supabase'); 
-    await When('jag loggar ut från Supabase'); 
-    await And('jag loggar in med samma e-postadress och lösenord'); 
-    await Then('ska jag vara inloggad med det nyskapade kontot'); 
-    await And('profilen ska synkroniseras till den lokala databasen'); 
+  test('Ny användare registrerar sig och loggar in med samma uppgifter', { tag: ['@requires-live-supabase'] }, async ({ Given, When, Then, And, page }) => { 
+    await Given('jag är på inloggningssidan', null, { page }); 
+    await When('jag väljer "Registrera dig"', null, { page }); 
+    await And('jag registrerar mig med en unik e-postadress och ett giltigt lösenord', null, { page }); 
+    await Then('ska ett konto skapas i Supabase', null, { page }); 
+    await When('jag loggar ut från Supabase', null, { page }); 
+    await And('jag loggar in med samma e-postadress och lösenord', null, { page }); 
+    await Then('ska jag vara inloggad med det nyskapade kontot', null, { page }); 
+    await And('profilen ska synkroniseras till den lokala databasen', null, { page }); 
   });
 
 });

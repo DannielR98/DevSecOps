@@ -6,14 +6,17 @@ export default defineConfig(({ mode }) => ({
   plugins: [react()],
 
   resolve: {
-    alias: mode === "e2e"
-      ? [
-        {
-          find: /.*\/context\/AuthContext(\.tsx)?$/,
-          replacement: fileURLToPath(new URL("./src/e2e/authMock.tsx", import.meta.url)),
-        },
-      ]
-      : [],
+    alias:
+      mode === "e2e"
+        ? [
+            {
+              find: /.*\/context\/AuthContext(\.tsx)?$/,
+              replacement: fileURLToPath(
+                new URL("./src/e2e/authMock.tsx", import.meta.url),
+              ),
+            },
+          ]
+        : [],
   },
 
   server: {
