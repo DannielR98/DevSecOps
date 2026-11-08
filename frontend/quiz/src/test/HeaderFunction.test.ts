@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+/* import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const { mockAxiosRequest } = vi.hoisted(() => {
   const mockAxiosRequest = vi.fn()
@@ -80,5 +80,136 @@ describe("apiRequest", () => {
     await expect(apiRequest({ api: "groups", token: "bad" })).rejects.toBe(
       backendError,
     );
+  });
+});
+ */
+
+import { describe, it, expect, vi, beforeEach } from "vitest";
+
+const { mockAxiosRequest, mockRequestUse, mockResponseUse } = vi.hoisted(() => {
+  const mockAxiosRequest = vi.fn();
+  const mockRequestUse = vi.fn();
+  const mockResponseUse = vi.fn();
+
+  Object.assign(mockAxiosRequest, {
+    interceptors: {
+      request: {
+        use: mockRequestUse,
+      },
+      response: {
+        use: mockResponseUse,
+      },
+    },
+  });
+
+  return {
+    mockAxiosRequest,
+    mockRequestUse,
+    mockResponseUse,
+  };
+});
+
+vi.mock("axios", () => ({
+  default: {
+    create: vi.fn(() => mockAxiosRequest),
+  },
+}));
+
+// Import the real implementation, bypassing the global HeaderFunction mock.
+const { apiRequest } = await vi.importActual<
+  typeof import("../utilities/HeaderFunction")
+>("../utilities/HeaderFunction");
+
+describe("apiRequest", () => {
+  beforeEach(() => {
+    mockAxiosRequest.mockReset();
+    mockRequestUse.mockClear();
+    mockResponseUse.mockClear();
+  });
+
+  it("should GET without an explicitly supplied token", async () => {
+    mockAxiosRequest.mockResolvedValueOnce({
+      data: { groups: [] },
+    });
+
+    const result = await apiRequest({
+      api: "groups",
+      method: "GET",
+    });
+
+    expect(result).toEqual({ groups: [] });
+
+    expect(mockAxiosRequest).toHaveBeenCalledWith({
+      url: "/groups",
+      method: "GET",
+      headers: {},
+      data: undefined,
+    });
+  });
+
+  it("should send Bearer token and body on POST", async () => {
+    mockAxiosRequest.mockResolvedValueOnce({
+      data: { ok: true },
+    });
+
+    const result = await apiRequest({
+      api: "groups/join",
+      method: "POST",
+      token: "my-token",
+      body: { invite_code: "EXAM24" },
+    });
+
+    expect(result).toEqual({ ok: true });
+
+    expect(mockAxiosRequest).toHaveBeenCalledWith({
+      url: "/groups/join",
+      method: "POST",
+      headers: {
+        Authorization: "Bearer my-token",
+      },
+      data: {
+        invite_code: "EXAM24",
+      },
+    });
+  });
+
+  it("should append endpoint to the API path", async () => {
+    mockAxiosRequest.mockResolvedValueOnce({
+      data: { deleted: true },
+    });
+
+    await apiRequest({
+      api: "quizzes",
+      endpoint: "/42",
+      method: "DELETE",
+      token: "t",
+    });
+
+    expect(mockAxiosRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        url: "/quizzes/42",
+        method: "DELETE",
+      }),
+    );
+  });
+
+  it("should pass through errors untransformed", async () => {
+    const backendError = {
+      response: {
+        status: 401,
+        data: {
+          message: "Nej",
+        },
+      },
+    };
+
+    mockAxiosRequest.mockRejectedValueOnce(backendError);
+
+    await expect(
+      apiRequest({
+        api: "groups",
+        token: "bad",
+      }),
+    ).rejects.toBe(backendError);
   });
 });
