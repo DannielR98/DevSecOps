@@ -20,11 +20,14 @@ const isSslRequired = () => {
   return false;
 };
 
+const rejectUnauthorized =
+  process.env.DB_SSL_REJECT_UNAUTHORIZED !== "false";
+
 const sslOptions = isSslRequired()
   ? {
     ssl: {
       require: true,
-      rejectUnauthorized: false,
+      rejectUnauthorized,
     },
   }
   : {};

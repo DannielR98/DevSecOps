@@ -5,6 +5,9 @@ dotenv.config();
 
 const databaseUrl = process.env.DATABASE_URL;
 
+const rejectUnauthorized =
+  process.env.DB_SSL_REJECT_UNAUTHORIZED !== "false";
+
 let db;
 
 if (databaseUrl && (databaseUrl.startsWith("postgres://") || databaseUrl.startsWith("postgresql://"))) {
@@ -21,7 +24,7 @@ if (databaseUrl && (databaseUrl.startsWith("postgres://") || databaseUrl.startsW
       ? {
         ssl: {
           require: true,
-          rejectUnauthorized: false,
+          rejectUnauthorized,
         },
       }
       : {},
@@ -41,7 +44,7 @@ if (databaseUrl && (databaseUrl.startsWith("postgres://") || databaseUrl.startsW
         ? {
           ssl: {
             require: true,
-            rejectUnauthorized: false,
+            rejectUnauthorized,
           },
         }
         : {},
