@@ -1,6 +1,7 @@
 import { build } from "esbuild";
 import { readdirSync, rmSync } from "node:fs";
 
+// Remove stale bundles before discovering the current handler entry points.
 rmSync("dist", { recursive: true, force: true });
 
 const entryPoints = readdirSync("src/handlers")
@@ -19,6 +20,7 @@ await build({
   splitting: true,
   chunkNames: "chunks/[name]-[hash]",
   outExtension: { ".js": ".mjs" },
+  // Some bundled dependencies use require even though the output is ESM.
   banner: {
     js: 'import { createRequire as __cr } from "node:module"; const require = __cr(import.meta.url);',
   },

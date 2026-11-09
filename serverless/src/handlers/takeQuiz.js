@@ -1,6 +1,8 @@
 import { HttpError, route } from "../lib/http.js";
 import { groupMembers, groups, quizResults, quizzes } from "../lib/repo.js";
 
+// Only group members or the owner can submit. Answers are compared as option
+// text against stored questions; the server computes and stores the score.
 export const handler = route(async ({ params, body, user }) => {
   const { answers } = body;
   if (!Array.isArray(answers)) {

@@ -3,6 +3,8 @@ $serverlessDir = Split-Path -Parent $PSScriptRoot
 $frontendDir = Join-Path (Split-Path -Parent $serverlessDir) "frontend\quiz"
 $configPath = Join-Path $PSScriptRoot "config.json"
 
+# Check configuration and dependencies before creating any Docker resources.
+# The frontend origin is fixed here to match the Vite and SAM local ports.
 if (-not (Test-Path $configPath)) {
   throw "Copy local\config.example.json to local\config.json and fill in the Supabase URL and public anon key."
 }
@@ -27,6 +29,8 @@ foreach ($tool in @("node", "npm", "docker", "sam")) {
     throw "Required tool not found: $tool"
   }
 }
+# Probe both loopback ports before starting processes so an existing service is
+# not mistaken for this run's frontend or API.
 foreach ($port in @(3000, 3001)) {
   $listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $port)
   try {
@@ -38,6 +42,8 @@ foreach ($port in @(3000, 3001)) {
   }
 }
 
+# Unique names prevent resources from different invocations from being shared.
+# Keep the previous process environment so cleanup can restore it.
 $suffix = [guid]::NewGuid().ToString("N").Substring(0, 12)
 $network = "quiz-local-$suffix"
 $container = "quiz-dynamodb-$suffix"
@@ -53,6 +59,7 @@ foreach ($name in $envNames) {
 }
 
 try {
+  # SAM runs the bundled handlers, so rebuild before creating local resources.
   Set-Location $serverlessDir
   & npm run build
   if ($LASTEXITCODE -ne 0) { throw "Serverless build failed." }
@@ -61,6 +68,8 @@ try {
   if ($LASTEXITCODE -ne 0) { throw "Could not create the local Docker network." }
   $networkCreated = $true
 
+  # Bind DynamoDB only to a dynamically selected loopback port on the host;
+  # Lambda containers reach it through the network alias instead.
   & docker run -d --rm --name $container --network $network --network-alias dynamodb `
     -p "127.0.0.1::8000" amazon/dynamodb-local:latest -jar DynamoDBLocal.jar -inMemory -sharedDb | Out-Null
   if ($LASTEXITCODE -ne 0) { throw "Could not start DynamoDB Local." }
@@ -73,6 +82,8 @@ try {
   & node (Join-Path $PSScriptRoot "init-dynamodb.mjs") "http://127.0.0.1:$($Matches[1])"
   if ($LASTEXITCODE -ne 0) { throw "Could not initialize DynamoDB Local tables." }
 
+  # SAM passes these table names and local endpoint to each function. Generate
+  # a fresh signing secret and write UTF-8 without a BOM for SAM's JSON parser.
   New-Item -ItemType Directory -Path $tempDir | Out-Null
   $localSecret = [guid]::NewGuid().ToString("N") + [guid]::NewGuid().ToString("N")
   $variables = @{
@@ -96,6 +107,8 @@ try {
   $json = $variables | ConvertTo-Json -Depth 4
   [System.IO.File]::WriteAllText($tempEnv, $json, [System.Text.UTF8Encoding]::new($false))
 
+  # Avoid using the developer's AWS profile or temporary session credentials.
+  # Vite inherits the frontend variables when its process is launched.
   $env:AWS_ACCESS_KEY_ID = "local"
   $env:AWS_SECRET_ACCESS_KEY = "local"
   Remove-Item Env:\AWS_SESSION_TOKEN -ErrorAction SilentlyContinue
@@ -110,6 +123,7 @@ try {
   $frontendProcess = Start-Process -FilePath (Get-Command node).Source `
     -ArgumentList @("`"$vite`"", "--host", "127.0.0.1", "--port", "3000", "--strictPort") `
     -WorkingDirectory $frontendDir -NoNewWindow -PassThru
+  # Fail early if Vite exits or never responds instead of starting a partial UI.
   $frontendReady = $false
   for ($i = 0; $i -lt 30; $i++) {
     if ($frontendProcess.HasExited) { throw "Frontend exited before becoming ready." }
@@ -125,12 +139,15 @@ try {
   Write-Host "Frontend: http://localhost:3000"
   Write-Host "API: http://localhost:3001/api/ (Ctrl+C to stop; local database data will be lost)"
   $architecture = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "x86_64" }
+  # Keep SAM in the foreground; its exit triggers cleanup of the other resources.
   & sam local start-api --template template.yaml --port 3001 --region eu-north-1 `
     --docker-network $network --env-vars $tempEnv `
     --parameter-overrides "JwtSecret=local-placeholder-at-least-32-characters" "AllowedOrigin=$($config.frontendOrigin)" `
       "FunctionArchitecture=$architecture" "FunctionTimeout=60"
   if ($LASTEXITCODE -ne 0) { throw "SAM local API exited with code $LASTEXITCODE." }
 } finally {
+  # Clean up only resources created by this invocation and restore environment
+  # variables. Abrupt process termination can bypass this finally block.
   if ($frontendProcess -and -not $frontendProcess.HasExited) {
     Stop-Process -Id $frontendProcess.Id
   }

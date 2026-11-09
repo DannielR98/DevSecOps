@@ -20,6 +20,8 @@ const now = () => new Date().toISOString();
 const get = async (TableName, Key) =>
   (await doc.send(new GetCommand({ TableName, Key }))).Item ?? null;
 
+// DynamoDB may return only one page even for an indexed query. Continue with
+// LastEvaluatedKey so callers do not accidentally omit later records.
 const queryAll = async (params) => {
   const items = [];
   let ExclusiveStartKey;
@@ -30,16 +32,19 @@ const queryAll = async (params) => {
   } while (ExclusiveStartKey);
   return items;
 };
-
+// Split a list into chunks of the specified size.
 const chunk = (list, size) => {
   const out = [];
   for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size));
   return out;
 };
 
+// BatchGet accepts up to 100 keys. Unprocessed keys must be retried; duplicate
+// IDs are removed because DynamoDB rejects repeated keys in one request.
 const batchGet = async (TableName, keyName, ids) => {
   const unique = [...new Set(ids)];
   const items = [];
+  // Process the IDs in chunks of 100 to comply with DynamoDB limits.
   for (const part of chunk(unique, 100)) {
     let keys = part.map((id) => ({ [keyName]: id }));
     while (keys.length > 0) {
@@ -53,6 +58,7 @@ const batchGet = async (TableName, keyName, ids) => {
   return items;
 };
 
+// BatchWrite accepts up to 25 operations and may return unprocessed requests.
 const batchDelete = async (TableName, keys) => {
   for (const part of chunk(keys, 25)) {
     let requests = part.map((Key) => ({ DeleteRequest: { Key } }));
@@ -65,6 +71,8 @@ const batchDelete = async (TableName, keys) => {
   }
 };
 
+// Callers provide a conflict message for canceled transactions; other DynamoDB
+// errors propagate so the HTTP wrapper can log them and return a 500.
 const transact = async (TransactItems, conflictMessage) => {
   try {
     await doc.send(new TransactWriteCommand({ TransactItems }));
@@ -105,18 +113,22 @@ export const users = {
     return lock ? this.get(lock.ref_id) : null;
   },
 
+  // Look up a user by their unique auth ID.
   byAuthId(authId) {
     return this.byUnique(`auth#${authId}`);
   },
 
+  // Look up a user by their unique email.
   byEmail(email) {
     return this.byUnique(`email#${String(email).toLowerCase()}`);
   },
 
+  // Look up a user by their unique username.
   byUsername(username) {
     return this.byUnique(`username#${username}`);
   },
 
+  // List all users in the table, handling pagination.
   async list() {
     const items = [];
     let ExclusiveStartKey;
@@ -130,6 +142,7 @@ export const users = {
     return items;
   },
 
+  // Create a new user with unique constraints on auth_id, email, and username.
   async create(data) {
     const user = {
       role_id: null,
@@ -139,7 +152,7 @@ export const users = {
       email: data.email.toLowerCase(),
       createdAt: now(),
     };
-
+    // Ensure the email is in lowercase for uniqueness checks.
     await transact(
       [
         put(table.users, user, "attribute_not_exists(user_id)"),
@@ -155,6 +168,8 @@ export const users = {
     const next = { ...existing, ...patch };
     if (patch.email) next.email = patch.email.toLowerCase();
 
+    // Reserve new unique keys and release obsolete ones in the same write as
+    // the profile update; unchanged keys must not be written twice.
     const before = new Set(userKeys(existing));
     const after = new Set(userKeys(next));
 
@@ -168,6 +183,7 @@ export const users = {
         .map((pk) => ({ Delete: { TableName: table.uniques, Key: { pk } } })),
     ];
 
+    // Perform the transactional update, ensuring unique constraints are respected.
     await transact(items, "Email or username already exists");
     return next;
   },
@@ -211,6 +227,7 @@ const newMember = (group_id, user_id, role) => ({
 
 const generateInviteCode = () => randomBytes(5).toString("hex").toUpperCase();
 
+// Groups
 export const groups = {
   get: (id) => get(table.groups, { id }),
 
@@ -229,6 +246,7 @@ export const groups = {
     return lock ? this.get(lock.ref_id) : null;
   },
 
+  // Creates a new group with a unique invite code and assigns the owner as a member.
   async createWithOwner(name, ownerId) {
     for (let attempt = 0; attempt < 5; attempt++) {
       const group = {
@@ -239,6 +257,7 @@ export const groups = {
         createdAt: now(),
       };
 
+      // Attempt to create the group with a unique invite code.
       try {
         await doc.send(
           new TransactWriteCommand({
@@ -251,13 +270,14 @@ export const groups = {
         );
         return group;
       } catch (error) {
-        // Retry only on invite code collision
+        // A canceled transaction is retried with a new generated group and code.
         if (error.name !== "TransactionCanceledException") throw error;
       }
     }
     throw new Error("Could not generate a unique invite code");
   },
 
+  // Renames an existing group by updating its name attribute.
   async rename(id, name) {
     const res = await doc.send(
       new UpdateCommand({
@@ -273,8 +293,9 @@ export const groups = {
     return res.Attributes;
   },
 
-  // Removes the group and everything that hangs off it (not atomic; the group
-  // item is deleted last so a failed run can simply be retried).
+  // Deletes results, quizzes and memberships before the group and invite lock.
+  // These separate operations are not atomic and can leave partial cleanup if
+  // a request fails.
   async removeCascade(group) {
     const quizList = await quizzes.listByGroup(group.id);
 
@@ -309,6 +330,7 @@ export const groups = {
   },
 };
 
+// Group members
 export const groupMembers = {
   get: (id) => get(table.members, { id }),
 
@@ -330,6 +352,7 @@ export const groupMembers = {
       ExpressionAttributeValues: { ":u": userId },
     }),
 
+  // Adds a new member to the group with the specified role. Throws an error if the user is already a member.
   async add(groupId, userId, role = "member") {
     const member = newMember(groupId, userId, role);
     try {
@@ -369,12 +392,14 @@ export const quizzes = {
       ScanIndexForward: false,
     }),
 
+  // Creates a new quiz with a unique ID and timestamp.
   async create(data) {
     const quiz = { ...data, id: randomUUID(), createdAt: now() };
     await doc.send(new PutCommand({ TableName: table.quizzes, Item: quiz }));
     return quiz;
   },
 
+  // Updates an existing quiz. Throws an error if the quiz does not exist.
   async save(quiz) {
     await doc.send(
       new PutCommand({
@@ -386,6 +411,7 @@ export const quizzes = {
     return quiz;
   },
 
+  // Delete results in batches before the quiz; the separate writes are not atomic.
   async removeCascade(quiz) {
     const results = await quizResults.listByQuiz(quiz.id);
     await batchDelete(
@@ -398,6 +424,7 @@ export const quizzes = {
   },
 };
 
+// Quiz results
 export const quizResults = {
   listByQuiz: (quizId) =>
     queryAll({
@@ -407,6 +434,7 @@ export const quizResults = {
       ExpressionAttributeValues: { ":q": quizId },
     }),
 
+  // Creates a new quiz result with a unique ID and timestamp.
   async create(data) {
     const result = { ...data, id: randomUUID(), createdAt: now() };
     await doc.send(new PutCommand({ TableName: table.results, Item: result }));

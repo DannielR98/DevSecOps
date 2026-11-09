@@ -3,6 +3,8 @@ import { route, parseWith } from "../lib/http.js";
 import { createUserSchema } from "../lib/validation.js";
 import { users } from "../lib/repo.js";
 
+// Registration is public. Hash an optional password before storage; the
+// repository atomically enforces unique auth IDs, emails and usernames.
 export const handler = route(
   async ({ body }) => {
     const { password, ...fields } = parseWith(createUserSchema, body);

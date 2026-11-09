@@ -3,6 +3,7 @@ import { z } from "zod";
 import { HttpError, parseWith, publicUser, requireUUID, route } from "../lib/http.js";
 import { users } from "../lib/repo.js";
 
+// Schema for validating user profile updates. All fields are optional but at least one must be provided.
 const updateUserSchema = z
   .object({
     firstname: z.string().trim().min(1, "First name is required").max(100).optional(),
@@ -21,6 +22,8 @@ const updateUserSchema = z
     message: "Provide at least one field to update",
   });
 
+// Only the authenticated user may update their profile. Hash a supplied
+// password before the repository updates the profile and uniqueness locks.
 export const handler = route(async ({ params, body, user }) => {
   const id = requireUUID(params.user_id, "Invalid user ID");
   const { password, ...fields } = parseWith(updateUserSchema, body);

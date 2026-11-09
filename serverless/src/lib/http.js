@@ -10,6 +10,8 @@ export const respond = (status, body) => ({
   body: JSON.stringify(body),
 });
 
+// API Gateway may send base64-encoded bodies. Endpoints expect JSON objects;
+// malformed JSON, arrays and primitive values are rejected before the handler.
 const parseBody = (event) => {
   if (!event.body) return {};
   const raw = event.isBase64Encoded
@@ -40,6 +42,7 @@ export const parseWith = (schema, data) => {
   return result.data;
 };
 
+// Strip the stored password before serializing a user profile.
 export const publicUser = (user) => {
   const { password, ...rest } = user;
   return rest;
@@ -49,44 +52,46 @@ export const publicUser = (user) => {
  * Wraps a handler body: parses the request, authenticates (unless auth is
  * false) and converts thrown HttpErrors into JSON responses.
  * The body function receives { params, query, body, user } and returns
- * [statusCode, jsonBody].
+ * [statusCode, jsonBody]. OPTIONS exits before body parsing and authentication;
+ * deployed CORS headers are configured on the API Gateway HTTP API.
  */
 
 export const route =
   (fn, { auth = true } = {}) =>
-  async (event) => {
-    if (
-      event.requestContext?.http?.method === "OPTIONS" ||
-      event.httpMethod === "OPTIONS"
-    ) {
-      return {
-        statusCode: 204,
-        body: "",
-      };
-    }
-    try {
-      const ctx = {
-        params: event.pathParameters ?? {},
-        query: event.queryStringParameters ?? {},
-        body: parseBody(event),
-        user: null,
-      };
-
-      if (auth) {
-        ctx.user = await authenticate(event);
+    async (event) => {
+      if (
+        event.requestContext?.http?.method === "OPTIONS" ||
+        event.httpMethod === "OPTIONS"
+      ) {
+        return {
+          statusCode: 204,
+          body: "",
+        };
       }
-
-      const [status, body] = await fn(ctx);
-      return respond(status, body);
-    } catch (error) {
-      if (error instanceof HttpError) {
-        return respond(error.status, {
-          success: false,
-          message: error.message,
-          ...error.extra,
-        });
+      try {
+        const ctx = {
+          params: event.pathParameters ?? {},
+          query: event.queryStringParameters ?? {},
+          body: parseBody(event),
+          user: null,
+        };
+        // Authenticate the user if required.
+        if (auth) {
+          ctx.user = await authenticate(event);
+        }
+        // Call the handler with the constructed context.
+        const [status, body] = await fn(ctx);
+        return respond(status, body);
+      } catch (error) {
+        if (error instanceof HttpError) {
+          return respond(error.status, {
+            success: false,
+            message: error.message,
+            ...error.extra,
+          });
+        }
+        // Log unexpected details on the server without exposing them to clients.
+        console.error("Unhandled error:", error);
+        return respond(500, { success: false, message: "Internal server error" });
       }
-      console.error("Unhandled error:", error);
-      return respond(500, { success: false, message: "Internal server error" });
-    }
-  };
+    };

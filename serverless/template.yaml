@@ -2,29 +2,37 @@ AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: Quiz app backend - API Gateway HTTP API, Lambda functions and DynamoDB
 
+# Deployment-specific settings. NoEcho prevents CloudFormation from displaying
+# the provided secrets in its normal parameter output.
 Parameters:
+  # The stage name is part of the deployed API URL.
   Stage:
     Type: String
     Default: prod
     AllowedPattern: "[a-z0-9-]+"
+  # Browsers may call the API from this single frontend origin.
   AllowedOrigin:
     Type: String
     Default: http://localhost:3000
     Description: Frontend origin allowed by CORS
+  # Used for application-issued login tokens; provide a secret at deployment.
   JwtSecret:
     Type: String
     NoEcho: true
     MinLength: 32
     Description: HS256 secret used to sign tokens issued by /api/login
+  # Enables verification against the Supabase project's remote public keys.
   SupabaseUrl:
     Type: String
     Default: ""
     Description: Supabase project URL (used to fetch the JWKS for Supabase tokens)
+  # Optional shared secret for projects issuing legacy HS256 tokens.
   SupabaseJwtSecret:
     Type: String
     NoEcho: true
     Default: ""
     Description: Optional legacy Supabase HS256 JWT secret
+  # Override the architecture and timeout for local emulation if necessary.
   FunctionArchitecture:
     Type: String
     Default: arm64
@@ -35,12 +43,15 @@ Parameters:
     MinValue: 1
     MaxValue: 900
 
+# All handlers share the bundled code, runtime, configuration and table names.
+# SAM Local overrides selected environment variables for its local database.
 Globals:
   Function:
     Runtime: nodejs22.x
     Architectures: [!Ref FunctionArchitecture]
     MemorySize: 256
     Timeout: !Ref FunctionTimeout
+    # npm run build produces the handler modules in this shared directory.
     CodeUri: dist/
     Environment:
       Variables:
@@ -50,6 +61,7 @@ Globals:
         QUIZZES_TABLE: !Ref QuizzesTable
         RESULTS_TABLE: !Ref QuizResultsTable
         UNIQUES_TABLE: !Ref UniqueKeysTable
+        # An empty endpoint uses AWS; local startup overrides it for DynamoDB Local.
         DYNAMODB_ENDPOINT: ""
         JWT_SECRET: !Ref JwtSecret
         SUPABASE_URL: !Ref SupabaseUrl
@@ -57,6 +69,7 @@ Globals:
 
 Resources:
   # ---------------------------------------------------------------- API
+  # API Gateway handles deployed CORS and applies the default route throttles.
   HttpApi:
     Type: AWS::Serverless::HttpApi
     Properties:
@@ -65,12 +78,16 @@ Resources:
         AllowOrigins: [!Ref AllowedOrigin]
         AllowMethods: [GET, POST, PUT, DELETE, OPTIONS]
         AllowHeaders: [Authorization, Content-Type]
+        # Browsers may cache preflight responses for up to 600 seconds.
         MaxAge: 600
       DefaultRouteSettings:
+        # Default API Gateway throttling limits: burst and sustained requests.
         ThrottlingBurstLimit: 50
         ThrottlingRateLimit: 25
 
   # ---------------------------------------------------------------- IAM
+  # The shared Lambda role grants access to the named tables and their query
+  # indexes; the full-table scan permission is limited to the users table.
   FunctionRole:
     Type: AWS::IAM::Role
     Properties:
@@ -80,6 +97,7 @@ Resources:
           - Effect: Allow
             Principal: { Service: lambda.amazonaws.com }
             Action: sts:AssumeRole
+      # Basic execution permissions include writing Lambda logs to CloudWatch.
       ManagedPolicyArns:
         - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
       Policies:
@@ -96,6 +114,7 @@ Resources:
                   - dynamodb:Query
                   - dynamodb:BatchGetItem
                   - dynamodb:BatchWriteItem
+                # Queries against secondary indexes need their index ARNs too.
                 Resource:
                   - !GetAtt UsersTable.Arn
                   - !GetAtt GroupsTable.Arn
@@ -112,6 +131,10 @@ Resources:
                 Resource: !GetAtt UsersTable.Arn
 
   # ---------------------------------------------------------------- DynamoDB
+  # Retain tables on stack deletion/replacement and enable point-in-time
+  # recovery. Secondary indexes below support repository lookup patterns.
+  # PAY_PER_REQUEST avoids configuring provisioned read/write capacity.
+  # AttributeDefinitions lists key attributes, not every stored item field.
   UsersTable:
     Type: AWS::DynamoDB::Table
     DeletionPolicy: Retain
@@ -138,6 +161,7 @@ Resources:
       KeySchema:
         - { AttributeName: pk, KeyType: HASH }
 
+  # Owner lookup supports listing groups even when membership records are missing.
   GroupsTable:
     Type: AWS::DynamoDB::Table
     DeletionPolicy: Retain
@@ -156,6 +180,8 @@ Resources:
             - { AttributeName: owner_id, KeyType: HASH }
           Projection: { ProjectionType: ALL }
 
+  # Membership IDs are derived from group and user IDs in the repository.
+  # Separate indexes support listing members of a group and groups of a user.
   GroupMembersTable:
     Type: AWS::DynamoDB::Table
     DeletionPolicy: Retain
@@ -179,6 +205,7 @@ Resources:
             - { AttributeName: user_id, KeyType: HASH }
           Projection: { ProjectionType: ALL }
 
+  # The group index uses createdAt as a sort key for chronological quiz queries.
   QuizzesTable:
     Type: AWS::DynamoDB::Table
     DeletionPolicy: Retain
@@ -199,6 +226,7 @@ Resources:
             - { AttributeName: createdAt, KeyType: RANGE }
           Projection: { ProjectionType: ALL }
 
+  # The quiz index retrieves attempts for personal history and leaderboards.
   QuizResultsTable:
     Type: AWS::DynamoDB::Table
     DeletionPolicy: Retain
@@ -218,6 +246,10 @@ Resources:
           Projection: { ProjectionType: ALL }
 
   # ---------------------------------------------------------------- Lambda functions
+  # Each HTTP event connects an API method/path to the named bundled handler.
+  # Authentication and endpoint-specific authorization happen in application code.
+  # Handler names refer to exports in the modules generated by build.mjs.
+  # Results support both personal history and the participant leaderboard.
   GetQuizResultsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -231,6 +263,7 @@ Resources:
             Path: /api/quizzes/{id}/results
             Method: GET
 
+  # Registration and login are public; login issues an application token.
   RegisterUserFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -257,6 +290,7 @@ Resources:
             Path: /api/login
             Method: POST
 
+  # Profile routes require authentication; update and delete check user identity.
   GetUsersFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -322,6 +356,7 @@ Resources:
             Path: /api/delete-user/{user_id}
             Method: DELETE
 
+  # Group routes cover creation, listing, lookup, owner updates and deletion.
   CreateGroupFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -387,6 +422,7 @@ Resources:
             Path: /api/groups/{groupId}
             Method: DELETE
 
+  # Both join routes use invite codes but return different response shapes.
   JoinGroupFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -413,6 +449,7 @@ Resources:
             Path: /api/group-members/join
             Method: POST
 
+  # Member listing, individual lookup and leaving have separate route handlers.
   GetGroupMembersFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -452,6 +489,7 @@ Resources:
             Path: /api/groups/{groupId}/members/leave
             Method: DELETE
 
+  # Quiz routes cover creation, listing, retrieval, updates and deletion.
   CreateQuizFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -517,6 +555,7 @@ Resources:
             Path: /api/quizzes/{id}
             Method: DELETE
 
+  # Submission is scored server-side and creates a saved attempt.
   TakeQuizFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -532,6 +571,7 @@ Resources:
 
 
 Outputs:
+  # Include the stage and /api/ prefix so the frontend can append route paths.
   ApiUrl:
     Description: Base URL for the frontend (set VITE_API_URL to this value)
     Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${Stage}/api/"

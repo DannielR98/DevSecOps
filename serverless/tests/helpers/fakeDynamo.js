@@ -1,5 +1,6 @@
 // Minimal in-memory stand-in for DynamoDBDocumentClient covering the commands
-// used by src/lib/repo.js.
+// used by src/lib/repo.js. It is not a full DynamoDB emulator: it does not
+// model pagination, unprocessed batches, index consistency or every condition.
 const KEYS = {
   users: "user_id",
   uniques: "pk",
@@ -13,6 +14,7 @@ export const createFakeDynamo = (tables) => {
 
   const rows = (name) => (data[name] ??= new Map());
 
+  // Only the existence checks used by these lifecycle tests are implemented.
   const conditionFails = (expr, item) => {
     if (!expr) return false;
     if (expr.startsWith("attribute_not_exists")) return item !== undefined;
@@ -38,6 +40,7 @@ export const createFakeDynamo = (tables) => {
     rows(TableName).delete(Object.values(Key)[0]);
   };
 
+  // Approximate the repository's equality queries and creation-time ordering.
   const query = ({ TableName, KeyConditionExpression, ExpressionAttributeValues, ScanIndexForward }) => {
     const [, attr, placeholder] = KeyConditionExpression.match(/(\w+) = (:\w+)/);
     const items = [...rows(TableName).values()].filter(
@@ -90,7 +93,7 @@ export const createFakeDynamo = (tables) => {
         return {};
       }
       case "TransactWriteCommand": {
-        // Check every condition first so the transaction is all-or-nothing.
+        // Check supported put conditions before applying any transaction writes.
         for (const { Put } of input.TransactItems) {
           if (
             Put &&

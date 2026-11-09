@@ -1,6 +1,9 @@
 import { HttpError, requireUUID, route } from "../lib/http.js";
 import { groupMembers, groups, quizResults, quizzes, users } from "../lib/repo.js";
 
+// Group members and the owner may request their own history or the leaderboard.
+// The leaderboard exposes each participant's best score and total attempts,
+// rather than their full attempt history.
 export const handler = route(async ({ params, query, user }) => {
   const quizId = requireUUID(params.id, "Invalid quiz ID");
   if (query.view !== "mine" && query.view !== "leaderboard") {
@@ -14,6 +17,7 @@ export const handler = route(async ({ params, query, user }) => {
     throw new HttpError(403, "You are not a member of this group");
   }
 
+  // Fetch all quiz results for the specified quiz.
   const results = await quizResults.listByQuiz(quizId);
   if (query.view === "mine") {
     return [200, {
@@ -26,6 +30,8 @@ export const handler = route(async ({ params, query, user }) => {
     }];
   }
 
+  // Count every saved attempt, including attempts after the best result. Compare
+  // ratios without rounding; on ties choose the earliest timestamp, then ID.
   const best = new Map();
   const attempts = new Map();
   for (const result of results) {
@@ -37,6 +43,7 @@ export const handler = route(async ({ params, query, user }) => {
       best.set(result.user_id, result);
     }
   }
+  // Results may outlive membership; missing profiles receive a fallback name.
   const profiles = await users.getMany([...best.keys()]);
   const names = new Map(profiles.map((profile) => [profile.user_id, profile.username]));
   return [200, {
