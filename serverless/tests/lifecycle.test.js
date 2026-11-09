@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// Handler-level lifecycle tests use the real repository against an in-memory
+// stand-in; no deployed API Gateway, Supabase or DynamoDB is contacted.
 const TABLES = {
   users: "users",
   groups: "groups",
@@ -43,6 +45,7 @@ const { handler: deleteQuiz } = await import("../src/handlers/deleteQuiz.js");
 const db = await import("../src/lib/db.js");
 const { quizResults: resultsRepo } = await import("../src/lib/repo.js");
 
+// Construct an API Gateway-like event and decode the handler's JSON response.
 const call = async (fn, { token, body, params, query } = {}) => {
   const res = await fn({
     headers: token ? { Authorization: `Bearer ${token}` } : {},
@@ -77,6 +80,7 @@ const signUp = async (name) => {
   return { id: reg.body.user.user_id, token: login.body.token };
 };
 
+// Prevent one lifecycle from affecting the next.
 beforeEach(() => {
   for (const map of Object.values(db.__data)) map.clear();
 });
@@ -195,6 +199,7 @@ describe("users", () => {
   });
 });
 
+// Cover authorization, result privacy and the complete group/quiz lifecycle.
 describe("groups, members and quizzes", () => {
   it("restricts personal results and exposes only each participant's best score to members", async () => {
     const alice = await signUp("alice");
@@ -246,6 +251,7 @@ describe("groups, members and quizzes", () => {
     })).status).toBe(404);
   });
 
+  // Tests for handling quiz result retrieval, leaderboard calculations, and group membership effects on visibility.
   it("uses unrounded percentages and resolves tied attempts deterministically", async () => {
     const alice = await signUp("alice");
     const bob = await signUp("bob");
@@ -273,6 +279,7 @@ describe("groups, members and quizzes", () => {
     ]);
   });
 
+  // Tests for input validation when creating groups and quizzes, ensuring errors are returned before any data is stored.
   it("rejects invalid group and quiz input before storing data", async () => {
     const alice = await signUp("alice");
     const group = await call(createGroup, { token: alice.token, body: { name: "" } });
@@ -326,6 +333,7 @@ describe("groups, members and quizzes", () => {
     expect(found.body.member.user).not.toHaveProperty("password");
   });
 
+  // Tests for the full lifecycle of group and quiz management, including creation, joining, updating, and access control.
   it("runs the full group/quiz lifecycle", async () => {
     const alice = await signUp("alice");
     const bob = await signUp("bob");
@@ -430,6 +438,7 @@ describe("groups, members and quizzes", () => {
     ).toBe(false);
   });
 
+  // Tests for quiz deletion permissions and cascading removal of associated results.
   it("lets only the creator delete a quiz and removes its results", async () => {
     const alice = await signUp("alice");
     const bob = await signUp("bob");

@@ -1,6 +1,8 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
 
+// Verify real signatures with local test keys instead of contacting Supabase.
+// Hoisting makes the key collection available when Vitest initializes mocks.
 const jwks = vi.hoisted(() => ({ keys: [] }));
 
 vi.mock("jose", async (importOriginal) => {
@@ -11,6 +13,7 @@ vi.mock("jose", async (importOriginal) => {
   };
 });
 
+// Isolate authentication and handler flows from AWS using the shared fake.
 vi.mock("../src/lib/db.js", async () => {
   const { createFakeDynamo } = await import("./helpers/fakeDynamo.js");
   const table = {
@@ -41,6 +44,7 @@ const secret = "test-secret-test-secret-test-secret-123";
 const otherSecret = "other-secret-other-secret-other-secret-123";
 const encode = (value) => new TextEncoder().encode(value);
 
+// Reset stored data and environment for each case; restore stubs afterwards.
 beforeEach(() => {
   for (const map of Object.values(__data)) map.clear();
   vi.stubEnv("JWT_SECRET", secret);
@@ -53,6 +57,7 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
+// Tests for authentication flows, including JWT verification and legacy Supabase token handling.
 describe("authentication", () => {
   it("verifies app tokens and rejects expired or incorrectly signed tokens", async () => {
     const token = await createJWT({ user_id: "user-1", username: "alice", email: "a@example.com" });
@@ -69,6 +74,7 @@ describe("authentication", () => {
     await expect(verifyToken(wrongSignature)).rejects.toMatchObject({ status: 401 });
   });
 
+  // Tests for legacy Supabase token handling and user provisioning.
   it("accepts legacy Supabase HS256 tokens and provisions a user once", async () => {
     vi.stubEnv("SUPABASE_JWT_SECRET", otherSecret);
     const token = await new SignJWT({
@@ -90,6 +96,7 @@ describe("authentication", () => {
     expect(await users.list()).toHaveLength(1);
   });
 
+  // Tests for handling missing or invalid bearer tokens.
   it("rejects missing bearer headers and tokens without an identity", async () => {
     await expect(authenticate({ headers: {} })).rejects.toMatchObject({ status: 401 });
     await expect(authenticate({ headers: { Authorization: "Basic value" } })).rejects.toMatchObject({ status: 401 });
@@ -97,6 +104,7 @@ describe("authentication", () => {
     await expect(authenticate({ headers: { Authorization: `Bearer ${token}` } })).rejects.toMatchObject({ status: 401 });
   });
 
+  // Tests for JWKS-based Supabase token verification and user provisioning.
   it("verifies a Supabase JWKS token and provisions its user", async () => {
     const { publicKey, privateKey } = await generateKeyPair("RS256", { extractable: true });
     const publicJwk = await exportJWK(publicKey);
@@ -118,6 +126,7 @@ describe("authentication", () => {
     });
   });
 
+  // Tests for the frontend sync, profile, and quiz flow using a Supabase token.
   it("supports the frontend sync, profile and quiz flow with a Supabase token", async () => {
     vi.stubEnv("SUPABASE_JWT_SECRET", otherSecret);
     const token = await new SignJWT({
@@ -167,9 +176,11 @@ describe("authentication", () => {
   });
 });
 
+// Exercise the common request parser and error mapping independently of routes.
 describe("HTTP route wrapper", () => {
   const echo = route(async ({ body }) => [200, body], { auth: false });
 
+  // Tests for the HTTP route wrapper, including preflight handling, JSON parsing, and error mapping.
   it.each([
     { requestContext: { http: { method: "OPTIONS" } } },
     { httpMethod: "OPTIONS" },
@@ -180,6 +191,7 @@ describe("HTTP route wrapper", () => {
     expect(handler).not.toHaveBeenCalled();
   });
 
+  // Tests for JSON parsing and base64-encoded bodies.
   it("parses JSON and base64-encoded bodies", async () => {
     const response = await echo({ body: Buffer.from('{"name":"test"}').toString("base64"), isBase64Encoded: true });
     expect(response.statusCode).toBe(200);
@@ -187,14 +199,16 @@ describe("HTTP route wrapper", () => {
     expect(response.headers["Content-Type"]).toBe("application/json");
   });
 
+  // Tests for rejection of non-object JSON bodies.
   it.each(["{", "null", "[]", '"string"', "42"])("rejects non-object JSON: %s", async (body) => {
     const response = await echo({ body });
     expect(response.statusCode).toBe(400);
     expect(JSON.parse(response.body)).toMatchObject({ success: false, message: "Request body must be a JSON object" });
   });
 
+  // Tests for unexpected errors and the corresponding sanitized 500 response.
   it("logs unexpected errors and returns a sanitized 500 response", async () => {
-    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const log = vi.spyOn(console, "error").mockImplementation(() => { });
     const fail = route(async () => { throw new Error("database details"); }, { auth: false });
     const response = await fail({});
     expect(response.statusCode).toBe(500);

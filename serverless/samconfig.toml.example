@@ -1,5 +1,7 @@
 version = 0.1
 
+# Copy this example to samconfig.toml and replace deployment-specific values.
+# The signing secret must be supplied separately when deploying.
 [default.deploy.parameters]
 stack_name = "quiz-serverless"
 region = "eu-north-1"

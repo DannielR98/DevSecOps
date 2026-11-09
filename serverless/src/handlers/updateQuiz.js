@@ -2,6 +2,8 @@ import { HttpError, parseWith, route } from "../lib/http.js";
 import { createQuizSchema } from "../lib/validation.js";
 import { quizzes } from "../lib/repo.js";
 
+// Only the creator may edit. Merge optional fields with existing values before
+// validating, while keeping the quiz in its original group.
 export const handler = route(async ({ params, body, user }) => {
   const quiz = await quizzes.get(params.id);
   if (!quiz) throw new HttpError(404, "Quiz not found");

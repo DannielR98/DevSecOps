@@ -145,10 +145,6 @@ jobs:
       # 4. BDD & E2E TESTING (Playwright)
       # =========================
 
-      # =========================
-      # 4. BDD & E2E TESTING (Playwright)
-      # =========================
-
       - name: Install Playwright browser
         working-directory: frontend/quiz
         run: npx playwright install --with-deps chromium
@@ -229,16 +225,21 @@ jobs:
           tags: ${{ steps.meta-backend.outputs.tags }}
           labels: ${{ steps.meta-backend.outputs.labels }}
 
+  # AWS deployment runs only after CI passes on a push to main. It is separate
+  # from the GHCR image-publishing job above.
   deploy-backend-aws:
     name: Deploy serverless backend (AWS SAM)
     needs: ci
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Serialize backend deployments so stack updates do not overlap.
     concurrency: deploy-aws-backend
     permissions:
       contents: read
+      # Required for GitHub OIDC to obtain temporary AWS role credentials.
       id-token: write
     outputs:
+      # The frontend build consumes the deployed stack's API base URL.
       api-url: ${{ steps.api.outputs.url }}
 
     steps:
@@ -250,21 +251,28 @@ jobs:
           cache: npm
           cache-dependency-path: serverless/package-lock.json
 
+      # Install SAM for packaging and deploying the serverless template.
       - uses: aws-actions/setup-sam@v2
         with:
           use-installer: true
 
+      # Assume the configured AWS role using GitHub's OIDC token.
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
+      # Each job starts on a fresh runner, so install and rebuild the Lambda
+      # bundles even though CI built them earlier.
       - name: Build handlers
         working-directory: serverless
         run: |
           npm ci
           npm run build
 
+      # SAM uploads deployment artifacts to a resolved S3 bucket and updates
+      # the CloudFormation stack, including its IAM resources. An empty change
+      # set is treated as success; the JWT secret is passed as a parameter.
       - name: Deploy stack
         working-directory: serverless
         env:
@@ -282,6 +290,7 @@ jobs:
               "SupabaseUrl=${{ vars.SUPABASE_URL }}" \
               "JwtSecret=$JWT_SECRET"
 
+      # Expose the CloudFormation output to the dependent frontend job.
       - name: Read API URL
         id: api
         run: |
@@ -292,11 +301,13 @@ jobs:
             --output text)
           echo "url=$url" >> "$GITHUB_OUTPUT"
 
+  # Build only after backend deployment succeeds so Vite receives its API URL.
   deploy-frontend-aws:
     name: Deploy frontend (ECR + EC2)
     needs: deploy-backend-aws
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # Serialize frontend deployments to avoid overlapping EC2 container changes.
     concurrency: deploy-aws-frontend
     permissions:
       contents: read
@@ -305,15 +316,19 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # This job needs its own temporary OIDC credentials on its fresh runner.
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
 
+      # Authenticate Docker and capture the registry address for image tags.
       - name: Log in to ECR
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
+      # Vite settings are embedded at build time. Publish both a convenient
+      # latest tag and a commit-specific tag used for the actual deployment.
       - name: Build and push image
         uses: docker/build-push-action@v5
         with:
@@ -329,6 +344,9 @@ jobs:
             ${{ steps.ecr.outputs.registry }}/quiz-frontend:latest
             ${{ steps.ecr.outputs.registry }}/quiz-frontend:${{ github.sha }}
 
+      # Run the checked-in deployment script on the instance through SSM.
+      # jq shell-quotes the image, region and script before constructing the
+      # command document; the commit tag selects the image built in this job.
       - name: Restart container on EC2 via SSM
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
@@ -347,6 +365,8 @@ jobs:
             --parameters "$parameters" \
             --query "Command.CommandId" --output text)
           echo "SSM command: $id"
+          # Preserve the waiter result while still retrieving diagnostics when
+          # the remote deployment fails.
           if aws ssm wait command-executed --command-id "$id" --instance-id "$INSTANCE_ID"; then
             result=0
           else

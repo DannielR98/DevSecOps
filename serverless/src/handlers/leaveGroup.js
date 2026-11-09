@@ -1,6 +1,8 @@
 import { HttpError, requireUUID, route } from "../lib/http.js";
 import { groupMembers, groups } from "../lib/repo.js";
 
+// Owners cannot leave through this route. Other users can only remove their
+// own membership; existing quiz results are retained.
 export const handler = route(async ({ params, user }) => {
   const groupId = requireUUID(params.groupId, "Invalid group ID");
 

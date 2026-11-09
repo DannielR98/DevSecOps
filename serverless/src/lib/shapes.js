@@ -1,3 +1,5 @@
+// Explicit response shapes keep group and membership output independent of
+// additional fields that may later be stored in DynamoDB.
 export const publicGroup = (group) => ({
   id: group.id,
   name: group.name,
@@ -6,6 +8,7 @@ export const publicGroup = (group) => ({
   createdAt: group.createdAt,
 });
 
+// Explicit response shape for group members.
 export const publicMember = (member) => ({
   id: member.id,
   group_id: member.group_id,

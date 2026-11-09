@@ -12,6 +12,8 @@ const loginSchema = z.object({
 const invalid = () =>
   new HttpError(401, "Invalid username/email or password");
 
+// This public endpoint accepts a username or email and verifies a bcrypt hash.
+// The same failure message is used for absent users and incorrect passwords.
 export const handler = route(
   async ({ body }) => {
     const { user: identifier, password } = parseWith(loginSchema, body);
