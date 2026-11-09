@@ -25,4 +25,5 @@ build
 *.njsproj
 *.sln
 *.sw?
-/frontend/quiz/test-results/*
+/test-results/
+/playwright-report/
