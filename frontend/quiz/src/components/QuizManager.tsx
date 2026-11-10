@@ -732,7 +732,8 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
           </div>
         </div>
       )}
-      // Create / Edit Quiz Modal
+      {/* // Create / Edit Quiz Modal */}
+
       {showCreateModal && (
         <div
           style={{
