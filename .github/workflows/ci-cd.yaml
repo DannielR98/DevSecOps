@@ -157,6 +157,73 @@ jobs:
           exit-code: "1"
 
       # =========================
+      # 3c. TRIVY: container images (build + scan)
+      # =========================
+      # VITE_*-värden hämtas från GitHub secrets/variabler.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build Frontend image (dev)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend/quiz
+          load: true
+          tags: quiz-scan-frontend:${{ github.sha }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,scope=frontend,mode=max
+
+      - name: Build Frontend image (prod)
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend/quiz
+          file: ./frontend/quiz/Dockerfile.prod
+          platforms: linux/amd64
+          load: true
+          tags: quiz-scan-frontend-prod:${{ github.sha }}
+          cache-from: type=gha,scope=frontend-prod
+          cache-to: type=gha,scope=frontend-prod,mode=max
+          build-args: |
+            VITE_API_URL=${{ secrets.VITE_API_URL }}
+            VITE_SUPABASE_URL=${{ vars.SUPABASE_URL }}
+            VITE_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+
+      - name: Build Backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          load: true
+          tags: quiz-scan-backend:${{ github.sha }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,scope=backend,mode=max
+
+      - name: Trivy scan Frontend image (dev)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          image-ref: quiz-scan-frontend:${{ github.sha }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Trivy scan Frontend image (prod)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          image-ref: quiz-scan-frontend-prod:${{ github.sha }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Trivy scan Backend image
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        with:
+          image-ref: quiz-scan-backend:${{ github.sha }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+      # =========================
       # 4. BDD & E2E TESTING (Playwright)
       # =========================
 
@@ -224,46 +291,10 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}-backend
 
-      # Bygg lokalt och skanna imagerna innan något publiceras till GHCR.
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Build Frontend image for scanning
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend/quiz
-          load: true
-          tags: quiz-scan-frontend:${{ github.sha }}
-          cache-from: type=gha,scope=frontend
-          cache-to: type=gha,scope=frontend,mode=max
-
-      - name: Build Backend image for scanning
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          load: true
-          tags: quiz-scan-backend:${{ github.sha }}
-          cache-from: type=gha,scope=backend
-          cache-to: type=gha,scope=backend,mode=max
-
-      - name: Trivy scan Frontend image
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
-        with:
-          image-ref: quiz-scan-frontend:${{ github.sha }}
-          scanners: vuln
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: "1"
-
-      - name: Trivy scan Backend image
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
-        with:
-          image-ref: quiz-scan-backend:${{ github.sha }}
-          scanners: vuln
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: "1"
-
+      # Build and push Docker images to GHCR (images are scanned in CI)
       - name: Build and push Frontend Docker image
         uses: docker/build-push-action@v5
         with:
@@ -388,31 +419,6 @@ jobs:
       # latest tag and a commit-specific tag used for the actual deployment.
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
-
-      # Build locally and scan before anything is pushed to ECR.
-      - name: Build image for scanning
-        uses: docker/build-push-action@v5
-        with:
-          context: ./frontend/quiz
-          file: ./frontend/quiz/Dockerfile.prod
-          platforms: linux/amd64
-          load: true
-          cache-to: type=gha,scope=frontend-prod,mode=max
-          cache-from: type=gha,scope=frontend-prod
-          tags: quiz-scan-frontend-prod:${{ github.sha }}
-          build-args: |
-            VITE_API_URL=${{ needs.deploy-backend-aws.outputs.api-url }}
-            VITE_SUPABASE_URL=${{ vars.SUPABASE_URL }}
-            VITE_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
-
-      - name: Trivy scan image
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
-        with:
-          image-ref: quiz-scan-frontend-prod:${{ github.sha }}
-          scanners: vuln
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: "1"
 
       - name: Build and push image
         uses: docker/build-push-action@v5
