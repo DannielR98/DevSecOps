@@ -137,9 +137,9 @@ jobs:
       # =========================
 
       - name: Run Semgrep SAST
-        uses: semgrep/semgrep-action@v1
-        with:
-          config: auto
+        run: |
+          python3 -m pip install --user "semgrep==1.185.0"
+          "$HOME/.local/bin/semgrep" scan --config auto --error --metrics=off .
 
       # =========================
       # 3b. TRIVY: beroenden (SCA) och IaC/Dockerfile-felkonfiguration

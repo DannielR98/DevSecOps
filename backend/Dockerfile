@@ -2,6 +2,9 @@ FROM node:22-alpine
 
 WORKDIR /app
 
+# Basimagens npm bundlar sårbara interna beroenden (Trivy)
+RUN npm install -g npm@^12
+
 COPY package*.json package-lock.json ./
 
 RUN npm ci
