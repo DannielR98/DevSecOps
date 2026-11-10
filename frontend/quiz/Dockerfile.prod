@@ -22,9 +22,11 @@ ENV VITE_API_URL=$VITE_API_URL \
 
 RUN npm run build
 
-FROM nginx:1.27-alpine
+FROM nginx:1.30.6-alpine3.24
 
-RUN apk add --no-cache libcap && \
+# nginx-module-xslt (och libxslt) behövs inte för statiska filer och har öppna CVE:er
+RUN apk del --no-cache nginx-module-xslt && \
+    apk add --no-cache libcap && \
     # Ge Nginx-binären rättighet att binda till låga portar (<1024)
     setcap 'cap_net_bind_service=+ep' /usr/sbin/nginx && \
     # Ändra ägandeskap på mappar som Nginx skriver till under körning

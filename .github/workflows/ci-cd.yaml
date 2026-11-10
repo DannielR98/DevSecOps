@@ -147,6 +147,8 @@ jobs:
       # Fäst på commit-SHA (v0.36.0) eftersom åtgärden körs med repots behörigheter.
       - name: Trivy filesystem scan (vulnerabilities & misconfig)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        env:
+          TRIVY_SKIP_VERSION_CHECK: "true"
         with:
           scan-type: fs
           scan-ref: .
@@ -198,6 +200,8 @@ jobs:
 
       - name: Trivy scan Frontend image (dev)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        env:
+          TRIVY_SKIP_VERSION_CHECK: "true"
         with:
           image-ref: quiz-scan-frontend:${{ github.sha }}
           scanners: vuln
@@ -207,6 +211,8 @@ jobs:
 
       - name: Trivy scan Frontend image (prod)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        env:
+          TRIVY_SKIP_VERSION_CHECK: "true"
         with:
           image-ref: quiz-scan-frontend-prod:${{ github.sha }}
           scanners: vuln
@@ -216,6 +222,8 @@ jobs:
 
       - name: Trivy scan Backend image
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        env:
+          TRIVY_SKIP_VERSION_CHECK: "true"
         with:
           image-ref: quiz-scan-backend:${{ github.sha }}
           scanners: vuln
