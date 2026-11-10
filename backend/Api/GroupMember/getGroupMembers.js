@@ -55,7 +55,6 @@ router.get("/groups/:groupId/members", verifyJWT, async (req, res) => {
 export default router;
  */
 
-
 import express from "express";
 import { Op } from "sequelize";
 
@@ -83,8 +82,7 @@ router.get("/groups/:groupId/members", checkJwt, async (req, res) => {
 
     // 2. Get authenticated user from the Supabase JWT
     const authId = req.auth?.payload?.sub;
-    const tokenEmail =
-      req.auth?.payload?.email ?? req.user?.email;
+    const tokenEmail = req.auth?.payload?.email ?? req.user?.email;
 
     if (!authId && !tokenEmail) {
       return res.status(401).json({
@@ -165,9 +163,9 @@ router.get("/groups/:groupId/members", checkJwt, async (req, res) => {
       group_id: groupId,
       members,
     });
-  } catch (error) {
-    console.error("Error getting group members:", error);
-    console.error("Database error:", error.original?.message);
+  } catch (_error) {
+    //console.error("Error getting group members:", error);
+    // console.error("Database error:", error.original?.message);
 
     return res.status(500).json({
       success: false,

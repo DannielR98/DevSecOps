@@ -36,8 +36,8 @@ router.get("/user/:user_id", checkJwt, async (req, res) => {
       success: true,
       user,
     });
-  } catch (error) {
-    console.error("Error fetching user:", error);
+  } catch (_error) {
+    //console.error("Error fetching user:", error);
 
     return res.status(500).json({
       success: false,

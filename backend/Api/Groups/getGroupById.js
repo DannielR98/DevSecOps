@@ -118,8 +118,8 @@ router.get("/groups/:id", checkJwt, async (req, res) => {
         createdAt: group.createdAt,
       },
     });
-  } catch (error) {
-    console.error("Error fetching group:", error);
+  } catch (_error) {
+    //console.error("Error fetching group:", error);
 
     return res.status(500).json({
       success: false,

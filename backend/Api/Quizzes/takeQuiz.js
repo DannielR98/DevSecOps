@@ -295,9 +295,10 @@ router.post("/quizzes/:id/submit", checkJwt, async (req, res) => {
       const question = questions[i];
 
       const options = question.options;
-      const answerIndex = typeof answer === "string" && Array.isArray(options)
-        ? options.indexOf(answer)
-        : answer;
+      const answerIndex =
+        typeof answer === "string" && Array.isArray(options)
+          ? options.indexOf(answer)
+          : answer;
       if (
         !Number.isInteger(answerIndex) ||
         !Array.isArray(options) ||
@@ -310,10 +311,15 @@ router.post("/quizzes/:id/submit", checkJwt, async (req, res) => {
         });
       }
 
-      const correctIndex = typeof question.correctAnswer === "string"
-        ? options.indexOf(question.correctAnswer)
-        : question.correctAnswer;
-      if (!Number.isInteger(correctIndex) || correctIndex < 0 || correctIndex >= options.length) {
+      const correctIndex =
+        typeof question.correctAnswer === "string"
+          ? options.indexOf(question.correctAnswer)
+          : question.correctAnswer;
+      if (
+        !Number.isInteger(correctIndex) ||
+        correctIndex < 0 ||
+        correctIndex >= options.length
+      ) {
         return res.status(500).json({
           success: false,
           message: `Invalid correct answer configuration for question ${i + 1}`,
@@ -357,9 +363,9 @@ router.post("/quizzes/:id/submit", checkJwt, async (req, res) => {
         createdAt: result.createdAt,
       },
     });
-  } catch (error) {
-    console.error("Error submitting quiz:", error);
-    console.error("Database error:", error.original?.message);
+  } catch (_error) {
+    //console.error("Error submitting quiz:", error);
+    //console.error("Database error:", error.original?.message);
 
     return res.status(500).json({
       success: false,

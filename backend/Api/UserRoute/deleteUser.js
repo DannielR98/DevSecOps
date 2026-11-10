@@ -52,8 +52,8 @@ router.delete("/delete-user/:user_id", verifyJWT, async (req, res) => {
       success: true,
       message: "User deleted successfully",
     });
-  } catch (error) {
-    console.error("Delete user error:", error);
+  } catch (_error) {
+    //console.error("Delete user error:", error);
 
     return res.status(500).json({
       success: false,

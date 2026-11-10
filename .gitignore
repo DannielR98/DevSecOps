@@ -18,3 +18,9 @@ serverless/dist/
 serverless/.aws-sam/
 serverless/samconfig.toml
 serverless/local/config.json
+
+# Private keys and certificates
+*.pem
+*.key
+*.p12
+*.pfx

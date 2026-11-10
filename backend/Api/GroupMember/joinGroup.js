@@ -230,9 +230,9 @@ router.post("/group-members/join", checkJwt, async (req, res) => {
         createdAt: member.createdAt,
       },
     });
-  } catch (error) {
-    console.error("Error joining group:", error);
-    console.error("Database error:", error.original?.message);
+  } catch (_error) {
+    //console.error("Error joining group:", error);
+    //console.error("Database error:", error.original?.message);
 
     return res.status(500).json({
       success: false,

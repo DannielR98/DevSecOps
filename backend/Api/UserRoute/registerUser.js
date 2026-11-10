@@ -61,7 +61,7 @@ router.post("/register", async (req, res) => {
     }
 
     // 8. Log unexpected errors on the server
-    console.error("Register user error:", error);
+    //console.error("Register user error:", error);
 
     return res.status(500).json({
       message: "Internal server error",

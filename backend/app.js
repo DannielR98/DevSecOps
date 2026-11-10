@@ -182,10 +182,10 @@ async function startServer() {
     console.log("Database synced successfully");
 
     app.listen(PORT, () => {
-      console.log(`Server running on http://localhost:${PORT}`);
+      console.log("Server running on ");
     });
-  } catch (error) {
-    console.error("Failed to start application:", error);
+  } catch (_error) {
+    // console.error("Failed to start application:", error);
     process.exit(1);
   }
 }

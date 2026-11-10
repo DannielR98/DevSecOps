@@ -190,9 +190,9 @@ router.delete("/quizzes/:id", checkJwt, async (req, res) => {
       success: true,
       message: "Quiz deleted successfully",
     });
-  } catch (error) {
-    console.error("Error deleting quiz:", error);
-    console.error("Database error:", error.original?.message);
+  } catch (_error) {
+    //console.error("Error deleting quiz:", error);
+    // console.error("Database error:", error.original?.message);
 
     return res.status(500).json({
       success: false,
