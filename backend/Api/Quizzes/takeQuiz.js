@@ -364,7 +364,7 @@ router.post("/quizzes/:id/submit", checkJwt, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error submitting quiz:", error);
+    console.error("Error submitting quiz:", error.message);
     //console.error("Database error:", error.original?.message);
 
     return res.status(500).json({

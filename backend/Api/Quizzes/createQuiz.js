@@ -288,7 +288,7 @@ router.post("/quizzes", checkJwt, async (req, res) => {
       quiz,
     });
   } catch (error) {
-    console.error("Error creating quiz:", error);
+    console.error("Error creating quiz:", error.message);
     //console.error("Database error:", error.original?.message);
     //console.error("Database details:", error.errors);
 

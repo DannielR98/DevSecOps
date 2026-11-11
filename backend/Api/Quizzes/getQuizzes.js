@@ -309,7 +309,7 @@ router.get("/quizzes", checkJwt, async (req, res) => {
       quizzes: formattedQuizzes,
     });
   } catch (error) {
-    console.error("Error fetching quizzes:", error);
+    console.error("Error fetching quizzes:", error.message);
     //console.error("Database error:", error.original?.message);
 
     return res.status(500).json({

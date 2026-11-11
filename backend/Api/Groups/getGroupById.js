@@ -119,7 +119,7 @@ router.get("/groups/:id", checkJwt, async (req, res) => {
       },
     });
   } catch (error) {
-    console.error("Error fetching group:", error);
+    console.error("Error fetching group:", error.message);
 
     return res.status(500).json({
       success: false,

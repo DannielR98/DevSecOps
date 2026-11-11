@@ -138,7 +138,7 @@ router.put("/update-user/:user_id", verifyJWT, async (req, res) => {
       });
     }
 
-    console.error("Update user error:", error);
+    console.error("Update user error:", error.message);
 
     return res.status(500).json({
       success: false,

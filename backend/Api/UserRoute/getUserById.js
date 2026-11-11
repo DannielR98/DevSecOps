@@ -37,7 +37,7 @@ router.get("/user/:user_id", checkJwt, async (req, res) => {
       user,
     });
   } catch (error) {
-    console.error("Error fetching user:", error);
+    console.error("Error fetching user:", error.message);
 
     return res.status(500).json({
       success: false,

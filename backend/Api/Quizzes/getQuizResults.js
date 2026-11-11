@@ -125,7 +125,7 @@ router.get("/quizzes/:id/results", checkJwt, async (req, res) => {
         ),
     });
   } catch (error) {
-    console.error("Error fetching quiz results:", error);
+    console.error("Error fetching quiz results:", error.message);
     return res.status(500).json({ message: "Could not fetch quiz results" });
   }
 });
