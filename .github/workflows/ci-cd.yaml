@@ -251,7 +251,25 @@ jobs:
 
       - name: Install Playwright browser
         working-directory: frontend/quiz
-        run: npx playwright install --with-deps chromium
+        run: |
+          if ! getent ahostsv4 archive.ubuntu.com >/dev/null || ! getent ahostsv4 security.ubuntu.com >/dev/null; then
+            echo "::warning::Ubuntu archive DNS failed; trying public DNS for Playwright installation"
+            interface="$(ip -4 route show default | awk 'NR == 1 {for (i = 1; i <= NF; i++) if ($i == "dev") {print $(i+1); exit}}')"
+            if [ -z "$interface" ]; then
+              echo "::error::Could not determine the default network interface"
+              exit 1
+            fi
+            trap 'sudo resolvectl revert "$interface"; sudo resolvectl flush-caches' EXIT
+            sudo resolvectl dns "$interface" 1.1.1.1 8.8.8.8
+            sudo resolvectl flush-caches
+            for host in archive.ubuntu.com security.ubuntu.com packages.microsoft.com; do
+              if ! getent ahostsv4 "$host"; then
+                echo "::error::Could not resolve $host using public DNS"
+                exit 1
+              fi
+            done
+          fi
+          npx playwright install --with-deps chromium
 
       - name: Run Playwright BDD tests
         working-directory: frontend/quiz
