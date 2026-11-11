@@ -189,14 +189,15 @@ jobs:
             VITE_SUPABASE_URL=${{ vars.SUPABASE_URL }}
             VITE_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
 
-      - name: Build Backend image
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
-        with:
-          context: ./backend
-          load: true
-          tags: quiz-scan-backend:${{ github.sha }}
-          cache-from: type=gha,scope=backend
-          cache-to: type=gha,scope=backend,mode=max
+# Uncomment this to build Express backend image for Trivy scanning
+#      - name: Build Backend image
+#        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+#        with:
+#          context: ./backend
+#          load: true
+#          tags: quiz-scan-backend:${{ github.sha }}
+#          cache-from: type=gha,scope=backend
+#          cache-to: type=gha,scope=backend,mode=max
 
       - name: Trivy scan Frontend image (dev)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
@@ -220,16 +221,17 @@ jobs:
           ignore-unfixed: true
           exit-code: "1"
 
-      - name: Trivy scan Backend image
-        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
-        env:
-          TRIVY_SKIP_VERSION_CHECK: "true"
-        with:
-          image-ref: quiz-scan-backend:${{ github.sha }}
-          scanners: vuln
-          severity: HIGH,CRITICAL
-          ignore-unfixed: true
-          exit-code: "1"
+# Uncomment this block to scan Express backend image for vulnerabilities with Trivy
+#      - name: Trivy scan Backend image
+#        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+#        env:
+#          TRIVY_SKIP_VERSION_CHECK: "true"
+#        with:
+#          image-ref: quiz-scan-backend:${{ github.sha }}
+#          scanners: vuln
+#          severity: HIGH,CRITICAL
+#          ignore-unfixed: true
+#          exit-code: "1"
 
       # =========================
       # 4. BDD & E2E TESTING (Playwright)
@@ -312,14 +314,15 @@ jobs:
           tags: ${{ steps.meta-frontend.outputs.tags }}
           labels: ${{ steps.meta-frontend.outputs.labels }}
 
-      - name: Build and push Backend Docker image
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
-        with:
-          context: ./backend
-          cache-from: type=gha,scope=backend
-          push: true
-          tags: ${{ steps.meta-backend.outputs.tags }}
-          labels: ${{ steps.meta-backend.outputs.labels }}
+# Uncomment the following block to build and push the Express Backend Docker image
+#      - name: Build and push Backend Docker image
+#        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+#        with:
+#          context: ./backend
+#          cache-from: type=gha,scope=backend
+#          push: true
+#          tags: ${{ steps.meta-backend.outputs.tags }}
+#          labels: ${{ steps.meta-backend.outputs.labels }}
 
   # AWS deployment runs only after CI passes on a push to main. It is separate
   # from the GHCR image-publishing job above.
