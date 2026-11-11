@@ -241,6 +241,14 @@ jobs:
         run: |
           grep -rl azure.archive.ubuntu.com /etc/apt | xargs -r sudo sed -i 's/azure\.archive\.ubuntu\.com/archive.ubuntu.com/g'
 
+      - name: Diagnose Ubuntu archive DNS
+        run: |
+          resolvectl status || echo "::warning::Could not obtain resolver status"
+          for host in archive.ubuntu.com security.ubuntu.com packages.microsoft.com; do
+            echo "Resolving $host:"
+            getent hosts "$host" || echo "::warning::Could not resolve $host"
+          done
+
       - name: Install Playwright browser
         working-directory: frontend/quiz
         run: |
