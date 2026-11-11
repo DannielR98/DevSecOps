@@ -237,9 +237,19 @@ jobs:
       # 4. BDD & E2E TESTING (Playwright)
       # =========================
 
+      - name: Switch apt mirror from Azure to official Ubuntu archive
+        run: |
+          grep -rl azure.archive.ubuntu.com /etc/apt | xargs -r sudo sed -i 's/azure\.archive\.ubuntu\.com/archive.ubuntu.com/g'
+
       - name: Install Playwright browser
         working-directory: frontend/quiz
-        run: npx playwright install --with-deps chromium
+        run: |
+          for attempt in 1 2 3 4 5; do
+            npx playwright install --with-deps chromium && exit 0
+            echo "Attempt $attempt failed, retrying in 20s..."
+            sleep 20
+          done
+          exit 1
 
       - name: Run Playwright BDD tests
         working-directory: frontend/quiz
