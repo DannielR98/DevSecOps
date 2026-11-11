@@ -224,8 +224,8 @@ router.put("/quizzes/:id", checkJwt, async (req, res) => {
       quiz: quiz.get({ plain: true }),
     });
   } catch (error) {
-    console.error("Error updating quiz:", error);
-    console.error("Database error:", error.original?.message);
+    console.error("Error updating quiz:", error.message);
+    //console.error("Database error:", error.original?.message);
 
     return res.status(500).json({
       success: false,

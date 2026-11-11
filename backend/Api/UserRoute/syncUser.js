@@ -53,7 +53,7 @@ router.post("/sync-user", checkJwt, async (req, res) => {
       user: userData,
     });
   } catch (error) {
-    console.error("Error syncing user:", error);
+    console.error("Error syncing user:", error.message);
 
     return res.status(500).json({
       success: false,

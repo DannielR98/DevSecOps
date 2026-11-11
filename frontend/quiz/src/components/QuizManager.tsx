@@ -33,8 +33,16 @@ const fromApiQuestions = (qs: ApiQuestion[]): QuestionItem[] =>
   }));
 
 const errorMessage = (err: unknown): string => {
-  const e = err as { response?: { data?: { message?: string; error?: string } }; message?: string };
-  return e.response?.data?.message || e.response?.data?.error || e.message || "Okänt fel";
+  const e = err as {
+    response?: { data?: { message?: string; error?: string } };
+    message?: string;
+  };
+  return (
+    e.response?.data?.message ||
+    e.response?.data?.error ||
+    e.message ||
+    "Okänt fel"
+  );
 };
 
 interface QuizItem {
@@ -82,7 +90,10 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingQuizId, setEditingQuizId] = useState<string | null>(null);
   const [activeQuiz, setActiveQuiz] = useState<QuizItem | null>(null);
-  const [resultsView, setResultsView] = useState<{ quiz: QuizItem; view: "mine" | "leaderboard" } | null>(null);
+  const [resultsView, setResultsView] = useState<{
+    quiz: QuizItem;
+    view: "mine" | "leaderboard";
+  } | null>(null);
   const [userAnswers, setUserAnswers] = useState<number[]>([]);
   const [quizScore, setQuizScore] = useState<{
     score: number;
@@ -128,7 +139,7 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
       setSelectedGroupId((prev) =>
         prev && groupList.some((g) => g.id === prev)
           ? prev
-          : groupList[0]?.id ?? "",
+          : (groupList[0]?.id ?? ""),
       );
 
       const quizData = await apiRequest({
@@ -287,7 +298,9 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
         method: "POST",
         token,
         body: {
-          answers: userAnswers.map((o, i) => activeQuiz.questions[i].options[o]),
+          answers: userAnswers.map(
+            (o, i) => activeQuiz.questions[i].options[o],
+          ),
         },
       });
       setQuizScore(data.result);
@@ -332,7 +345,7 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
     setQuestions(
       quiz.questions && quiz.questions.length > 0
         ? fromApiQuestions(quiz.questions)
-        : [{ question: "", options: ["", "", "", ""], correctAnswer: 0 }]
+        : [{ question: "", options: ["", "", "", ""], correctAnswer: 0 }],
     );
     setShowCreateModal(true);
   };
@@ -380,8 +393,7 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
           + Skapa nytt quiz
         </button>
       </div>
-
-      // Quiz List
+      {/*Quiz List*/}
       {loading ? (
         <p style={{ color: "#6b7280" }}>Laddar quiz...</p>
       ) : quizzes.length === 0 ? (
@@ -400,8 +412,8 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
           {quizzes.map((quiz) => {
             const groupName =
               quiz.group_name ||
-            groups.find((g) => g.id === quiz.group_id)?.name ||
-            quiz.category;
+              groups.find((g) => g.id === quiz.group_id)?.name ||
+              quiz.category;
 
             return (
               <div
@@ -467,16 +479,38 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
                   >
                     Starta quiz 🚀
                   </button>
-                  <button type="button" onClick={() => setResultsView({ quiz, view: "mine" })}
+                  <button
+                    type="button"
+                    onClick={() => setResultsView({ quiz, view: "mine" })}
                     aria-label={`Mina resultat för ${quiz.title}`}
-                    style={{ padding: "0.5rem 1rem", backgroundColor: "#e0e7ff", color: "#1e40af",
-                      border: "none", borderRadius: "6px", fontWeight: 600, cursor: "pointer" }}>
+                    style={{
+                      padding: "0.5rem 1rem",
+                      backgroundColor: "#e0e7ff",
+                      color: "#1e40af",
+                      border: "none",
+                      borderRadius: "6px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
                     Mina resultat
                   </button>
-                  <button type="button" onClick={() => setResultsView({ quiz, view: "leaderboard" })}
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setResultsView({ quiz, view: "leaderboard" })
+                    }
                     aria-label={`Deltagarnas bästa resultat för ${quiz.title}`}
-                    style={{ padding: "0.5rem 1rem", backgroundColor: "#e0e7ff", color: "#1e40af",
-                      border: "none", borderRadius: "6px", fontWeight: 600, cursor: "pointer" }}>
+                    style={{
+                      padding: "0.5rem 1rem",
+                      backgroundColor: "#e0e7ff",
+                      color: "#1e40af",
+                      border: "none",
+                      borderRadius: "6px",
+                      fontWeight: 600,
+                      cursor: "pointer",
+                    }}
+                  >
                     Deltagarnas bästa resultat
                   </button>
                   {quiz.is_creator && (
@@ -521,14 +555,16 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
           })}
         </div>
       )}
-
       {resultsView && (
-        <QuizResults key={`${resultsView.quiz.id}-${resultsView.view}`}
-          quizId={resultsView.quiz.id} quizTitle={resultsView.quiz.title} view={resultsView.view}
-          onClose={() => setResultsView(null)} />
+        <QuizResults
+          key={`${resultsView.quiz.id}-${resultsView.view}`}
+          quizId={resultsView.quiz.id}
+          quizTitle={resultsView.quiz.title}
+          view={resultsView.view}
+          onClose={() => setResultsView(null)}
+        />
       )}
-
-      // Active Quiz Player Modal
+      {/* // Active Quiz Player Modal */}
       {activeQuiz && (
         <div
           style={{
@@ -631,11 +667,11 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
                             border: "1px solid #d1d5db",
                             borderRadius: "6px",
                             backgroundColor:
-                            userAnswers[qIdx] === oIdx ? "#eff6ff" : "#fff",
+                              userAnswers[qIdx] === oIdx ? "#eff6ff" : "#fff",
                             borderColor:
-                            userAnswers[qIdx] === oIdx
-                              ? "#3b82f6"
-                              : "#d1d5db",
+                              userAnswers[qIdx] === oIdx
+                                ? "#3b82f6"
+                                : "#d1d5db",
                             cursor: "pointer",
                           }}
                         >
@@ -696,8 +732,8 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
           </div>
         </div>
       )}
+      {/* // Create / Edit Quiz Modal */}
 
-      // Create / Edit Quiz Modal
       {showCreateModal && (
         <div
           style={{
@@ -773,7 +809,12 @@ export default function QuizManager({ refreshKey }: QuizManagerProps) {
                 <select
                   value={selectedGroupId}
                   onChange={(e) => setSelectedGroupId(e.target.value)}
-                  style={{ width: "100%", padding: "0.5rem", borderRadius: "6px", border: "1px solid #d1d5db" }}
+                  style={{
+                    width: "100%",
+                    padding: "0.5rem",
+                    borderRadius: "6px",
+                    border: "1px solid #d1d5db",
+                  }}
                 >
                   {groups.map((g) => (
                     <option key={g.id} value={g.id}>

@@ -60,6 +60,7 @@ jobs:
         working-directory: frontend/quiz
         run: npm audit --audit-level=high
 
+      ##lint
       - name: Frontend Lint and Fix
         working-directory: frontend/quiz
         run: npm run lint -- --fix
@@ -147,7 +148,7 @@ jobs:
 
       - name: Install Playwright browser
         working-directory: frontend/quiz
-        run: npx playwright install --with-deps chromium
+        run: npx playwright install chromium
 
       - name: Run Playwright BDD tests
         working-directory: frontend/quiz
@@ -168,13 +169,28 @@ jobs:
             frontend/quiz/playwright-report/
           retention-days: 7
 
-      ## - name: Run Playwright BDD tests
-      ## run: |
-      ##  cd backend
-      ## npm start &
-      ## sleep 15
-      ## cd ../frontend/quiz
-      ## npm run test:ui
+      # - name: Install Playwright browser
+      #   working-directory: frontend/quiz
+      #   run: npx playwright install --with-deps chromium
+
+      # - name: Run Playwright BDD tests
+      #   working-directory: frontend/quiz
+      #   env:
+      #     TEST_ENV: local
+      #     CI: true
+      #   run: |
+      #     npx bddgen
+      #     npx playwright test
+
+      # - name: Upload Playwright diagnostics
+      #   if: always()
+      #   uses: actions/upload-artifact@v4
+      #   with:
+      #     name: playwright-diagnostics
+      #     path: |
+      #       frontend/quiz/test-results/
+      #       frontend/quiz/playwright-report/
+      #     retention-days: 7
 
   cd:
     name: Continuous Deployment (Docker)

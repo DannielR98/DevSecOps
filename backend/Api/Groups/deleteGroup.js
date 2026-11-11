@@ -253,8 +253,8 @@ router.delete("/groups/:id", checkJwt, async (req, res) => {
       message: "Group deleted successfully",
     });
   } catch (error) {
-    console.error("❌ Error deleting group:", error);
-    console.error("Database error:", error.original?.message);
+    console.error("❌ Error deleting group:", error.message);
+    //console.error("Database error:", error.original?.message);
 
     return res.status(500).json({
       success: false,
