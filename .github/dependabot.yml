@@ -4,28 +4,40 @@ updates:
     directory: /frontend/quiz
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: npm
     directory: /backend
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: npm
     directory: /serverless
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: github-actions
     directory: /
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: docker
     directory: /frontend/quiz
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
 
   - package-ecosystem: docker
     directory: /backend
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 7
