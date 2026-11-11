@@ -277,6 +277,7 @@ jobs:
     permissions:
       contents: read
       packages: write
+      id-token: write
 
     steps:
       - name: Checkout code
@@ -304,8 +305,12 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
       # Build and push Docker images to GHCR (images are scanned in CI)
       - name: Build and push Frontend Docker image
+        id: build-frontend
         uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: ./frontend/quiz
@@ -313,6 +318,13 @@ jobs:
           push: true
           tags: ${{ steps.meta-frontend.outputs.tags }}
           labels: ${{ steps.meta-frontend.outputs.labels }}
+
+      - name: Sign GHCR frontend image
+        env:
+          DIGEST: ${{ steps.build-frontend.outputs.digest }}
+        run: |
+          test -n "$DIGEST"
+          cosign sign --yes "ghcr.io/${GITHUB_REPOSITORY,,}-frontend@$DIGEST"
 
 # Uncomment the following block to build and push the Express Backend Docker image
 #      - name: Build and push Backend Docker image
@@ -431,7 +443,11 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
       - name: Build and push image
+        id: build-image
         uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: ./frontend/quiz
@@ -447,18 +463,32 @@ jobs:
             ${{ steps.ecr.outputs.registry }}/quiz-frontend:latest
             ${{ steps.ecr.outputs.registry }}/quiz-frontend:${{ github.sha }}
 
+      - name: Sign and verify ECR frontend image
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          DIGEST: ${{ steps.build-image.outputs.digest }}
+        run: |
+          test -n "$DIGEST"
+          image="$REGISTRY/quiz-frontend@$DIGEST"
+          cosign sign --yes "$image"
+          cosign verify \
+            --certificate-identity "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/.github/workflows/ci-cd.yaml@refs/heads/main" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$image"
+
       # Run the checked-in deployment script on the instance through SSM.
       # jq shell-quotes the image, region and script before constructing the
-      # command document; the commit tag selects the image built in this job.
+      # command document; the digest selects the verified image.
       - name: Restart container on EC2 via SSM
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
+          DIGEST: ${{ steps.build-image.outputs.digest }}
           REGION: ${{ vars.AWS_REGION }}
           INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
         run: |
           set -euo pipefail
           parameters=$(jq -nc \
-            --arg image "$REGISTRY/quiz-frontend:$GITHUB_SHA" \
+            --arg image "$REGISTRY/quiz-frontend@$DIGEST" \
             --arg region "$REGION" \
             --rawfile script .github/scripts/deploy-frontend.sh \
             '{commands: [("export IMAGE=" + ($image | @sh) + " REGION=" + ($region | @sh) + "\nbash -c " + ($script | @sh))]}')

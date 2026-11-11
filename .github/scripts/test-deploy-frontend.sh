@@ -52,6 +52,13 @@ grep -q '^rm -f old-frontend$' "$TEST_LOG"
 grep -q "^run -d --name quiz-frontend --restart unless-stopped -p 80:80 $IMAGE$" "$TEST_LOG"
 
 : > "$TEST_LOG"
+export IMAGE="example.registry/quiz-frontend@sha256:0123456789abcdef"
+bash "$script"
+grep -q '^rm -f old-frontend$' "$TEST_LOG"
+grep -q "^pull $IMAGE$" "$TEST_LOG"
+grep -q "^run -d --name quiz-frontend --restart unless-stopped -p 80:80 $IMAGE$" "$TEST_LOG"
+
+: > "$TEST_LOG"
 export FAIL_PULL=1
 if bash "$script"; then echo "Pull failure was ignored" >&2; exit 1; fi
 if grep -q '^rm\|^run' "$TEST_LOG"; then echo "Changed container after pull failure" >&2; exit 1; fi
