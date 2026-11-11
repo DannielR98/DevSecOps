@@ -306,6 +306,10 @@ DevSecOps/
 
 Projektet använder **GitHub Actions** för CI/CD
 
+### Beroendeuppdateringar
+
+Dependabot söker varje vecka efter uppdateringar för npm-beroenden, GitHub Actions och Docker-basbilder enligt [konfigurationen](./.github/dependabot.yml). Uppdateringarna föreslås som pull requests och ska granskas och testas innan de mergas. Dependabot kan bara uppdatera filer som finns i Git-repot; backendens lokala `Dockerfile` är ignorerad och dess `Dockerfile.example` uppdateras i stället.
+
 ### CI-delen (Continuous Integration)
 
 Vid varje push eller pull request körs följande steg:

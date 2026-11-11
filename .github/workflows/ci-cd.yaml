@@ -329,7 +329,7 @@ jobs:
   deploy-backend-aws:
     name: Deploy serverless backend (AWS SAM)
     needs: ci
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     # Serialize backend deployments so stack updates do not overlap.
     concurrency: deploy-aws-backend
@@ -404,7 +404,7 @@ jobs:
   deploy-frontend-aws:
     name: Deploy frontend (ECR + EC2)
     needs: deploy-backend-aws
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     # Serialize frontend deployments to avoid overlapping EC2 container changes.
     concurrency: deploy-aws-frontend
