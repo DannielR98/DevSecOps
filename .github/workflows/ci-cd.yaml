@@ -18,7 +18,7 @@ permissions:
 jobs:
   ci:
     name: Continuous Integration & Security
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout code
