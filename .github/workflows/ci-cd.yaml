@@ -251,13 +251,7 @@ jobs:
 
       - name: Install Playwright browser
         working-directory: frontend/quiz
-        run: |
-          for attempt in 1 2 3 4 5; do
-            npx playwright install --with-deps chromium && exit 0
-            echo "Attempt $attempt failed, retrying in 20s..."
-            sleep 20
-          done
-          exit 1
+        run: npx playwright install --with-deps chromium
 
       - name: Run Playwright BDD tests
         working-directory: frontend/quiz
