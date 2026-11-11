@@ -124,8 +124,8 @@ router.get("/quizzes/:id/results", checkJwt, async (req, res) => {
             a.user_id.localeCompare(b.user_id),
         ),
     });
-  } catch (_error) {
-    //console.error("Error fetching quiz results:", error);
+  } catch (error) {
+    console.error("Error fetching quiz results:", error);
     return res.status(500).json({ message: "Could not fetch quiz results" });
   }
 });

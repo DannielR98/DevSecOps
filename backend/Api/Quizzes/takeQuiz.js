@@ -363,8 +363,8 @@ router.post("/quizzes/:id/submit", checkJwt, async (req, res) => {
         createdAt: result.createdAt,
       },
     });
-  } catch (_error) {
-    //console.error("Error submitting quiz:", error);
+  } catch (error) {
+    console.error("Error submitting quiz:", error);
     //console.error("Database error:", error.original?.message);
 
     return res.status(500).json({

@@ -107,7 +107,7 @@ describe("quiz results", () => {
     const response = await auth(request(app).get(`${path}?view=mine`));
     expect(response.status).toBe(500);
     expect(response.body.message).toBe("Could not fetch quiz results");
-    expect(log).not.toHaveBeenCalled();
+    expect(log).toHaveBeenCalled();
 
     log.mockRestore();
   });

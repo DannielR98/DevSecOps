@@ -163,8 +163,8 @@ router.get("/groups/:groupId/members", checkJwt, async (req, res) => {
       group_id: groupId,
       members,
     });
-  } catch (_error) {
-    //console.error("Error getting group members:", error);
+  } catch (error) {
+    console.error("Error getting group members:", error);
     // console.error("Database error:", error.original?.message);
 
     return res.status(500).json({

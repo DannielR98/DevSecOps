@@ -282,7 +282,7 @@ router.post("/groups", checkJwt, async (req, res) => {
       },
     });
   } catch (error) {
-    //console.error("❌ Error creating group:", error);
+    console.error("❌ Error creating group:", error);
     // console.error("Database error:", error.original?.message);
 
     if (error.name === "SequelizeUniqueConstraintError") {

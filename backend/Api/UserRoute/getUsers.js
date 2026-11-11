@@ -13,8 +13,8 @@ router.get("/users", checkJwt, async (_req, res) => {
       count: users.length,
       users,
     });
-  } catch (_error) {
-    //console.error(error);
+  } catch (error) {
+    console.error("Error fetching users", error);
 
     res.status(500).json({
       message: "Failed to fetch users",

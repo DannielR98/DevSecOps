@@ -213,8 +213,8 @@ router.delete("/groups/:groupId/members/leave", checkJwt, async (req, res) => {
       success: true,
       message: "You left the group successfully",
     });
-  } catch (_error) {
-    //console.error("Error leaving group:", error);
+  } catch (error) {
+    console.error("Error leaving group:", error);
     //console.error("Database error:", error.original?.message);
 
     return res.status(500).json({

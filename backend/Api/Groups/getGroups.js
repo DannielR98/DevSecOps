@@ -85,8 +85,8 @@ router.get("/groups", checkJwt, async (req, res) => {
         createdAt: group.createdAt,
       })),
     });
-  } catch (_error) {
-    //console.error("❌ GET /groups failed");
+  } catch (error) {
+    console.error("❌ GET /groups failed", error);
     //console.error("Message:", error.message);
     //console.error("Database error:", error.original?.message);
     //console.error("SQL:", error.sql);

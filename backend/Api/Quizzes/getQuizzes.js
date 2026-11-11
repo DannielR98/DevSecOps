@@ -308,8 +308,8 @@ router.get("/quizzes", checkJwt, async (req, res) => {
       count: formattedQuizzes.length,
       quizzes: formattedQuizzes,
     });
-  } catch (_error) {
-    //console.error("Error fetching quizzes:", error);
+  } catch (error) {
+    console.error("Error fetching quizzes:", error);
     //console.error("Database error:", error.original?.message);
 
     return res.status(500).json({

@@ -237,8 +237,8 @@ router.get("/quizzes/:id", checkJwt, async (req, res) => {
         createdAt: quiz.createdAt,
       },
     });
-  } catch (_error) {
-    //console.error("Error fetching quiz by ID:", error);
+  } catch (error) {
+    console.error("Error fetching quiz by ID:", error);
     //console.error("Database error:", error.original?.message);
 
     return res.status(500).json({
