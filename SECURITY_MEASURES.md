@@ -209,3 +209,13 @@ The following tasks remain part of the final security verification:
 - Demonstrate that Docker Compose services work correctly.
 - Complete the AWS deployment and monitoring demonstration.
 - Perform the incident-response exercise using a leaked test token and document detection, containment and lessons learned.
+
+## Logging and Monitoring
+
+- Removed access-token logging from the frontend.
+- Removed unnecessary backend console.log statements.
+- Checked browser console for sensitive information.
+- Checked backend Docker logs for tokens, passwords and secrets.
+- Confirmed that sensitive information is not intentionally logged.
+
+**Result:** Logging was reviewed to reduce the risk of exposing sensitive information.
