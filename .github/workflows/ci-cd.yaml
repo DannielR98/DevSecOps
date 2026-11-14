@@ -167,7 +167,7 @@ jobs:
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Build Frontend image (dev)
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ./frontend/quiz
           load: true
@@ -176,7 +176,7 @@ jobs:
           cache-to: type=gha,scope=frontend,mode=max
 
       - name: Build Frontend image (prod)
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ./frontend/quiz
           file: ./frontend/quiz/Dockerfile.prod
@@ -192,7 +192,7 @@ jobs:
 
 # Uncomment this to build Express backend image for Trivy scanning
 #      - name: Build Backend image
-#        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+#        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
 #        with:
 #          context: ./backend
 #          load: true
@@ -327,7 +327,7 @@ jobs:
       # Build and push Docker images to GHCR (images are scanned in CI)
       - name: Build and push Frontend Docker image
         id: build-frontend
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ./frontend/quiz
           cache-from: type=gha,scope=frontend
@@ -344,7 +344,7 @@ jobs:
 
 # Uncomment the following block to build and push the Express Backend Docker image
 #      - name: Build and push Backend Docker image
-#        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+#        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
 #        with:
 #          context: ./backend
 #          cache-from: type=gha,scope=backend
@@ -464,7 +464,7 @@ jobs:
 
       - name: Build and push image
         id: build-image
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ./frontend/quiz
           file: ./frontend/quiz/Dockerfile.prod
