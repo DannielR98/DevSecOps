@@ -81,12 +81,12 @@ A separate table is the recommended approach because it makes permissions easier
 
 The proposed database table is `QuizAdmins`:
 
-| Column | Purpose |
-|---|---|
-| `id` | Unique record ID |
-| `quiz_id` | Identifies the quiz |
-| `user_id` | Identifies the administrator |
-| `createdAt` | Date assigned |
+| Column      | Purpose                      |
+| ----------- | ---------------------------- |
+| `id`        | Unique record ID             |
+| `quiz_id`   | Identifies the quiz          |
+| `user_id`   | Identifies the administrator |
+| `createdAt` | Date assigned                |
 
 A unique constraint on `quiz_id` and `user_id` should prevent duplicate administrator assignments.
 
@@ -178,7 +178,17 @@ The failed test needs to be reviewed. Removing `console.log` does not automatica
 
 **Result:** Automated tests cover the main application functionality and security checks. The remaining failing test must be investigated, followed by another complete test run.
 
-## 10. Conclusion
+## 10. Logging and Monitoring
+
+- Removed access-token logging from the frontend.
+- Removed unnecessary backend console.log statements.
+- Checked browser console for sensitive information.
+- Checked backend Docker logs for tokens, passwords and secrets.
+- Confirmed that sensitive information is not intentionally logged.
+
+**Result:** Logging was reviewed to reduce the risk of exposing sensitive information.
+
+## 11. Conclusion
 
 The project includes several implemented security measures:
 
