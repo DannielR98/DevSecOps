@@ -33,7 +33,7 @@ jobs:
       # 0. SECRET SCANNING (Gitleaks)
       # =========================
       - name: Secret Scanning (Gitleaks)
-        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
+        uses: gitleaks/gitleaks-action@e0c47f4f8be36e29cdc102c57e68cb5cbf0e8d1e # v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
@@ -167,7 +167,7 @@ jobs:
         uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
 
       - name: Build Frontend image (dev)
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ./frontend/quiz
           load: true
@@ -176,7 +176,7 @@ jobs:
           cache-to: type=gha,scope=frontend,mode=max
 
       - name: Build Frontend image (prod)
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ./frontend/quiz
           file: ./frontend/quiz/Dockerfile.prod
@@ -192,7 +192,7 @@ jobs:
 
 # Uncomment this to build Express backend image for Trivy scanning
 #      - name: Build Backend image
-#        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+#        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
 #        with:
 #          context: ./backend
 #          load: true
@@ -253,7 +253,7 @@ jobs:
 
       - name: Upload Playwright diagnostics
         if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-diagnostics
           path: |
@@ -300,7 +300,7 @@ jobs:
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
+        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -327,7 +327,7 @@ jobs:
       # Build and push Docker images to GHCR (images are scanned in CI)
       - name: Build and push Frontend Docker image
         id: build-frontend
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ./frontend/quiz
           cache-from: type=gha,scope=frontend
@@ -344,7 +344,7 @@ jobs:
 
 # Uncomment the following block to build and push the Express Backend Docker image
 #      - name: Build and push Backend Docker image
-#        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+#        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
 #        with:
 #          context: ./backend
 #          cache-from: type=gha,scope=backend
@@ -379,12 +379,12 @@ jobs:
           cache-dependency-path: serverless/package-lock.json
 
       # Install SAM for packaging and deploying the serverless template.
-      - uses: aws-actions/setup-sam@f84ec7d548307efafe33230528756de3c5841a17 # v2
+      - uses: aws-actions/setup-sam@341eee193f458fa5aae5d52c94b0c5cf3a1c5a52 # v3
         with:
           use-installer: true
 
       # Assume the configured AWS role using GitHub's OIDC token.
-      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -444,7 +444,7 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       # This job needs its own temporary OIDC credentials on its fresh runner.
-      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
+      - uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -464,7 +464,7 @@ jobs:
 
       - name: Build and push image
         id: build-image
-        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
         with:
           context: ./frontend/quiz
           file: ./frontend/quiz/Dockerfile.prod
