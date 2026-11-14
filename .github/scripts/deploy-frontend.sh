@@ -2,7 +2,11 @@
 set -euo pipefail
 
 registry="${IMAGE%%/*}"
-repository="${IMAGE%:*}"
+if [[ "$IMAGE" == *@* ]]; then
+  repository="${IMAGE%@*}"
+else
+  repository="${IMAGE%:*}"
+fi
 
 aws ecr get-login-password --region "$REGION" |
   docker login --username AWS --password-stdin "$registry"

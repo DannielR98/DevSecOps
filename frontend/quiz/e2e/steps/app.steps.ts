@@ -695,9 +695,9 @@ Then(
 
     await expect(code).toBeVisible();
 
-    expect((await code.textContent())?.trim()).toMatch(
-      new RegExp(`^[A-Z0-9]{${length}}$`),
-    );
+    const text = (await code.textContent())?.trim() ?? "";
+    expect(text).toMatch(/^[A-Z0-9]+$/);
+    expect(text).toHaveLength(length);
   },
 );
 

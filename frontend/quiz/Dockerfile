@@ -2,11 +2,18 @@ FROM node:22-alpine
 
 WORKDIR /app
 
-COPY package*.json ./
+# Basimagens npm bundlar sårbara interna beroenden (Trivy)
+RUN npm install -g npm@^12
 
-RUN npm install
+COPY package*.json package-lock.json ./
 
-COPY --chown=node:node . .
+RUN npm ci
+
+#COPY --chown=node:node . .
+COPY --chown=node:node src ./src
+COPY --chown=node:node public ./public
+COPY --chown=node:node index.html vite.config.ts playwright.config.ts ./
+COPY --chown=node:node tsconfig*.json ./
 
 RUN chown -R node:node /app
 

@@ -18,11 +18,11 @@ permissions:
 jobs:
   ci:
     name: Continuous Integration & Security
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
           fetch-depth: 0
 
@@ -33,13 +33,13 @@ jobs:
       # 0. SECRET SCANNING (Gitleaks)
       # =========================
       - name: Secret Scanning (Gitleaks)
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@ff98106e4c7b2bc287b24eaf42907196329070c7 # v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_CONFIG: .gitleaks.toml
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
@@ -138,9 +138,101 @@ jobs:
       # =========================
 
       - name: Run Semgrep SAST
-        uses: semgrep/semgrep-action@v1
+        run: |
+          python3 -m pip install --user "semgrep==1.185.0"
+          "$HOME/.local/bin/semgrep" scan --config auto --error .
+
+      # =========================
+      # 3b. TRIVY: beroenden (SCA) och IaC/Dockerfile-felkonfiguration
+      # =========================
+      # Fäst på commit-SHA (v0.36.0) eftersom åtgärden körs med repots behörigheter.
+      - name: Trivy filesystem scan (vulnerabilities & misconfig)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        env:
+          TRIVY_SKIP_VERSION_CHECK: "true"
         with:
-          config: auto
+          scan-type: fs
+          scan-ref: .
+          scanners: vuln,misconfig
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          skip-dirs: node_modules,frontend/quiz/node_modules,backend/node_modules,serverless/node_modules
+          exit-code: "1"
+
+      # =========================
+      # 3c. TRIVY: container images (build + scan)
+      # =========================
+      # VITE_*-värden hämtas från GitHub secrets/variabler.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Build Frontend image (dev)
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+        with:
+          context: ./frontend/quiz
+          load: true
+          tags: quiz-scan-frontend:${{ github.sha }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,scope=frontend,mode=max
+
+      - name: Build Frontend image (prod)
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+        with:
+          context: ./frontend/quiz
+          file: ./frontend/quiz/Dockerfile.prod
+          platforms: linux/amd64
+          load: true
+          tags: quiz-scan-frontend-prod:${{ github.sha }}
+          cache-from: type=gha,scope=frontend-prod
+          cache-to: type=gha,scope=frontend-prod,mode=max
+          build-args: |
+            VITE_API_URL=${{ secrets.VITE_API_URL }}
+            VITE_SUPABASE_URL=${{ vars.SUPABASE_URL }}
+            VITE_SUPABASE_ANON_KEY=${{ secrets.SUPABASE_ANON_KEY }}
+
+# Uncomment this to build Express backend image for Trivy scanning
+#      - name: Build Backend image
+#        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+#        with:
+#          context: ./backend
+#          load: true
+#          tags: quiz-scan-backend:${{ github.sha }}
+#          cache-from: type=gha,scope=backend
+#          cache-to: type=gha,scope=backend,mode=max
+
+      - name: Trivy scan Frontend image (dev)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        env:
+          TRIVY_SKIP_VERSION_CHECK: "true"
+        with:
+          image-ref: quiz-scan-frontend:${{ github.sha }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+      - name: Trivy scan Frontend image (prod)
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+        env:
+          TRIVY_SKIP_VERSION_CHECK: "true"
+        with:
+          image-ref: quiz-scan-frontend-prod:${{ github.sha }}
+          scanners: vuln
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+
+# Uncomment this block to scan Express backend image for vulnerabilities with Trivy
+#      - name: Trivy scan Backend image
+#        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
+#        env:
+#          TRIVY_SKIP_VERSION_CHECK: "true"
+#        with:
+#          image-ref: quiz-scan-backend:${{ github.sha }}
+#          scanners: vuln
+#          severity: HIGH,CRITICAL
+#          ignore-unfixed: true
+#          exit-code: "1"
 
       # =========================
       # 4. BDD & E2E TESTING (Playwright)
@@ -161,7 +253,7 @@ jobs:
 
       - name: Upload Playwright diagnostics
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: playwright-diagnostics
           path: |
@@ -195,19 +287,20 @@ jobs:
   cd:
     name: Continuous Deployment (Docker)
     needs: ci
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
 
     permissions:
       contents: read
       packages: write
+      id-token: write
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -215,38 +308,56 @@ jobs:
 
       - name: Extract metadata (tags, labels) for Frontend
         id: meta-frontend
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           images: ghcr.io/${{ github.repository }}-frontend
 
       - name: Extract metadata (tags, labels) for Backend
         id: meta-backend
-        uses: docker/metadata-action@v5
+        uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
           images: ghcr.io/${{ github.repository }}-backend
 
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
+      # Build and push Docker images to GHCR (images are scanned in CI)
       - name: Build and push Frontend Docker image
-        uses: docker/build-push-action@v5
+        id: build-frontend
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: ./frontend/quiz
+          cache-from: type=gha,scope=frontend
           push: true
           tags: ${{ steps.meta-frontend.outputs.tags }}
           labels: ${{ steps.meta-frontend.outputs.labels }}
 
-      - name: Build and push Backend Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: ./backend
-          push: true
-          tags: ${{ steps.meta-backend.outputs.tags }}
-          labels: ${{ steps.meta-backend.outputs.labels }}
+      - name: Sign GHCR frontend image
+        env:
+          DIGEST: ${{ steps.build-frontend.outputs.digest }}
+        run: |
+          test -n "$DIGEST"
+          cosign sign --yes "ghcr.io/${GITHUB_REPOSITORY,,}-frontend@$DIGEST"
+
+# Uncomment the following block to build and push the Express Backend Docker image
+#      - name: Build and push Backend Docker image
+#        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
+#        with:
+#          context: ./backend
+#          cache-from: type=gha,scope=backend
+#          push: true
+#          tags: ${{ steps.meta-backend.outputs.tags }}
+#          labels: ${{ steps.meta-backend.outputs.labels }}
 
   # AWS deployment runs only after CI passes on a push to main. It is separate
   # from the GHCR image-publishing job above.
   deploy-backend-aws:
     name: Deploy serverless backend (AWS SAM)
     needs: ci
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     # Serialize backend deployments so stack updates do not overlap.
     concurrency: deploy-aws-backend
@@ -259,21 +370,21 @@ jobs:
       api-url: ${{ steps.api.outputs.url }}
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 22
           cache: npm
           cache-dependency-path: serverless/package-lock.json
 
       # Install SAM for packaging and deploying the serverless template.
-      - uses: aws-actions/setup-sam@v2
+      - uses: aws-actions/setup-sam@f84ec7d548307efafe33230528756de3c5841a17 # v2
         with:
           use-installer: true
 
       # Assume the configured AWS role using GitHub's OIDC token.
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -321,7 +432,7 @@ jobs:
   deploy-frontend-aws:
     name: Deploy frontend (ECR + EC2)
     needs: deploy-backend-aws
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     # Serialize frontend deployments to avoid overlapping EC2 container changes.
     concurrency: deploy-aws-frontend
@@ -330,10 +441,10 @@ jobs:
       id-token: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
 
       # This job needs its own temporary OIDC credentials on its fresh runner.
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4
         with:
           role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
           aws-region: ${{ vars.AWS_REGION }}
@@ -341,16 +452,24 @@ jobs:
       # Authenticate Docker and capture the registry address for image tags.
       - name: Log in to ECR
         id: ecr
-        uses: aws-actions/amazon-ecr-login@v2
+        uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2
 
       # Vite settings are embedded at build time. Publish both a convenient
       # latest tag and a commit-specific tag used for the actual deployment.
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3
+
+      - name: Install Cosign
+        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
+
       - name: Build and push image
-        uses: docker/build-push-action@v5
+        id: build-image
+        uses: docker/build-push-action@ca052bb54ab0790a636c9b5f226502c73d547a25 # v5
         with:
           context: ./frontend/quiz
           file: ./frontend/quiz/Dockerfile.prod
           platforms: linux/amd64
+          cache-from: type=gha,scope=frontend-prod
           push: true
           build-args: |
             VITE_API_URL=${{ needs.deploy-backend-aws.outputs.api-url }}
@@ -360,18 +479,32 @@ jobs:
             ${{ steps.ecr.outputs.registry }}/quiz-frontend:latest
             ${{ steps.ecr.outputs.registry }}/quiz-frontend:${{ github.sha }}
 
+      - name: Sign and verify ECR frontend image
+        env:
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+          DIGEST: ${{ steps.build-image.outputs.digest }}
+        run: |
+          test -n "$DIGEST"
+          image="$REGISTRY/quiz-frontend@$DIGEST"
+          cosign sign --yes "$image"
+          cosign verify \
+            --certificate-identity "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/.github/workflows/ci-cd.yaml@refs/heads/main" \
+            --certificate-oidc-issuer "https://token.actions.githubusercontent.com" \
+            "$image"
+
       # Run the checked-in deployment script on the instance through SSM.
       # jq shell-quotes the image, region and script before constructing the
-      # command document; the commit tag selects the image built in this job.
+      # command document; the digest selects the verified image.
       - name: Restart container on EC2 via SSM
         env:
           REGISTRY: ${{ steps.ecr.outputs.registry }}
+          DIGEST: ${{ steps.build-image.outputs.digest }}
           REGION: ${{ vars.AWS_REGION }}
           INSTANCE_ID: ${{ vars.EC2_INSTANCE_ID }}
         run: |
           set -euo pipefail
           parameters=$(jq -nc \
-            --arg image "$REGISTRY/quiz-frontend:$GITHUB_SHA" \
+            --arg image "$REGISTRY/quiz-frontend@$DIGEST" \
             --arg region "$REGION" \
             --rawfile script .github/scripts/deploy-frontend.sh \
             '{commands: [("export IMAGE=" + ($image | @sh) + " REGION=" + ($region | @sh) + "\nbash -c " + ($script | @sh))]}')
