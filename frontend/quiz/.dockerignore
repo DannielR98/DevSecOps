@@ -5,3 +5,7 @@ test-results
 playwright-report
 .env*
 .git
+!.env.example
+.gitignore
+npm-debug.log
+.DS_Store
