@@ -33,7 +33,7 @@
     "redux-saga": "^1.5.1"
   },
   "devDependencies": {
-    "@cucumber/cucumber": "^13.2.1",
+    "@cucumber/cucumber": "^13.3.0",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.63.0",
     "@stylistic/eslint-plugin": "^5.10.0",
