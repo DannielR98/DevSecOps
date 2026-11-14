@@ -6,6 +6,10 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    groups:
+      frontend-dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: npm
     directory: /backend
@@ -13,6 +17,10 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    groups:
+      backend-dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: npm
     directory: /serverless
@@ -20,6 +28,10 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    groups:
+      serverless-dependencies:
+        patterns:
+          - "*"
 
   - package-ecosystem: github-actions
     directory: /
@@ -27,6 +39,10 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    groups:
+      github-actions:
+        patterns:
+          - "*"
 
   - package-ecosystem: docker
     directory: /frontend/quiz
@@ -34,6 +50,10 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    groups:
+      frontend-docker:
+        patterns:
+          - "*"
 
   - package-ecosystem: docker
     directory: /backend
@@ -41,3 +61,7 @@ updates:
       interval: weekly
     cooldown:
       default-days: 7
+    groups:
+      backend-docker:
+        patterns:
+          - "*"
