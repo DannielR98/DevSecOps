@@ -26,7 +26,16 @@ FROM nginx:1.31.7-alpine3.24
 
 # nginx-module-xslt (och libxslt) behövs inte för statiska filer och har öppna CVE:er
 RUN apk del --no-cache nginx-module-xslt && \
-    apk add --no-cache libcap && \
+    apk add --no-cache libcap \
+      alpine-release=3.24.4-r0 \
+      brotli-libs=1.2.1-r0 \
+      curl=8.23.0-r0 \
+      libcurl=8.23.0-r0 \
+      libexpat=2.10.0-r0 \
+      libx11=1.8.14-r0 \
+      musl=1.2.6-r3 \
+      musl-utils=1.2.6-r3 \
+      zlib=1.4-r0 && \
     # Ge Nginx-binären rättighet att binda till låga portar (<1024)
     setcap 'cap_net_bind_service=+ep' /usr/sbin/nginx && \
     # Ändra ägandeskap på mappar som Nginx skriver till under körning
