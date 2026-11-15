@@ -87,6 +87,7 @@ Fyll i efter övningen. Skriv inte att en åtgärd lyckades om ni bara diskutera
 |---|---|---|---|
 | Ta bort `console.log("SUPABASE AUTH TOKEN:", token)` och onödig `useEffect`-tokenhämtning i [`frontend/quiz/src/App.tsx`](./frontend/quiz/src/App.tsx) | Emiliano Fausto | Före slutleverans | Pågående |
 | Ta bort eller maskera felsökningsloggning av `req.user` och `req.body` i [`backend/Api/Routes/Quizzes/createQuiz.js`](./backend/Api/Routes/Quizzes/createQuiz.js) | Emiliano Fausto | Före slutleverans | Pågående |
+| Verifiera att den komprometterade token har återkallats på Supabase-plattformen och inte längre fungerar | Carl Johansson | Före slutleverans | Pågående |
 | Införa striktare kontroll mot `console.log` av autentiseringsdata vid kodgranskning (PR-review) och i ESLint/SAST | Gruppen | Före slutleverans | Planerad |
 
 ## Godkänt underlag
