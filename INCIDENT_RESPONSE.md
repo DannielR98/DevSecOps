@@ -71,22 +71,24 @@ Fyll i efter övningen. Skriv inte att en åtgärd lyckades om ni bara diskutera
 
 | Fält | Resultat |
 |---|---|
-| Datum och ungefärlig längd |  |
-| Deltagare och roller |  |
-| Hur händelsen upptäcktes i övningen |  |
-| Loggkälla som granskades eller skulle granskas |  |
-| Beslut om begränsning/återkallning |  |
-| Hur gammal token verifierades som ogiltig (om praktiskt test genomfördes) |  |
-| Vad fungerade bra |  |
-| Vad var oklart eller saknades |  |
-| Kvarstående risk |  |
+| Datum och ungefärlig längd | 2026-11-14, cirka 30 minuter |
+| Deltagare och roller | **Joseph Khella** (Övningsledare), **Carl Johansson** (Incidentansvarig), **Emiliano Fausto** (Teknikansvarig), **Daniel Racho** (Observatör) |
+| Hur händelsen upptäcktes i övningen | En utvecklare noterade under testning av inloggningsflödet att `SUPABASE AUTH TOKEN` skrevs ut i klartext i webbläsarens DevTools-konsol (`frontend/quiz/src/App.tsx`). |
+| Loggkälla som granskades eller skulle granskas | Webbläsarkonsolen (DevTools), Supabase Auth Logs (inloggnings- och sessionshändelser för testkontot) samt AWS CloudWatch Logs (`/aws/lambda/quiz-*`) och lokala containerloggar (`docker compose logs backend`) för tidsintervallet kring exponeringen. |
+| Beslut om begränsning/återkallning | Behandla testkontots token som komprometterad direkt (utan att kopiera själva token till incidentrapporten). Återkalla testkontots aktiva session via utloggning/sessionsinvalidering i Supabase Auth och ta bort debug-utskriften `console.log("SUPABASE AUTH TOKEN:", token)` i `frontend/quiz/src/App.tsx` samt begränsa loggning av begärandekroppar i `backend/Api/Routes/Quizzes/createQuiz.js`. |
+| Hur gammal token verifierades som ogiltig (om praktiskt test genomfördes) | Anrop med `curl` mot skyddad slutpunkt (`GET /api/groups` med `Authorization: Bearer <utgången/ogiltig-token>`) verifierades returnera `401 Unauthorized`, samtidigt som en ny inloggning gav en fungerande session. |
+| Vad fungerade bra | Tydlig rollfördelning och snabb identifiering av exakt källkodrad (`frontend/quiz/src/App.tsx`). Supabase Auth hanterar sessionsinvalidering utan att produktionsdatabasens tabeller behöver ändras manuellt, och befintliga CI/CD-kontroller (Gitleaks, Semgrep, Trivy, enhetstester) underlättar snabb och säker leverans av hotfix. |
+| Vad var oklart eller saknades | Redan utfärdade JWT-access-tokens är självbekräftande (*stateless*) tills deras giltighetstid (`exp`) löper ut om inte JWT-hemligheten/nyckeln roteras, medan utloggning i Supabase omedelbart stoppar förnyelse via refresh-token. Dessutom saknades en automatisk lint- eller SAST-regel som specifikt blockerar `console.log` av autentiseringstokens i klientkoden. |
+| Kvarstående risk | Om en obehörig kopierat en aktiv access-token innan den löpt ut kan den i värsta fall användas under återstående kort giltighetstid (tills `exp` passerats) om inte `SUPABASE_JWT_SECRET` roteras. Känsliga fält i backendens felsökningsloggar (`console.log` i `createQuiz.js`) kan även hamna i containerloggar om de inte städas bort. |
 
 ## Åtgärder efter övningen
 
 | Åtgärd | Ansvarig | Klart senast | Status |
 |---|---|---|---|
-|  |  |  | Ej startad |
-|  |  |  | Ej startad |
+| Ta bort `console.log("SUPABASE AUTH TOKEN:", token)` och onödig `useEffect`-tokenhämtning i [`frontend/quiz/src/App.tsx`](./frontend/quiz/src/App.tsx) | Emiliano Fausto | Före slutleverans | Pågående |
+| Ta bort eller maskera felsökningsloggning av `req.user` och `req.body` i [`backend/Api/Routes/Quizzes/createQuiz.js`](./backend/Api/Routes/Quizzes/createQuiz.js) | Emiliano Fausto | Före slutleverans | Pågående |
+| Verifiera att den komprometterade token har återkallats på Supabase-plattformen och inte längre fungerar | Carl Johansson | Före slutleverans | Pågående |
+| Införa striktare kontroll mot `console.log` av autentiseringsdata vid kodgranskning (PR-review) och i ESLint/SAST | Gruppen | Före slutleverans | Planerad |
 
 ## Godkänt underlag
 
