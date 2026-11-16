@@ -358,10 +358,33 @@ Resources:
                   - !GetAtt ReconciliationSchedule.Arn
                   - !GetAtt QuizCreatedRule.Arn
 
+  OperationsAlarmKey:
+    Type: AWS::KMS::Key
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      Description: Encrypt operational alarm messages in the SNS topic
+      EnableKeyRotation: true
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: EnableAccountIAMPermissions
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+            Action: kms:*
+            Resource: "*"
+          - Sid: AllowCloudWatchAlarms
+            Effect: Allow
+            Principal: { Service: cloudwatch.amazonaws.com }
+            Action: [kms:Decrypt, "kms:GenerateDataKey*"]
+            Resource: "*"
+
   OperationsAlarmTopic:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: !Sub "${AWS::StackName}-operations"
+      KmsMasterKeyId: !GetAtt OperationsAlarmKey.Arn
 
   OperationsAlarmTopicPolicy:
     Type: AWS::SNS::TopicPolicy

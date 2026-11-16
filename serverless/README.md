@@ -60,11 +60,12 @@ and may suspend subscriptions; see [SNS email notifications](https://docs.aws.am
 ### AWS deployment and operations
 
 The SAM stack creates the event bus, rules, SQS failure queue, CloudWatch queue
-alarm, an SNS topic for operational alarms, DynamoDB outbox and lock tables, and Lambda execution permissions.
+alarm, an SNS topic and customer-managed KMS key for operational alarms,
+DynamoDB outbox and lock tables, and Lambda execution permissions.
 Group topics are created dynamically by reconciliation; there is no separate
 sender address or SNS secret to configure. The existing GitHub deployment role
 and any CloudFormation execution role need permissions to create and update
-the new EventBridge, SQS, SNS, CloudWatch, DynamoDB, Lambda and IAM resources,
+the new EventBridge, SQS, SNS, KMS, CloudWatch, DynamoDB, Lambda and IAM resources,
 including passing the Lambda execution roles. Check organizational SCPs,
 permission boundaries and quotas. Runtime roles need the SNS, EventBridge,
 DynamoDB and SQS actions in the template. The failure alarm publishes to the
@@ -72,6 +73,11 @@ stack-managed `OperationsAlarmTopicArn`. After deployment, create an email
 subscription to this topic in SNS and confirm the email; until then no operator
 receives an alarm email. This operations topic is separate from group topics.
 Monitor Lambda errors and the outbox table as well.
+The deployment or CloudFormation execution role also needs permission to create
+and manage the KMS key, its policy, rotation and tags. The operations key is
+retained on stack deletion or replacement; manage its lifecycle and costs
+separately. CloudWatch requires the customer-managed key policy permissions in
+the template; the AWS-managed `alias/aws/sns` key is not sufficient.
 
 After deployment, allow reconciliation to run and ask existing members to
 confirm the SNS emails. Test a new group and quiz using confirmed test

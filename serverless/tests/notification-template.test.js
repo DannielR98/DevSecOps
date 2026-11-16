@@ -26,6 +26,22 @@ describe("notification infrastructure", () => {
     expect(resources.NotificationFailureQueue.Properties.SqsManagedSseEnabled).toBe(true);
     expect(resources.NotificationFailureAlarm.Properties.Threshold).toBe(1);
     expect(resources.OperationsAlarmTopic.Type).toBe("AWS::SNS::Topic");
+    const key = resources.OperationsAlarmKey;
+    expect(key.Type).toBe("AWS::KMS::Key");
+    expect(key.DeletionPolicy).toBe("Retain");
+    expect(key.UpdateReplacePolicy).toBe("Retain");
+    expect(key.Properties.EnableKeyRotation).toBe(true);
+    expect(key.Properties.KeyPolicy.Statement).toEqual(expect.arrayContaining([
+      expect.objectContaining({
+        Sid: "AllowCloudWatchAlarms",
+        Effect: "Allow",
+        Principal: { Service: "cloudwatch.amazonaws.com" },
+        Action: ["kms:Decrypt", "kms:GenerateDataKey*"],
+        Resource: "*",
+      }),
+    ]));
+    const encryptionKey = doc.getIn(["Resources", "OperationsAlarmTopic", "Properties", "KmsMasterKeyId"], true);
+    expect(encryptionKey).toMatchObject({ tag: "!GetAtt", value: "OperationsAlarmKey.Arn" });
     const alarm = resources.NotificationFailureAlarm;
     expect(alarm.DependsOn).toBe("OperationsAlarmTopicPolicy");
     const action = doc.getIn(["Resources", "NotificationFailureAlarm", "Properties", "AlarmActions", 0], true);
