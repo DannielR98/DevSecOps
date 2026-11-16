@@ -11,7 +11,9 @@ beforeEach(() => {
   delete process.env.NOTIFICATIONS_DISABLED;
 });
 
+// Tests for the notification lock mechanism, including acquisition, release, and error handling.
 describe("notification lock", () => {
+  // Test that a durable global lock is acquired and released correctly, ensuring only the owner can release it.
   it("conditionally acquires a durable global lock and releases only its owner", async () => {
     send.mockResolvedValue({});
     const callback = vi.fn(async () => "result");
@@ -37,6 +39,7 @@ describe("notification lock", () => {
     expect(callback.mock.invocationCallOrder[0]).toBeLessThan(send.mock.invocationCallOrder[1]);
   });
 
+  // Test that an explicit 503 is returned for lock contention and that the callback is never called or the lock released.
   it("returns an explicit 503 for contention and never calls the callback or releases", async () => {
     send.mockRejectedValue(Object.assign(new Error("locked"), { name: "ConditionalCheckFailedException" }));
     const callback = vi.fn();
@@ -47,6 +50,7 @@ describe("notification lock", () => {
     expect(send).toHaveBeenCalledTimes(1);
   });
 
+  // Test that the owned lock is released and a callback failure is propagated.
   it("releases the owned lock and propagates a callback failure", async () => {
     send.mockResolvedValue({});
     const failure = new Error("operation failed");
@@ -54,6 +58,7 @@ describe("notification lock", () => {
     expect(send.mock.calls[1][0].constructor.name).toBe("DeleteCommand");
   });
 
+  // Test that an undefined thrown by the callback is not suppressed and the lock is released.
   it("does not suppress an undefined thrown by the callback", async () => {
     send.mockResolvedValue({});
     const outcome = await withNotificationLock(async () => { throw undefined; })
@@ -62,6 +67,7 @@ describe("notification lock", () => {
     expect(send.mock.calls[1][0].constructor.name).toBe("DeleteCommand");
   });
 
+  // Test that the mechanism fails closed on release failure, both after a successful callback and after a callback failure.
   it("fails closed on release failure after success and after callback failure", async () => {
     const release = new Error("DynamoDB unavailable");
     send.mockResolvedValueOnce({}).mockRejectedValueOnce(release);
@@ -74,6 +80,7 @@ describe("notification lock", () => {
     expect(send).toHaveBeenCalledTimes(4);
   });
 
+  // Test that ambiguous acquisition errors fail closed without deleting a potentially owned lock.
   it("fails closed on ambiguous acquisition errors without deleting a potentially owned lock", async () => {
     const failure = new Error("timeout");
     send.mockRejectedValue(failure);
@@ -84,6 +91,7 @@ describe("notification lock", () => {
     expect(send).toHaveBeenCalledTimes(1);
   });
 
+  // Test that the lock mechanism requires configuration and does not infer a disabled state.
   it("requires configuration and does not infer a disabled state", async () => {
     delete process.env.NOTIFICATION_LOCK_TABLE;
     const callback = vi.fn();
@@ -94,6 +102,7 @@ describe("notification lock", () => {
     expect(send).not.toHaveBeenCalled();
   });
 
+  // Test that the lock is only bypassed when notifications are explicitly disabled.
   it("only bypasses the lock for explicitly disabled notifications", async () => {
     delete process.env.NOTIFICATION_LOCK_TABLE;
     process.env.NOTIFICATIONS_DISABLED = "true";

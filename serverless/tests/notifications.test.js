@@ -46,6 +46,7 @@ const scanData = {
   ],
 };
 
+// Tests for the notification topic reconciliation handler.
 function dbWithScans(data = scanData) {
   mocks.db.mockImplementation(async (command) => {
     const { TableName, ExclusiveStartKey } = command.input;
@@ -60,15 +61,18 @@ function dbWithScans(data = scanData) {
   });
 }
 
+// Reset mocks and environment variables before each test.
 beforeEach(() => {
   mocks.db.mockReset();
   mocks.sns.mockReset();
   process.env.SNS_TOPIC_ARN_PREFIX = prefix;
 });
 
+// Tests for the notification topic reconciliation handler.
 describe("notification topic reconciliation", () => {
   it("backfills owners and members, preserves pending, removes confirmed obsolete subscriptions, and deletes orphan topics", async () => {
     dbWithScans();
+    // SNS pending email subscriptions cannot be unsubscribed; confirmed obsolete ones can.
     mocks.sns.mockImplementation(async (command) => {
       switch (command.constructor.name) {
         case "ListTopicsCommand":
@@ -78,15 +82,19 @@ describe("notification topic reconciliation", () => {
         case "CreateTopicCommand": return { TopicArn: arn(1) };
         case "ListSubscriptionsByTopicCommand":
           return command.input.NextToken
-            ? { Subscriptions: [
-              { Protocol: "email", Endpoint: "old@example.com", SubscriptionArn: `${arn(1)}:sub1` },
-              { Protocol: "email", Endpoint: "departed@example.com", SubscriptionArn: `${arn(1)}:sub2` },
-              { Protocol: "email", Endpoint: "stale@example.com", SubscriptionArn: "PendingConfirmation" },
-            ] }
-            : { Subscriptions: [
-              { Protocol: "email", Endpoint: "owner@example.com", SubscriptionArn: `${arn(1)}:sub3` },
-              { Protocol: "email", Endpoint: "pending@example.com", SubscriptionArn: "PendingConfirmation" },
-            ], NextToken: "more" };
+            ? {
+              Subscriptions: [
+                { Protocol: "email", Endpoint: "old@example.com", SubscriptionArn: `${arn(1)}:sub1` },
+                { Protocol: "email", Endpoint: "departed@example.com", SubscriptionArn: `${arn(1)}:sub2` },
+                { Protocol: "email", Endpoint: "stale@example.com", SubscriptionArn: "PendingConfirmation" },
+              ]
+            }
+            : {
+              Subscriptions: [
+                { Protocol: "email", Endpoint: "owner@example.com", SubscriptionArn: `${arn(1)}:sub3` },
+                { Protocol: "email", Endpoint: "pending@example.com", SubscriptionArn: "PendingConfirmation" },
+              ], NextToken: "more"
+            };
         case "SubscribeCommand": return { SubscriptionArn: "pending confirmation" };
         default: return {};
       }
@@ -108,6 +116,7 @@ describe("notification topic reconciliation", () => {
     }
   });
 
+  // Test that the handler correctly subscribes the creator and existing members when no subscriptions exist.
   it("subscribes creator and existing members when no subscriptions exist", async () => {
     dbWithScans();
     mocks.sns.mockImplementation(async (command) => {
@@ -120,6 +129,7 @@ describe("notification topic reconciliation", () => {
       .toEqual(["owner@example.com", "pending@example.com", "new@example.com"]);
   });
 
+  // Test that the handler does not delete a newly created group topic missing from the scan snapshot.
   it("does not delete a newly created group topic missing from the scan snapshot", async () => {
     dbWithScans({ groups: [], members: [], users: [] });
     mocks.db.mockImplementation(async (command) =>
@@ -129,6 +139,7 @@ describe("notification topic reconciliation", () => {
     expect(calls("DeleteTopicCommand")).toHaveLength(0);
   });
 
+  // Test that the handler deletes a topic if its group disappears during creation.
   it("deletes a topic if its group disappears during creation", async () => {
     dbWithScans();
     let gets = 0;
@@ -144,6 +155,7 @@ describe("notification topic reconciliation", () => {
     expect(calls("SubscribeCommand")).toHaveLength(0);
   });
 
+  // Test that the handler fails safely on scan, invalid email, and SNS failures.
   it("fails safely on scan, invalid email, and SNS failures", async () => {
     mocks.db.mockRejectedValueOnce(new Error("scan failed"));
     mocks.sns.mockResolvedValue({});
@@ -166,6 +178,7 @@ describe("notification topic reconciliation", () => {
     await expect(reconcile()).rejects.toThrow("failed for 1");
   });
 
+  // Test that the handler rejects unexpected subscriptions and an unsafe prefix.
   it("rejects unexpected subscriptions and an unsafe prefix", async () => {
     dbWithScans();
     mocks.sns.mockImplementation(async (command) => {
@@ -182,11 +195,13 @@ describe("notification topic reconciliation", () => {
   });
 });
 
+// Tests for the quiz notifications handler.
 describe("quiz notifications", () => {
   const event = {
     source: "quiz.app", "detail-type": "QuizCreated",
     detail: { event_id: id(10), quiz_id: id(11), group_id: id(1), title: "sensitive", answers: ["secret"] },
   };
+  // Test that the handler publishes the current group name only to the existing group's topic.
   it("publishes the current group name only to the existing group's topic", async () => {
     mocks.db.mockResolvedValue({ Item: { id: id(1), name: "Quiz Team" } });
     mocks.sns.mockResolvedValue({ MessageId: "message" });
@@ -207,6 +222,7 @@ describe("quiz notifications", () => {
     expect(calls("CreateTopicCommand")).toHaveLength(0);
   });
 
+  // Test that the handler fails for a missing or invalid group name without publishing.
   it("fails for a missing or invalid group name without publishing", async () => {
     for (const name of [undefined, "", "   ", 42]) {
       mocks.db.mockResolvedValueOnce({ Item: { id: id(1), name } });
@@ -215,19 +231,25 @@ describe("quiz notifications", () => {
     expect(mocks.sns).not.toHaveBeenCalled();
   });
 
+  // Tests for confirmed subscription cleanup.
   describe("confirmed subscription cleanup", () => {
+    // Test that the handler paginates, removes every matching confirmed subscription and reports pending.
     it("paginates, removes every matching confirmed subscription and reports pending", async () => {
       mocks.sns.mockImplementation(async (command) => {
         if (command.constructor.name === "ListSubscriptionsByTopicCommand") {
           return command.input.NextToken
-            ? { Subscriptions: [
-              { Protocol: "email", Endpoint: "ME@example.com", SubscriptionArn: `${arn(1)}:confirmed2` },
-              { Protocol: "email", Endpoint: "me@example.com", SubscriptionArn: "PendingConfirmation" },
-            ] }
-            : { Subscriptions: [
-              { Protocol: "email", Endpoint: "me@example.com", SubscriptionArn: `${arn(1)}:confirmed1` },
-              { Protocol: "email", Endpoint: "other@example.com", SubscriptionArn: `${arn(1)}:other` },
-            ], NextToken: "page2" };
+            ? {
+              Subscriptions: [
+                { Protocol: "email", Endpoint: "ME@example.com", SubscriptionArn: `${arn(1)}:confirmed2` },
+                { Protocol: "email", Endpoint: "me@example.com", SubscriptionArn: "PendingConfirmation" },
+              ]
+            }
+            : {
+              Subscriptions: [
+                { Protocol: "email", Endpoint: "me@example.com", SubscriptionArn: `${arn(1)}:confirmed1` },
+                { Protocol: "email", Endpoint: "other@example.com", SubscriptionArn: `${arn(1)}:other` },
+              ], NextToken: "page2"
+            };
         }
         return {};
       });
@@ -238,6 +260,7 @@ describe("quiz notifications", () => {
       expect(calls("ListSubscriptionsByTopicCommand")[1].input.NextToken).toBe("page2");
     });
 
+    // Test that the handler propagates unsubscribe failures, and accepts an already-deleted topic.
     it("propagates unsubscribe failures, and accepts an already-deleted topic", async () => {
       mocks.sns.mockImplementation(async (command) => {
         if (command.constructor.name === "ListSubscriptionsByTopicCommand") {
@@ -251,12 +274,14 @@ describe("quiz notifications", () => {
     });
   });
 
+  // Test that the handler skips deleted groups without creating or publishing a topic.
   it("skips deleted groups without creating or publishing a topic", async () => {
     mocks.db.mockResolvedValue({});
     await expect(notify(event)).resolves.toEqual({ status: "group-deleted" });
     expect(mocks.sns).not.toHaveBeenCalled();
   });
 
+  // Test that the handler rejects invalid events and propagates SNS errors for retry.
   it("rejects invalid events and propagates SNS errors for retry", async () => {
     await expect(notify({ ...event, detail: { ...event.detail, group_id: "bad" } }))
       .rejects.toThrow("Invalid quiz creation event");

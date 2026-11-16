@@ -22,6 +22,7 @@ beforeEach(() => send.mockReset());
 
 // Tests for the DynamoDB repository functions, including pagination, batch operations, and error handling.
 describe("DynamoDB repository", () => {
+  // Test that the handler atomically registers a quiz event without leaking its contents.
   it("atomically registers a quiz event without leaking its contents", async () => {
     send.mockResolvedValueOnce({});
     const quiz = await quizzes.create({
@@ -40,12 +41,14 @@ describe("DynamoDB repository", () => {
     expect(Object.keys(eventPut.Item).sort()).toEqual(["createdAt", "group_id", "id", "quiz_id", "type"]);
   });
 
+  // Test that quiz creation fails when the registration transaction fails.
   it("fails quiz creation when the registration transaction fails", async () => {
     const failure = new Error("transaction unavailable");
     send.mockRejectedValueOnce(failure);
     await expect(quizzes.create({ group_id: "group" })).rejects.toBe(failure);
     expect(send).toHaveBeenCalledTimes(1);
   });
+  // Test that every page of a user scan is read.
   it("reads every page of a user scan", async () => {
     const lastKey = { user_id: "first" };
     send.mockResolvedValueOnce({ Items: [{ user_id: "first" }], LastEvaluatedKey: lastKey })
@@ -56,7 +59,7 @@ describe("DynamoDB repository", () => {
     expect(send.mock.calls[1][0].input.ExclusiveStartKey).toEqual(lastKey);
   });
 
-  // Tests for reading every page of a group quiz query, ensuring pagination is handled correctly.
+  // Test that every page of a group quiz query is read.
   it("reads every page of a group quiz query", async () => {
     const lastKey = { id: "first" };
     send.mockResolvedValueOnce({ Items: [{ id: "first" }], LastEvaluatedKey: lastKey })
@@ -71,7 +74,7 @@ describe("DynamoDB repository", () => {
     expect(send.mock.calls[1][0].input.ExclusiveStartKey).toEqual(lastKey);
   });
 
-  // Tests for retrying unprocessed batch reads and deduplicating IDs.
+  // Test that unprocessed batch reads are retried and IDs are deduplicated.
   it("retries unprocessed batch reads and deduplicates IDs", async () => {
     send.mockResolvedValueOnce({
       Responses: { groups: [{ id: "one" }] },
@@ -83,7 +86,7 @@ describe("DynamoDB repository", () => {
     expect(send.mock.calls[1][0].input.RequestItems.groups.Keys).toEqual([{ id: "two" }]);
   });
 
-  // Tests for retrying unprocessed batch deletes before deleting the quiz.
+  // Test that unprocessed batch deletes are retried before deleting the quiz.
   it("retries unprocessed batch deletes before deleting the quiz", async () => {
     const request = { DeleteRequest: { Key: { id: "result" } } };
     send.mockResolvedValueOnce({ Items: [{ id: "result" }] })
@@ -99,7 +102,7 @@ describe("DynamoDB repository", () => {
     expect(send.mock.calls[3][0].input).toMatchObject({ TableName: "quizzes", Key: { id: "quiz" } });
   });
 
-  // Tests for mapping transaction conflicts to 409 and propagating other database failures.
+  // Test that transaction conflicts are mapped to 409 and other database failures are propagated.
   it("maps transaction conflicts to 409 and propagates other database failures", async () => {
     const input = { auth_id: "auth", email: "a@example.com", username: "alice" };
     send.mockRejectedValueOnce(Object.assign(new Error("conflict"), { name: "TransactionCanceledException" }));

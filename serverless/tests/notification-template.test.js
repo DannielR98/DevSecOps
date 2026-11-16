@@ -2,7 +2,9 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { parseDocument } from "yaml";
 
+// Tests for the notification infrastructure template, ensuring correct wiring of resources and failure paths.
 describe("notification infrastructure", () => {
+  // Test that the notification infrastructure template correctly wires durable event relay, reconciliation, delivery, and both failure paths.
   it("wires durable event relay, reconciliation, delivery and both failure paths", () => {
     const doc = parseDocument(readFileSync("template.yaml", "utf8"));
     expect(doc.errors).toEqual([]);

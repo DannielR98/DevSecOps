@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// Mocking dependencies for notification-aware membership cleanup and SNS interactions.
 const mocks = vi.hoisted(() => ({ db: vi.fn(), sns: vi.fn(), remove: vi.fn() }));
 vi.mock("../src/lib/db.js", () => ({
   doc: { send: mocks.db },
@@ -20,7 +21,9 @@ beforeEach(() => {
   vi.unstubAllEnvs();
 });
 
+// Tests for notification-aware membership cleanup, ensuring proper handling of subscriptions and SNS interactions.
 describe("subscription cleanup", () => {
+  // Test that every page of membership data is scanned and owned/joined groups are deduplicated.
   it("scans every page consistently and deduplicates owned and joined groups", async () => {
     mocks.db.mockImplementation(async ({ input }) => {
       if (input.TableName === "members") {
@@ -38,6 +41,7 @@ describe("subscription cleanup", () => {
     expect(mocks.db.mock.calls[0][0].input.ExpressionAttributeValues).toEqual({ ":user": "user" });
   });
 
+  // Test that cleanup failures are propagated and SNS is only bypassed in explicit local mode.
   it("propagates cleanup failures and only bypasses SNS in explicit local mode", async () => {
     mocks.remove.mockRejectedValueOnce(new Error("SNS failure"));
     await expect(removeMemberSubscription("group", "email")).rejects.toThrow("SNS failure");

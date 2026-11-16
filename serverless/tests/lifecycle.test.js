@@ -86,7 +86,9 @@ beforeEach(() => {
   for (const map of Object.values(db.__data)) map.clear();
 });
 
+// Tests for user registration, login, and account management.
 describe("users", () => {
+  // Test that invalid registration and login fields are rejected.
   it("reports invalid registration and login fields", async () => {
     const registration = await call(registerUser, { body: { email: "not-an-email" } });
     expect(registration.status).toBe(400);
@@ -103,6 +105,7 @@ describe("users", () => {
     ]));
   });
 
+  // Test that successful registration returns a 201 status and login returns a 200 status.
   it("registers, logs in by username or email and hides password hashes", async () => {
     const alice = await signUp("alice");
 
@@ -117,6 +120,7 @@ describe("users", () => {
     expect(list.body.users[0].password).toBeUndefined();
   });
 
+  // Test that duplicate registrations, bad passwords, and unauthenticated calls are rejected.
   it("rejects duplicates, bad passwords and unauthenticated calls", async () => {
     await signUp("alice");
 
@@ -138,6 +142,7 @@ describe("users", () => {
     expect((await call(getUsers, { token: "garbage" })).status).toBe(401);
   });
 
+  // Test that users can only update their own information and that old unique keys are released.
   it("only lets users update themselves and releases old unique keys", async () => {
     const alice = await signUp("alice");
     const bob = await signUp("bob");
@@ -171,6 +176,7 @@ describe("users", () => {
     expect(clash.status).toBe(409);
   });
 
+  // Test that users can look up other users without exposing passwords and that account deletion is restricted.
   it("looks up users without exposing passwords and restricts account deletion", async () => {
     const alice = await signUp("alice");
     const bob = await signUp("bob");
@@ -200,8 +206,9 @@ describe("users", () => {
   });
 });
 
-// Cover authorization, result privacy and the complete group/quiz lifecycle.
+// Tests for group, member, and quiz lifecycle, including authorization and result privacy.
 describe("groups, members and quizzes", () => {
+  // Test that personal results are restricted and only each participant's best score is exposed to members.
   it("restricts personal results and exposes only each participant's best score to members", async () => {
     const alice = await signUp("alice");
     const bob = await signUp("bob");
@@ -252,7 +259,6 @@ describe("groups, members and quizzes", () => {
     })).status).toBe(404);
   });
 
-  // Tests for handling quiz result retrieval, leaderboard calculations, and group membership effects on visibility.
   it("uses unrounded percentages and resolves tied attempts deterministically", async () => {
     const alice = await signUp("alice");
     const bob = await signUp("bob");
@@ -280,7 +286,7 @@ describe("groups, members and quizzes", () => {
     ]);
   });
 
-  // Tests for input validation when creating groups and quizzes, ensuring errors are returned before any data is stored.
+  // Test that invalid group and quiz input is rejected before storing data.
   it("rejects invalid group and quiz input before storing data", async () => {
     const alice = await signUp("alice");
     const group = await call(createGroup, { token: alice.token, body: { name: "" } });
@@ -304,6 +310,7 @@ describe("groups, members and quizzes", () => {
     expect(db.__data[TABLES.quizzes]?.size ?? 0).toBe(0);
   });
 
+  // Test that invite codes are validated and member lookup is restricted to group members.
   it("validates invite codes and restricts member lookup to group members", async () => {
     const alice = await signUp("alice");
     const bob = await signUp("bob");
@@ -338,7 +345,7 @@ describe("groups, members and quizzes", () => {
     expect(found.body.member.user).not.toHaveProperty("password");
   });
 
-  // Tests for the full lifecycle of group and quiz management, including creation, joining, updating, and access control.
+  // Test the full group/quiz lifecycle.
   it("runs the full group/quiz lifecycle", async () => {
     const alice = await signUp("alice");
     const bob = await signUp("bob");
@@ -443,7 +450,7 @@ describe("groups, members and quizzes", () => {
     ).toBe(false);
   });
 
-  // Tests for quiz deletion permissions and cascading removal of associated results.
+  // Test that only the creator can delete a quiz and that its results are removed.
   it("lets only the creator delete a quiz and removes its results", async () => {
     const alice = await signUp("alice");
     const bob = await signUp("bob");

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// Exercise the handler with scripted SDK responses, not live AWS services.
 const mocks = vi.hoisted(() => ({ db: vi.fn(), events: vi.fn() }));
 vi.mock("../src/lib/db.js", () => ({
   doc: { send: mocks.db },
@@ -36,8 +37,9 @@ beforeEach(() => {
   mocks.events.mockReset();
   process.env.EVENT_BUS_NAME = "quiz-events";
 });
-
+// Tests for the relayOutbox handler.
 describe("outbox relay", () => {
+  // Test that the handler correctly scans multiple pages and batches events to EventBridge.
   it("scans every page, batches at ten, emits only safe fields and deletes successes", async () => {
     const first = Array.from({ length: 11 }, (_, n) => item(n + 1));
     const key = { id: id(11) };
@@ -69,6 +71,7 @@ describe("outbox relay", () => {
     });
   });
 
+  // Test that the handler correctly handles partial failures and retries with the same event id.
   it("retains partial failures and retries with the same event id", async () => {
     let remaining = [item(1), item(2)];
     mocks.db.mockImplementation(async (command) => {
@@ -90,6 +93,7 @@ describe("outbox relay", () => {
     expect(remaining).toEqual([]);
   });
 
+  // Test that the handler correctly handles partial failures and retries with the same event id.
   it("retains records on an ambiguous publish response or exception", async () => {
     mocks.db.mockResolvedValue({ Items: [item(1)] });
     mocks.events.mockResolvedValueOnce({ FailedEntryCount: 0, Entries: [] })
@@ -101,6 +105,7 @@ describe("outbox relay", () => {
     expect(mocks.db.mock.calls.every(([command]) => command.constructor.name === "ScanCommand")).toBe(true);
   });
 
+  // Test that the handler correctly handles a successfully published record that fails to delete.
   it("retains a successfully published record if deletion fails, allowing duplicate delivery", async () => {
     mocks.db.mockImplementation(async (command) => {
       if (command.constructor.name === "ScanCommand") return { Items: [item(1)] };
@@ -113,6 +118,7 @@ describe("outbox relay", () => {
       .toEqual(mocks.events.mock.calls[1][0].input.Entries[0].Detail);
   });
 
+  // Test that malformed records are retained without publishing their content.
   it("retains malformed records without publishing their content and continues", async () => {
     mocks.db.mockImplementation(async (command) =>
       command.constructor.name === "ScanCommand"
@@ -123,6 +129,7 @@ describe("outbox relay", () => {
     expect(mocks.db.mock.calls.filter(([command]) => command.constructor.name === "DeleteCommand")).toHaveLength(1);
   });
 
+  // Test that the handler correctly handles a low remaining time scenario and preserves the next-page cursor.
   it("accepts a recovery cursor and rejects invalid cursors or missing configuration", async () => {
     mocks.db.mockResolvedValue({ Items: [] });
     await handler({ startKey: { id: id(4) } });
@@ -132,6 +139,7 @@ describe("outbox relay", () => {
     await expect(handler()).rejects.toThrow("required");
   });
 
+  // Test that the next-page cursor is preserved when time is low.
   it("preserves the next-page cursor when time is low", async () => {
     const remaining = vi.fn().mockReturnValueOnce(30000).mockReturnValueOnce(10000);
     mocks.db.mockResolvedValueOnce({ Items: [], LastEvaluatedKey: { id: id(1) } });

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+// Mocking dependencies for notification-aware membership changes and user updates/deletions.
 const mocks = vi.hoisted(() => ({
   authenticate: vi.fn(),
   lock: vi.fn(),
@@ -35,6 +36,7 @@ const event = (params, body) => ({
   body: body === undefined ? undefined : JSON.stringify(body),
 });
 
+// Tests for notification-aware membership changes, ensuring proper cleanup of subscriptions under the lock mechanism.
 beforeEach(() => {
   vi.clearAllMocks();
   mocks.authenticate.mockResolvedValue({ ...user, email: "stale@example.com" });
@@ -49,7 +51,9 @@ beforeEach(() => {
   mocks.updateUser.mockResolvedValue({ ...user, email: "new@example.com" });
 });
 
+// Tests for notification-aware membership changes, ensuring proper cleanup of subscriptions under the lock mechanism.
 describe("notification-aware membership changes", () => {
+  // Test that leaving a group removes the current confirmed subscription before releasing the lock.
   it("removes the current confirmed subscription before leaving under the lock", async () => {
     const response = await leave(event({ groupId }));
     expect(response.statusCode).toBe(200);
@@ -59,6 +63,7 @@ describe("notification-aware membership changes", () => {
       .toBeLessThan(mocks.removeMember.mock.invocationCallOrder[0]);
   });
 
+  // Test that membership is not removed if SNS cleanup fails.
   it("does not remove membership if SNS cleanup fails", async () => {
     mocks.removeMemberSubscription.mockRejectedValue(new Error("SNS unavailable"));
     const response = await leave(event({ groupId }));
@@ -66,6 +71,7 @@ describe("notification-aware membership changes", () => {
     expect(mocks.removeMember).not.toHaveBeenCalled();
   });
 
+  // Test that old subscriptions are cleaned before changing the email or deleting a profile.
   it("cleans old subscriptions before changing the email or deleting a profile", async () => {
     expect((await update(event({ user_id: userId }, { email: "new@example.com" }))).statusCode).toBe(200);
     expect(mocks.removeUserSubscriptions).toHaveBeenCalledWith(user);
@@ -78,6 +84,7 @@ describe("notification-aware membership changes", () => {
       .toBeLessThan(mocks.removeUser.mock.invocationCallOrder[0]);
   });
 
+  // Test that the user is not changed or deleted when SNS cleanup fails.
   it("does not change or delete a user when SNS cleanup fails", async () => {
     mocks.removeUserSubscriptions.mockRejectedValue(new Error("SNS unavailable"));
     expect((await update(event({ user_id: userId }, { email: "new@example.com" }))).statusCode).toBe(500);

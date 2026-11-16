@@ -5,7 +5,7 @@ import { doc, table } from "../lib/db.js";
 const eventBridge = new EventBridgeClient({});
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const timestamp = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
-
+// Validates that an outbox item has the required structure and types.
 const valid = (item) =>
   item && item.type === "QuizCreated" &&
   typeof item.id === "string" && uuid.test(item.id) &&
@@ -14,6 +14,7 @@ const valid = (item) =>
   typeof item.createdAt === "string" && timestamp.test(item.createdAt) &&
   Number.isFinite(Date.parse(item.createdAt));
 
+// Constructs an EventBridge entry for the given outbox item and bus.
 const entry = (item, bus) => ({
   EventBusName: bus,
   Source: "quiz.app",
@@ -27,10 +28,13 @@ const entry = (item, bus) => ({
   }),
 });
 
+// Publishes a batch of outbox items to EventBridge.
+// Returns the number of failed items that were not successfully published and deleted.
 // A successful publish can be repeated after a crash or a failed delete.
 // The stable event_id lets consumers identify these duplicates.
 async function publishBatch(items, bus) {
   let response;
+  // Attempt to publish the batch to EventBridge.
   try {
     response = await eventBridge.send(new PutEventsCommand({
       Entries: items.map((item) => entry(item, bus)),
@@ -40,23 +44,27 @@ async function publishBatch(items, bus) {
     return items.length;
   }
 
+  // If the publish succeeded, response contains the results for each entry.
   const results = response.Entries;
   if (!Array.isArray(results) || results.length !== items.length ||
-      !Number.isInteger(response.FailedEntryCount) ||
-      results.some((result) => !result || typeof result !== "object") ||
-      response.FailedEntryCount !== results.filter((result) => result.ErrorCode).length) {
+    !Number.isInteger(response.FailedEntryCount) ||
+    results.some((result) => !result || typeof result !== "object") ||
+    response.FailedEntryCount !== results.filter((result) => result.ErrorCode).length) {
     console.error("EventBridge returned an ambiguous batch response; retaining outbox records");
     return items.length;
   }
 
+  // Iterate over each item and check if it was successfully published.
   let failures = 0;
   for (let i = 0; i < items.length; i++) {
     const result = results[i];
+    // If the result contains an error or lacks a valid EventId, count it as a failure.
     if (result.ErrorCode || result.ErrorMessage || typeof result.EventId !== "string" || !result.EventId) {
       console.error("EventBridge rejected or did not acknowledge outbox event:", items[i].id, result.ErrorCode);
       failures++;
       continue;
     }
+    // Attempt to delete the successfully published item from the outbox table.
     const item = items[i];
     try {
       await doc.send(new DeleteCommand({
@@ -85,14 +93,17 @@ export const handler = async (event = {}, context = {}) => {
   if (!table.outbox || !process.env.EVENT_BUS_NAME) {
     throw new Error("OUTBOX_TABLE and EVENT_BUS_NAME are required");
   }
+  // Extract the start key from the event, if provided, for paginated scanning.
   let key = event.startKey;
   if (key !== undefined &&
-      (!key || Object.keys(key).length !== 1 || typeof key.id !== "string" || !uuid.test(key.id))) {
+    (!key || Object.keys(key).length !== 1 || typeof key.id !== "string" || !uuid.test(key.id))) {
     throw new Error("Invalid startKey");
   }
   let failures = 0;
   let scanned = 0;
+  // Loop through pages of outbox items until all are processed or time runs out.
   do {
+    // Check if there is enough remaining time to process the next page.
     if (context.getRemainingTimeInMillis && context.getRemainingTimeInMillis() < 15000) {
       throw new Error(`Outbox relay ran out of time before scanning the next page; resume after ${key?.id ?? "start"}`);
     }
@@ -104,20 +115,24 @@ export const handler = async (event = {}, context = {}) => {
       ProjectionExpression: "id, #type, quiz_id, group_id, createdAt",
       ExpressionAttributeNames: { "#type": "type" },
     }));
+    // Prepare a list of outbox items that are ready to be published.
     const ready = [];
     for (const item of page.Items ?? []) {
       scanned++;
       if (valid(item)) ready.push(item);
       else {
+        // Log malformed items and increment the failure count.
         console.error("Malformed outbox record; manual intervention required:", item.id);
         failures++;
       }
     }
+    // Publish the ready items in batches of 10 to EventBridge.
     for (let i = 0; i < ready.length; i += 10) {
       failures += await publishBatch(ready.slice(i, i + 10), process.env.EVENT_BUS_NAME);
     }
     key = page.LastEvaluatedKey;
   } while (key);
+  // If there were any failures, throw an error to indicate that some items need to be retried.
   if (failures) throw new Error(`Outbox relay left ${failures} record(s) for retry`);
   return { scanned };
 };
