@@ -25,5 +25,23 @@ describe("notification infrastructure", () => {
     expect(resources.NotificationFailureQueue.Properties.MessageRetentionPeriod).toBe(1209600);
     expect(resources.NotificationFailureQueue.Properties.SqsManagedSseEnabled).toBe(true);
     expect(resources.NotificationFailureAlarm.Properties.Threshold).toBe(1);
+    expect(resources.OperationsAlarmTopic.Type).toBe("AWS::SNS::Topic");
+    const alarm = resources.NotificationFailureAlarm;
+    expect(alarm.DependsOn).toBe("OperationsAlarmTopicPolicy");
+    const action = doc.getIn(["Resources", "NotificationFailureAlarm", "Properties", "AlarmActions", 0], true);
+    expect(action).toMatchObject({ tag: "!Ref", value: "OperationsAlarmTopic" });
+    const output = doc.getIn(["Outputs", "OperationsAlarmTopicArn", "Value"], true);
+    expect(output).toMatchObject({ tag: "!Ref", value: "OperationsAlarmTopic" });
+    const policy = resources.OperationsAlarmTopicPolicy.Properties.PolicyDocument.Statement;
+    expect(policy[1]).toMatchObject({
+      Principal: { Service: "cloudwatch.amazonaws.com" },
+      Action: "sns:Publish",
+    });
+    const sourceArn = doc.getIn([
+      "Resources", "OperationsAlarmTopicPolicy", "Properties", "PolicyDocument",
+      "Statement", 1, "Condition", "ArnEquals", "aws:SourceArn",
+    ], true);
+    const alarmName = doc.getIn(["Resources", "NotificationFailureAlarm", "Properties", "AlarmName"], true);
+    expect(sourceArn.value).toBe(`arn:\${AWS::Partition}:cloudwatch:\${AWS::Region}:\${AWS::AccountId}:alarm:${alarmName.value}`);
   });
 });

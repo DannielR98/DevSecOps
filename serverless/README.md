@@ -60,16 +60,18 @@ and may suspend subscriptions; see [SNS email notifications](https://docs.aws.am
 ### AWS deployment and operations
 
 The SAM stack creates the event bus, rules, SQS failure queue, CloudWatch queue
-alarm, DynamoDB outbox and lock tables, and Lambda execution permissions.
+alarm, an SNS topic for operational alarms, DynamoDB outbox and lock tables, and Lambda execution permissions.
 Group topics are created dynamically by reconciliation; there is no separate
 sender address or SNS secret to configure. The existing GitHub deployment role
 and any CloudFormation execution role need permissions to create and update
-the new EventBridge, SQS, CloudWatch, DynamoDB, Lambda and IAM resources,
+the new EventBridge, SQS, SNS, CloudWatch, DynamoDB, Lambda and IAM resources,
 including passing the Lambda execution roles. Check organizational SCPs,
 permission boundaries and quotas. Runtime roles need the SNS, EventBridge,
-DynamoDB and SQS actions in the template. The failure alarm has no notification
-action by default: attach an operational alarm action and monitor Lambda errors
-and the outbox table as well.
+DynamoDB and SQS actions in the template. The failure alarm publishes to the
+stack-managed `OperationsAlarmTopicArn`. After deployment, create an email
+subscription to this topic in SNS and confirm the email; until then no operator
+receives an alarm email. This operations topic is separate from group topics.
+Monitor Lambda errors and the outbox table as well.
 
 After deployment, allow reconciliation to run and ask existing members to
 confirm the SNS emails. Test a new group and quiz using confirmed test
@@ -78,8 +80,8 @@ CloudWatch logs and queue alarms in the deployed region. This is not covered by
 local or mocked tests. AWS charges apply to the scans, Lambdas, EventBridge,
 SNS, SQS and other resources.
 
-The stack outputs `NotificationFailureQueueUrl`, `NotificationLockTableName`
-and `NotificationEventBusName` identify the operational resources. EventBridge
+The stack outputs `NotificationFailureQueueUrl`, `NotificationLockTableName`,
+`NotificationEventBusName` and `OperationsAlarmTopicArn` identify the operational resources. EventBridge
 retries failed target delivery and Lambda retries asynchronous handler failures;
 exhausted failures are sent to the SQS queue, which retains messages for 14
 days. Inspect the error, repair the cause and replay the original event to the

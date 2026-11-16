@@ -358,10 +358,42 @@ Resources:
                   - !GetAtt ReconciliationSchedule.Arn
                   - !GetAtt QuizCreatedRule.Arn
 
+  OperationsAlarmTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "${AWS::StackName}-operations"
+
+  OperationsAlarmTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties:
+      Topics: [!Ref OperationsAlarmTopic]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: AccountAccess
+            Effect: Allow
+            Principal:
+              AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
+            Action: sns:*
+            Resource: !Ref OperationsAlarmTopic
+          - Sid: AllowFailureAlarm
+            Effect: Allow
+            Principal: { Service: cloudwatch.amazonaws.com }
+            Action: sns:Publish
+            Resource: !Ref OperationsAlarmTopic
+            Condition:
+              StringEquals:
+                aws:SourceAccount: !Ref AWS::AccountId
+              ArnEquals:
+                aws:SourceArn: !Sub "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${AWS::StackName}-notification-failure"
+
   NotificationFailureAlarm:
     Type: AWS::CloudWatch::Alarm
+    DependsOn: OperationsAlarmTopicPolicy
     Properties:
+      AlarmName: !Sub "${AWS::StackName}-notification-failure"
       AlarmDescription: Notification delivery or scheduling failed; inspect the failure queue.
+      AlarmActions: [!Ref OperationsAlarmTopic]
       Namespace: AWS/SQS
       MetricName: ApproximateNumberOfMessagesVisible
       Dimensions:
@@ -827,3 +859,6 @@ Outputs:
   NotificationEventBusName:
     Description: Event bus receiving quiz creation events
     Value: !Ref QuizEventBus
+  OperationsAlarmTopicArn:
+    Description: SNS topic for operational alarms; subscribe and confirm an email endpoint
+    Value: !Ref OperationsAlarmTopic
