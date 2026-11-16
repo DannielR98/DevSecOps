@@ -402,6 +402,7 @@ export const quizzes = {
       group_id: quiz.group_id,
       createdAt: quiz.createdAt,
     };
+    // Persist the quiz and the corresponding event in a single transaction to ensure consistency.
     await doc.send(new TransactWriteCommand({
       TransactItems: [
         put(table.quizzes, quiz, "attribute_not_exists(id)"),
@@ -430,6 +431,7 @@ export const quizzes = {
       table.results,
       results.map((r) => ({ id: r.id })),
     );
+    // After deleting all results, remove the quiz itself. This ensures that no orphaned results remain.
     await doc.send(
       new DeleteCommand({ TableName: table.quizzes, Key: { id: quiz.id } }),
     );
