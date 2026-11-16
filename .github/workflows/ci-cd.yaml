@@ -151,6 +151,7 @@ jobs:
         env:
           TRIVY_SKIP_VERSION_CHECK: "true"
         with:
+          version: v0.76.2
           scan-type: fs
           scan-ref: .
           scanners: vuln,misconfig
@@ -205,6 +206,7 @@ jobs:
         env:
           TRIVY_SKIP_VERSION_CHECK: "true"
         with:
+          version: v0.76.2
           image-ref: quiz-scan-frontend:${{ github.sha }}
           scanners: vuln
           severity: HIGH,CRITICAL
@@ -216,6 +218,7 @@ jobs:
         env:
           TRIVY_SKIP_VERSION_CHECK: "true"
         with:
+          version: v0.76.2
           image-ref: quiz-scan-frontend-prod:${{ github.sha }}
           scanners: vuln
           severity: HIGH,CRITICAL
@@ -228,6 +231,7 @@ jobs:
 #        env:
 #          TRIVY_SKIP_VERSION_CHECK: "true"
 #        with:
+#          version: v0.76.2
 #          image-ref: quiz-scan-backend:${{ github.sha }}
 #          scanners: vuln
 #          severity: HIGH,CRITICAL

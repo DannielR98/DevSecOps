@@ -21,6 +21,7 @@ describe("notification infrastructure", () => {
       expect(resources[name].Properties.EventInvokeConfig.DestinationConfig.OnFailure.Type).toBe("SQS");
     }
     expect(resources.NotificationFailureQueue.Properties.MessageRetentionPeriod).toBe(1209600);
+    expect(resources.NotificationFailureQueue.Properties.SqsManagedSseEnabled).toBe(true);
     expect(resources.NotificationFailureAlarm.Properties.Threshold).toBe(1);
   });
 });

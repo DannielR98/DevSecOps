@@ -332,6 +332,8 @@ Resources:
     Properties:
       Name: !Sub "${AWS::StackName}-quiz-events"
 
+  # Trivy does not recognize SqsManagedSseEnabled in CloudFormation; the template test enforces it.
+  #trivy:ignore:AWS-0096
   NotificationFailureQueue:
     Type: AWS::SQS::Queue
     Properties:
