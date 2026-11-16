@@ -24,6 +24,9 @@ export const table = {
   get quizzes() {
     return process.env.QUIZZES_TABLE;
   },
+  get outbox() {
+    return process.env.OUTBOX_TABLE;
+  },
   get results() {
     return process.env.RESULTS_TABLE;
   },

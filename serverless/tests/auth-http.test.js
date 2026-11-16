@@ -22,6 +22,7 @@ vi.mock("../src/lib/db.js", async () => {
     groups: "groups",
     members: "members",
     quizzes: "quizzes",
+    outbox: "outbox",
     results: "results",
   };
   const fake = createFakeDynamo(table);
@@ -39,6 +40,7 @@ const { handler: updateUser } = await import("../src/handlers/updateUser.js");
 const { handler: createGroup } = await import("../src/handlers/createGroup.js");
 const { handler: createQuiz } = await import("../src/handlers/createQuiz.js");
 const { handler: takeQuiz } = await import("../src/handlers/takeQuiz.js");
+const { handler: authorize } = await import("../src/handlers/authorize.js");
 
 const secret = "test-secret-test-secret-test-secret-123";
 const otherSecret = "other-secret-other-secret-other-secret-123";
@@ -50,6 +52,7 @@ beforeEach(() => {
   vi.stubEnv("JWT_SECRET", secret);
   vi.stubEnv("SUPABASE_JWT_SECRET", "");
   vi.stubEnv("SUPABASE_URL", "");
+  vi.stubEnv("NOTIFICATIONS_DISABLED", "true");
 });
 
 afterEach(() => {
@@ -59,6 +62,27 @@ afterEach(() => {
 
 // Tests for authentication flows, including JWT verification and legacy Supabase token handling.
 describe("authentication", () => {
+  it("authorizes valid app and legacy Supabase tokens and rejects invalid requests", async () => {
+    vi.stubEnv("SUPABASE_JWT_SECRET", otherSecret);
+    const app = await createJWT({ user_id: "user-1", username: "alice", email: "a@example.com" });
+    const legacy = await new SignJWT({ sub: "supabase-user" })
+      .setProtectedHeader({ alg: "HS256" }).sign(encode(otherSecret));
+    const expired = await new SignJWT({ sub: "user-1" })
+      .setProtectedHeader({ alg: "HS256" }).setExpirationTime("1 second ago").sign(encode(secret));
+    const wrong = await new SignJWT({ sub: "user-1" })
+      .setProtectedHeader({ alg: "HS256" }).sign(encode("wrong-secret"));
+    const noIdentity = await new SignJWT({})
+      .setProtectedHeader({ alg: "HS256" }).sign(encode(secret));
+
+    expect(await authorize({ headers: { authorization: `Bearer ${app}` } })).toEqual({ isAuthorized: true });
+    expect(await authorize({ headers: { Authorization: `Bearer ${legacy}` } })).toEqual({ isAuthorized: true });
+    for (const token of [expired, wrong, noIdentity, "invalid"]) {
+      expect(await authorize({ headers: { Authorization: `Bearer ${token}` } })).toEqual({ isAuthorized: false });
+    }
+    expect(await authorize({ headers: {} })).toEqual({ isAuthorized: false });
+    expect(await authorize({ headers: { Authorization: "Basic value" } })).toEqual({ isAuthorized: false });
+  });
+
   it("verifies app tokens and rejects expired or incorrectly signed tokens", async () => {
     const token = await createJWT({ user_id: "user-1", username: "alice", email: "a@example.com" });
     expect(await verifyToken(token)).toMatchObject({ user_id: "user-1", username: "alice" });
@@ -115,6 +139,7 @@ describe("authentication", () => {
       .setSubject("jwks-user")
       .sign(privateKey);
 
+    expect(await authorize({ headers: { authorization: `Bearer ${token}` } })).toEqual({ isAuthorized: true });
     const response = await syncUser({
       headers: { Authorization: `Bearer ${token}` },
       body: JSON.stringify({ auth_id: "ignored" }),

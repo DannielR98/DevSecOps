@@ -7,6 +7,7 @@ const TABLES = {
   groups: "groups",
   members: "members",
   quizzes: "quizzes",
+  outbox: "outbox",
   results: "results",
   uniques: "uniques",
 };
@@ -18,6 +19,7 @@ vi.mock("../src/lib/db.js", async () => {
 });
 
 process.env.JWT_SECRET = "test-secret-test-secret-test-secret-123";
+process.env.NOTIFICATIONS_DISABLED = "true";
 
 const { handler: registerUser } = await import("../src/handlers/registerUser.js");
 const { handler: loginUser } = await import("../src/handlers/loginUser.js");
@@ -34,7 +36,6 @@ const { handler: joinGroup } = await import("../src/handlers/joinGroup.js");
 const { handler: leaveGroup } = await import("../src/handlers/leaveGroup.js");
 const { handler: getGroupMembers } = await import("../src/handlers/getGroupMembers.js");
 const { handler: getGroupMemberById } = await import("../src/handlers/getGroupMemberById.js");
-const { handler: joinGroupMember } = await import("../src/handlers/joinGroupMember.js");
 const { handler: createQuiz } = await import("../src/handlers/createQuiz.js");
 const { handler: getQuizzes } = await import("../src/handlers/getQuizzes.js");
 const { handler: getQuizById } = await import("../src/handlers/getQuizById.js");
@@ -313,17 +314,21 @@ describe("groups, members and quizzes", () => {
     expect((await call(getGroupById, { token: alice.token, params: { groupId: "bad" } })).status).toBe(400);
     expect((await call(getGroupById, { token: alice.token, params: { groupId: missingId } })).status).toBe(404);
     expect((await call(getGroupById, { token: alice.token, params: { groupId: group.id } })).body.group.id).toBe(group.id);
-    expect((await call(joinGroupMember, { token: bob.token, body: {} })).status).toBe(400);
-    expect((await call(joinGroupMember, { token: bob.token, body: { invite_code: "missing" } })).status).toBe(404);
+    expect((await call(joinGroup, { token: bob.token, body: {} })).status).toBe(400);
+    expect((await call(joinGroup, { token: bob.token, body: { invite_code: "missing" } })).status).toBe(404);
 
-    const joined = await call(joinGroupMember, {
+    const joined = await call(joinGroup, {
       token: bob.token,
       body: { invite_code: ` ${group.invite_code.toLowerCase()} ` },
     });
-    expect(joined.status).toBe(201);
-    expect((await call(joinGroupMember, { token: bob.token, body: { invite_code: group.invite_code } })).status).toBe(409);
+    expect(joined.status).toBe(200);
+    expect(joined.body.group.id).toBe(group.id);
+    expect((await call(joinGroup, { token: bob.token, body: { invite_code: group.invite_code } })).status).toBe(409);
 
-    const params = { groupId: group.id, memberId: joined.body.member.id };
+    const member = [...db.__data[TABLES.members].values()]
+      .find((item) => item.group_id === group.id && item.user_id === bob.id);
+    expect(member).toBeDefined();
+    const params = { groupId: group.id, memberId: member.id };
     expect((await call(getGroupMemberById, { token: carol.token, params })).status).toBe(403);
     expect((await call(getGroupMemberById, { token: alice.token, params: { ...params, memberId: "bad" } })).status).toBe(400);
     expect((await call(getGroupMemberById, { token: alice.token, params: { ...params, memberId: missingId } })).status).toBe(404);

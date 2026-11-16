@@ -11,6 +11,7 @@ vi.mock("../src/lib/db.js", () => ({
     groups: "groups",
     members: "members",
     quizzes: "quizzes",
+    outbox: "outbox",
     results: "results",
   },
 }));
@@ -21,6 +22,30 @@ beforeEach(() => send.mockReset());
 
 // Tests for the DynamoDB repository functions, including pagination, batch operations, and error handling.
 describe("DynamoDB repository", () => {
+  it("atomically registers a quiz event without leaking its contents", async () => {
+    send.mockResolvedValueOnce({});
+    const quiz = await quizzes.create({
+      group_id: "group", title: "private title",
+      creator_id: "creator", questions: [{ correctAnswer: "secret" }],
+    });
+    const [command] = send.mock.calls[0];
+    expect(command.constructor.name).toBe("TransactWriteCommand");
+    const [quizPut, eventPut] = command.input.TransactItems.map((item) => item.Put);
+    expect(quizPut).toMatchObject({ TableName: "quizzes", Item: quiz, ConditionExpression: "attribute_not_exists(id)" });
+    expect(eventPut).toMatchObject({
+      TableName: "outbox",
+      ConditionExpression: "attribute_not_exists(id)",
+      Item: { type: "QuizCreated", group_id: "group", quiz_id: quiz.id, createdAt: quiz.createdAt },
+    });
+    expect(Object.keys(eventPut.Item).sort()).toEqual(["createdAt", "group_id", "id", "quiz_id", "type"]);
+  });
+
+  it("fails quiz creation when the registration transaction fails", async () => {
+    const failure = new Error("transaction unavailable");
+    send.mockRejectedValueOnce(failure);
+    await expect(quizzes.create({ group_id: "group" })).rejects.toBe(failure);
+    expect(send).toHaveBeenCalledTimes(1);
+  });
   it("reads every page of a user scan", async () => {
     const lastKey = { user_id: "first" };
     send.mockResolvedValueOnce({ Items: [{ user_id: "first" }], LastEvaluatedKey: lastKey })

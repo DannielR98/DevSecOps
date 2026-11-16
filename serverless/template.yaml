@@ -59,6 +59,11 @@ Globals:
         GROUPS_TABLE: !Ref GroupsTable
         MEMBERS_TABLE: !Ref GroupMembersTable
         QUIZZES_TABLE: !Ref QuizzesTable
+        OUTBOX_TABLE: !Ref OutboxTable
+        NOTIFICATION_LOCK_TABLE: !Ref NotificationLockTable
+        NOTIFICATIONS_DISABLED: "false"
+        EVENT_BUS_NAME: !Ref QuizEventBus
+        SNS_TOPIC_ARN_PREFIX: !Sub "arn:${AWS::Partition}:sns:${AWS::Region}:${AWS::AccountId}:${AWS::StackName}-quiz-group-"
         RESULTS_TABLE: !Ref QuizResultsTable
         UNIQUES_TABLE: !Ref UniqueKeysTable
         # An empty endpoint uses AWS; local startup overrides it for DynamoDB Local.
@@ -84,6 +89,17 @@ Resources:
         # Default API Gateway throttling limits: burst and sustained requests.
         ThrottlingBurstLimit: 50
         ThrottlingRateLimit: 25
+      Auth:
+        DefaultAuthorizer: TokenAuthorizer
+        Authorizers:
+          TokenAuthorizer:
+            FunctionArn: !GetAtt TokenAuthorizerFunction.Arn
+            AuthorizerPayloadFormatVersion: "2.0"
+            EnableSimpleResponses: true
+            EnableFunctionDefaultPermissions: true
+            Identity:
+              Headers: [Authorization]
+              ReauthorizeEvery: 0
 
   # ---------------------------------------------------------------- IAM
   # The shared Lambda role grants access to the named tables and their query
@@ -127,8 +143,68 @@ Resources:
                   - !Sub "${QuizResultsTable.Arn}/index/*"
                   - !GetAtt UniqueKeysTable.Arn
               - Effect: Allow
+                Action: dynamodb:PutItem
+                Resource: !GetAtt OutboxTable.Arn
+              - Effect: Allow
                 Action: dynamodb:Scan
-                Resource: !GetAtt UsersTable.Arn
+                Resource:
+                  - !GetAtt UsersTable.Arn
+                  - !GetAtt GroupsTable.Arn
+                  - !GetAtt GroupMembersTable.Arn
+              - Effect: Allow
+                Action: [dynamodb:PutItem, dynamodb:DeleteItem]
+                Resource: !GetAtt NotificationLockTable.Arn
+              - Effect: Allow
+                Action: [sns:ListSubscriptionsByTopic, sns:Unsubscribe, sns:DeleteTopic]
+                Resource: !Sub "arn:${AWS::Partition}:sns:${AWS::Region}:${AWS::AccountId}:${AWS::StackName}-quiz-group-*"
+
+  NotificationRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: lambda.amazonaws.com }
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+      Policies:
+        - PolicyName: NotificationAccess
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action: [dynamodb:Scan, dynamodb:GetItem]
+                Resource:
+                  - !GetAtt UsersTable.Arn
+                  - !GetAtt GroupsTable.Arn
+                  - !GetAtt GroupMembersTable.Arn
+                  - !GetAtt OutboxTable.Arn
+              - Effect: Allow
+                Action: dynamodb:DeleteItem
+                Resource: !GetAtt OutboxTable.Arn
+              - Effect: Allow
+                Action: [dynamodb:PutItem, dynamodb:DeleteItem]
+                Resource: !GetAtt NotificationLockTable.Arn
+              - Effect: Allow
+                Action: events:PutEvents
+                Resource: !GetAtt QuizEventBus.Arn
+              - Effect: Allow
+                Action: sns:ListTopics
+                Resource: "*"
+              - Effect: Allow
+                Action:
+                  - sns:CreateTopic
+                  - sns:DeleteTopic
+                  - sns:ListSubscriptionsByTopic
+                  - sns:Subscribe
+                  - sns:Unsubscribe
+                  - sns:Publish
+                Resource: !Sub "arn:${AWS::Partition}:sns:${AWS::Region}:${AWS::AccountId}:${AWS::StackName}-quiz-group-*"
+              - Effect: Allow
+                Action: sqs:SendMessage
+                Resource: !GetAtt NotificationFailureQueue.Arn
 
   # ---------------------------------------------------------------- DynamoDB
   # Retain tables on stack deletion/replacement and enable point-in-time
@@ -226,6 +302,173 @@ Resources:
             - { AttributeName: createdAt, KeyType: RANGE }
           Projection: { ProjectionType: ALL }
 
+  # Durable quiz event registrations are retained until EventBridge accepts them.
+  OutboxTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      AttributeDefinitions:
+        - { AttributeName: id, AttributeType: S }
+      KeySchema:
+        - { AttributeName: id, KeyType: HASH }
+
+  NotificationLockTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      AttributeDefinitions:
+        - { AttributeName: id, AttributeType: S }
+      KeySchema:
+        - { AttributeName: id, KeyType: HASH }
+
+  QuizEventBus:
+    Type: AWS::Events::EventBus
+    Properties:
+      Name: !Sub "${AWS::StackName}-quiz-events"
+
+  NotificationFailureQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+
+  NotificationFailureQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues: [!Ref NotificationFailureQueue]
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal: { Service: events.amazonaws.com }
+            Action: sqs:SendMessage
+            Resource: !GetAtt NotificationFailureQueue.Arn
+            Condition:
+              ArnEquals:
+                aws:SourceArn:
+                  - !GetAtt OutboxSchedule.Arn
+                  - !GetAtt ReconciliationSchedule.Arn
+                  - !GetAtt QuizCreatedRule.Arn
+
+  NotificationFailureAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Notification delivery or scheduling failed; inspect the failure queue.
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - Name: QueueName
+          Value: !GetAtt NotificationFailureQueue.QueueName
+      Statistic: Maximum
+      Period: 60
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+
+  OutboxRelayFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: relayOutbox.handler
+      Role: !GetAtt NotificationRole.Arn
+      Timeout: 900
+      ReservedConcurrentExecutions: 1
+      EventInvokeConfig:
+        MaximumRetryAttempts: 2
+        DestinationConfig:
+          OnFailure:
+            Type: SQS
+            Destination: !GetAtt NotificationFailureQueue.Arn
+
+  ReconcileNotificationsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: reconcileNotifications.handler
+      Role: !GetAtt NotificationRole.Arn
+      Timeout: 900
+      ReservedConcurrentExecutions: 1
+      EventInvokeConfig:
+        MaximumRetryAttempts: 2
+        DestinationConfig:
+          OnFailure:
+            Type: SQS
+            Destination: !GetAtt NotificationFailureQueue.Arn
+
+  NotifyQuizCreatedFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: notifyQuizCreated.handler
+      Role: !GetAtt NotificationRole.Arn
+      EventInvokeConfig:
+        MaximumRetryAttempts: 2
+        DestinationConfig:
+          OnFailure:
+            Type: SQS
+            Destination: !GetAtt NotificationFailureQueue.Arn
+
+  OutboxSchedule:
+    Type: AWS::Events::Rule
+    DependsOn: QuizCreatedRulePermission
+    Properties:
+      ScheduleExpression: rate(1 minute)
+      State: ENABLED
+      Targets:
+        - Id: outbox
+          Arn: !GetAtt OutboxRelayFunction.Arn
+          DeadLetterConfig: { Arn: !GetAtt NotificationFailureQueue.Arn }
+
+  ReconciliationSchedule:
+    Type: AWS::Events::Rule
+    Properties:
+      ScheduleExpression: rate(5 minutes)
+      State: ENABLED
+      Targets:
+        - Id: reconcile
+          Arn: !GetAtt ReconcileNotificationsFunction.Arn
+          DeadLetterConfig: { Arn: !GetAtt NotificationFailureQueue.Arn }
+
+  QuizCreatedRule:
+    Type: AWS::Events::Rule
+    Properties:
+      EventBusName: !Ref QuizEventBus
+      EventPattern:
+        source: [quiz.app]
+        detail-type: [QuizCreated]
+      Targets:
+        - Id: notify
+          Arn: !GetAtt NotifyQuizCreatedFunction.Arn
+          DeadLetterConfig: { Arn: !GetAtt NotificationFailureQueue.Arn }
+
+  OutboxSchedulePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref OutboxRelayFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt OutboxSchedule.Arn
+
+  ReconciliationSchedulePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref ReconcileNotificationsFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt ReconciliationSchedule.Arn
+
+  QuizCreatedRulePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref NotifyQuizCreatedFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt QuizCreatedRule.Arn
+
   # The quiz index retrieves attempts for personal history and leaderboards.
   QuizResultsTable:
     Type: AWS::DynamoDB::Table
@@ -247,8 +490,15 @@ Resources:
 
   # ---------------------------------------------------------------- Lambda functions
   # Each HTTP event connects an API method/path to the named bundled handler.
-  # Authentication and endpoint-specific authorization happen in application code.
+  # Protected routes are checked by API Gateway and again by application code.
   # Handler names refer to exports in the modules generated by build.mjs.
+  TokenAuthorizerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: authorize.handler
+      Policies:
+        - AWSLambdaBasicExecutionRole
+
   # Results support both personal history and the participant leaderboard.
   GetQuizResultsFunction:
     Type: AWS::Serverless::Function
@@ -276,6 +526,8 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /api/register
             Method: POST
+            Auth:
+              Authorizer: NONE
 
   LoginUserFunction:
     Type: AWS::Serverless::Function
@@ -289,6 +541,8 @@ Resources:
             ApiId: !Ref HttpApi
             Path: /api/login
             Method: POST
+            Auth:
+              Authorizer: NONE
 
   # Profile routes require authentication; update and delete check user identity.
   GetUsersFunction:
@@ -422,7 +676,7 @@ Resources:
             Path: /api/groups/{groupId}
             Method: DELETE
 
-  # Both join routes use invite codes but return different response shapes.
+  # Join a group using an invite code.
   JoinGroupFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -434,19 +688,6 @@ Resources:
           Properties:
             ApiId: !Ref HttpApi
             Path: /api/groups/join
-            Method: POST
-
-  JoinGroupMemberFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: joinGroupMember.handler
-      Role: !GetAtt FunctionRole.Arn
-      Events:
-        Api:
-          Type: HttpApi
-          Properties:
-            ApiId: !Ref HttpApi
-            Path: /api/group-members/join
             Method: POST
 
   # Member listing, individual lookup and leaving have separate route handlers.
@@ -575,3 +816,12 @@ Outputs:
   ApiUrl:
     Description: Base URL for the frontend (set VITE_API_URL to this value)
     Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${Stage}/api/"
+  NotificationFailureQueueUrl:
+    Description: Failure queue for notification targets and asynchronous Lambda invocations
+    Value: !Ref NotificationFailureQueue
+  NotificationLockTableName:
+    Description: Persistent lock table for notification reconciliation and membership changes
+    Value: !Ref NotificationLockTable
+  NotificationEventBusName:
+    Description: Event bus receiving quiz creation events
+    Value: !Ref QuizEventBus
