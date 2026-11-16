@@ -39,8 +39,8 @@ async function publishBatch(items, bus) {
     response = await eventBridge.send(new PutEventsCommand({
       Entries: items.map((item) => entry(item, bus)),
     }));
-  } catch (error) {
-    console.error("EventBridge publish failed:", error);
+  } catch {
+    console.error("EventBridge publish failed");
     return items.length;
   }
 
@@ -60,7 +60,7 @@ async function publishBatch(items, bus) {
     const result = results[i];
     // If the result contains an error or lacks a valid EventId, count it as a failure.
     if (result.ErrorCode || result.ErrorMessage || typeof result.EventId !== "string" || !result.EventId) {
-      console.error("EventBridge rejected or did not acknowledge outbox event:", items[i].id, result.ErrorCode);
+      console.error("EventBridge rejected or did not acknowledge an outbox event");
       failures++;
       continue;
     }
@@ -79,8 +79,8 @@ async function publishBatch(items, bus) {
           ":created": item.createdAt,
         },
       }));
-    } catch (error) {
-      console.error("Failed to remove published outbox event:", item.id, error);
+    } catch {
+      console.error("Failed to remove published outbox event");
       failures++;
     }
   }
@@ -105,16 +105,22 @@ export const handler = async (event = {}, context = {}) => {
   do {
     // Check if there is enough remaining time to process the next page.
     if (context.getRemainingTimeInMillis && context.getRemainingTimeInMillis() < 15000) {
-      throw new Error(`Outbox relay ran out of time before scanning the next page; resume after ${key?.id ?? "start"}`);
+      const cursor = typeof key?.id === "string" && uuid.test(key.id) ? key.id : "start";
+      throw new Error(`Outbox relay ran out of time before scanning the next page; resume after ${cursor}`);
     }
-    const page = await doc.send(new ScanCommand({
-      TableName: table.outbox,
-      ConsistentRead: true,
-      Limit: 100,
-      ExclusiveStartKey: key,
-      ProjectionExpression: "id, #type, quiz_id, group_id, createdAt",
-      ExpressionAttributeNames: { "#type": "type" },
-    }));
+    let page;
+    try {
+      page = await doc.send(new ScanCommand({
+        TableName: table.outbox,
+        ConsistentRead: true,
+        Limit: 100,
+        ExclusiveStartKey: key,
+        ProjectionExpression: "id, #type, quiz_id, group_id, createdAt",
+        ExpressionAttributeNames: { "#type": "type" },
+      }));
+    } catch {
+      throw new Error("Outbox scan failed");
+    }
     // Prepare a list of outbox items that are ready to be published.
     const ready = [];
     for (const item of page.Items ?? []) {
@@ -122,7 +128,7 @@ export const handler = async (event = {}, context = {}) => {
       if (valid(item)) ready.push(item);
       else {
         // Log malformed items and increment the failure count.
-        console.error("Malformed outbox record; manual intervention required:", item.id);
+        console.error("Malformed outbox record; manual intervention required");
         failures++;
       }
     }

@@ -70,6 +70,26 @@ beforeEach(() => {
 
 // Tests for the notification topic reconciliation handler.
 describe("notification topic reconciliation", () => {
+  it("does not leak underlying scan or SNS errors", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      mocks.db.mockRejectedValueOnce(new Error("private scan details"));
+      mocks.sns.mockResolvedValue({});
+      const scanFailure = await reconcile().catch((error) => error);
+      expect(scanFailure.message).toBe("Notification reconciliation failed");
+      expect(scanFailure.cause).toBeUndefined();
+      dbWithScans();
+      mocks.sns.mockImplementation(async (command) => {
+        if (command.constructor.name === "CreateTopicCommand") throw new Error("private email");
+        return {};
+      });
+      await expect(reconcile()).rejects.toThrow("Notification reconciliation failed");
+      expect(JSON.stringify(log.mock.calls)).not.toContain("private");
+    } finally {
+      log.mockRestore();
+    }
+  });
+
   it("backfills owners and members, preserves pending, removes confirmed obsolete subscriptions, and deletes orphan topics", async () => {
     dbWithScans();
     // SNS pending email subscriptions cannot be unsubscribed; confirmed obsolete ones can.
@@ -159,13 +179,13 @@ describe("notification topic reconciliation", () => {
   it("fails safely on scan, invalid email, and SNS failures", async () => {
     mocks.db.mockRejectedValueOnce(new Error("scan failed"));
     mocks.sns.mockResolvedValue({});
-    await expect(reconcile()).rejects.toThrow("scan failed");
+    await expect(reconcile()).rejects.toThrow("Notification reconciliation failed");
     expect(calls("DeleteTopicCommand")).toHaveLength(0);
 
     mocks.db.mockReset();
     mocks.sns.mockClear();
     dbWithScans({ ...scanData, users: [{ user_id: id(101), email: "bad" }] });
-    await expect(reconcile()).rejects.toThrow("failed for 1");
+    await expect(reconcile()).rejects.toThrow("Notification reconciliation failed");
     expect(calls("CreateTopicCommand")).toHaveLength(0);
 
     mocks.db.mockReset();
@@ -175,7 +195,7 @@ describe("notification topic reconciliation", () => {
       if (command.constructor.name === "SubscribeCommand") throw new Error("SNS failure");
       return {};
     });
-    await expect(reconcile()).rejects.toThrow("failed for 1");
+    await expect(reconcile()).rejects.toThrow("Notification reconciliation failed");
   });
 
   // Test that the handler rejects unexpected subscriptions and an unsafe prefix.
@@ -188,10 +208,10 @@ describe("notification topic reconciliation", () => {
       }
       return {};
     });
-    await expect(reconcile()).rejects.toThrow("failed for 1");
+    await expect(reconcile()).rejects.toThrow("Notification reconciliation failed");
     expect(calls("UnsubscribeCommand")).toHaveLength(0);
     process.env.SNS_TOPIC_ARN_PREFIX = "arn:aws:sns:eu-north-1:123456789012:*";
-    await expect(reconcile()).rejects.toThrow("Invalid SNS_TOPIC_ARN_PREFIX");
+    await expect(reconcile()).rejects.toThrow("Notification reconciliation failed");
   });
 });
 
@@ -201,6 +221,17 @@ describe("quiz notifications", () => {
     source: "quiz.app", "detail-type": "QuizCreated",
     detail: { event_id: id(10), quiz_id: id(11), group_id: id(1), title: "sensitive", answers: ["secret"] },
   };
+  it("does not leak DynamoDB or SNS errors", async () => {
+    mocks.db.mockRejectedValueOnce(new Error("private database data"))
+      .mockResolvedValueOnce({ Item: { id: id(1), name: "Team" } });
+    const dbError = await notify(event).catch((error) => error);
+    expect(dbError.message).toBe("Could not retrieve group for notification");
+    expect(dbError.cause).toBeUndefined();
+    mocks.sns.mockRejectedValueOnce(new Error("private SNS data"));
+    const snsError = await notify(event).catch((error) => error);
+    expect(snsError.message).toBe("Quiz notification publish failed");
+    expect(snsError.cause).toBeUndefined();
+  });
   // Test that the handler publishes the current group name only to the existing group's topic.
   it("publishes the current group name only to the existing group's topic", async () => {
     mocks.db.mockResolvedValue({ Item: { id: id(1), name: "Quiz Team" } });
@@ -288,7 +319,7 @@ describe("quiz notifications", () => {
     expect(mocks.db).not.toHaveBeenCalled();
     mocks.db.mockResolvedValue({ Item: { id: id(1), name: "Quiz Team" } });
     mocks.sns.mockRejectedValueOnce(new Error("SNS unavailable")).mockResolvedValueOnce({});
-    await expect(notify(event)).rejects.toThrow("SNS unavailable");
+    await expect(notify(event)).rejects.toThrow("Quiz notification publish failed");
     await expect(notify(event)).rejects.toThrow("no message ID");
   });
 });

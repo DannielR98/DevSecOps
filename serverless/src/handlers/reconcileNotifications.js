@@ -96,7 +96,7 @@ async function reconcileGroup(config, group, emails) {
 }
 
 // Entry point for the AWS Lambda function that reconciles SNS notifications for groups.
-export const handler = () => withNotificationLock(async () => {
+const reconcile = () => withNotificationLock(async () => {
   const config = topicConfig();
   if (!table.groups || !table.members || !table.users) throw new Error("Missing table configuration");
 
@@ -126,8 +126,8 @@ export const handler = () => withNotificationLock(async () => {
     if (!user) return; // A deleted user may still have an old membership.
     try {
       desired.get(groupId).add(normalizeEmail(user.email));
-    } catch (error) {
-      console.error("Invalid member email for group:", groupId, error);
+    } catch {
+      console.error("Invalid member email during notification reconciliation");
       invalidGroups.add(groupId);
     }
   };
@@ -145,8 +145,8 @@ export const handler = () => withNotificationLock(async () => {
     }
     try {
       await reconcileGroup(config, group, desired.get(group.id));
-    } catch (error) {
-      console.error("SNS group reconciliation failed:", group.id, error);
+    } catch {
+      console.error("SNS group reconciliation failed");
       failures++;
     }
   }
@@ -157,8 +157,8 @@ export const handler = () => withNotificationLock(async () => {
     // If the topic does not correspond to an existing group, attempt to delete it.
     try {
       if (!(await groupExists(id))) await sns.send(new DeleteTopicCommand({ TopicArn: arn }));
-    } catch (error) {
-      console.error("SNS orphan topic cleanup failed:", id, error);
+    } catch {
+      console.error("SNS orphan topic cleanup failed");
       failures++;
     }
   }
@@ -166,3 +166,12 @@ export const handler = () => withNotificationLock(async () => {
   if (failures) throw new Error(`Notification reconciliation failed for ${failures} group topic(s); retry`);
   return { groups: groups.length, managedTopics: topics.size };
 });
+
+export const handler = async () => {
+  try {
+    return await reconcile();
+  } catch {
+    console.error("Notification reconciliation failed; check the lock and retry");
+    throw new Error("Notification reconciliation failed");
+  }
+};

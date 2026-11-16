@@ -94,8 +94,7 @@ export const route =
             ...error.extra,
           });
         }
-        // Log unexpected details on the server without exposing them to clients.
-        console.error("Unhandled error:", error);
+        console.error("Unhandled request error");
         return respond(500, { success: false, message: "Internal server error" });
       }
     };

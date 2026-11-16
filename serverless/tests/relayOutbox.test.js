@@ -146,4 +146,24 @@ describe("outbox relay", () => {
     await expect(handler({}, { getRemainingTimeInMillis: remaining })).rejects.toThrow(id(1));
     expect(mocks.db).toHaveBeenCalledTimes(1);
   });
+
+  // Test that SDK errors and untrusted record fields are not exposed in logs.
+  it("does not expose SDK errors or untrusted record fields", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => { });
+    try {
+      mocks.db.mockRejectedValueOnce(new Error("private scan token"));
+      await expect(handler()).rejects.toThrow("Outbox scan failed");
+      mocks.db.mockResolvedValueOnce({ Items: [{ id: "private identifier" }, item(1)] });
+      mocks.events.mockResolvedValueOnce({
+        FailedEntryCount: 1, Entries: [{ ErrorCode: "private error code" }],
+      });
+      await expect(handler()).rejects.toThrow("left 2 record");
+      mocks.db.mockResolvedValueOnce({ Items: [item(1)] });
+      mocks.events.mockRejectedValueOnce(new Error("private publish details"));
+      await expect(handler()).rejects.toThrow("left 1 record");
+      expect(JSON.stringify(log.mock.calls)).not.toMatch(/private/);
+    } finally {
+      log.mockRestore();
+    }
+  });
 });

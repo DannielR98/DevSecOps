@@ -73,6 +73,10 @@ stack-managed `OperationsAlarmTopicArn`. After deployment, create an email
 subscription to this topic in SNS and confirm the email; until then no operator
 receives an alarm email. This operations topic is separate from group topics.
 Monitor Lambda errors and the outbox table as well.
+Unexpected request and notification failures use generic error messages in
+CloudWatch logs and Lambda failure records, without the original error details.
+Use the affected function, failure time, metrics and queue to investigate;
+restrict access to these operational resources.
 The deployment or CloudFormation execution role also needs permission to create
 and manage the KMS key, its policy, rotation and tags. The operations key is
 retained on stack deletion or replacement; manage its lifecycle and costs

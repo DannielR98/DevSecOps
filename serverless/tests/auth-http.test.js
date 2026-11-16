@@ -238,6 +238,7 @@ describe("HTTP route wrapper", () => {
     const response = await fail({});
     expect(response.statusCode).toBe(500);
     expect(JSON.parse(response.body)).toEqual({ success: false, message: "Internal server error" });
-    expect(log).toHaveBeenCalledWith("Unhandled error:", expect.any(Error));
+    expect(log).toHaveBeenCalledWith("Unhandled request error");
+    expect(JSON.stringify(log.mock.calls)).not.toContain("database details");
   });
 });

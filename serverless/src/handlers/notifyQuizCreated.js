@@ -19,13 +19,18 @@ export const handler = async (event) => {
   // Construct the SNS topic ARN for the group.
   const arn = topicArn(config, detail.group_id);
   // Retrieve the group details from the DynamoDB table.
-  const { Item } = await doc.send(new GetCommand({
-    TableName: table.groups,
-    Key: { id: detail.group_id },
-    ConsistentRead: true,
-    ProjectionExpression: "id, #name",
-    ExpressionAttributeNames: { "#name": "name" },
-  }));
+  let Item;
+  try {
+    ({ Item } = await doc.send(new GetCommand({
+      TableName: table.groups,
+      Key: { id: detail.group_id },
+      ConsistentRead: true,
+      ProjectionExpression: "id, #name",
+      ExpressionAttributeNames: { "#name": "name" },
+    })));
+  } catch {
+    throw new Error("Could not retrieve group for notification");
+  }
   // If the group does not exist, return early.
   if (!Item) return { status: "group-deleted" };
   // Validate that the group has a valid name.
@@ -34,11 +39,16 @@ export const handler = async (event) => {
   }
 
   // Publish a notification to the SNS topic for the group.
-  const response = await sns.send(new PublishCommand({
-    TopicArn: arn,
-    Subject: "New quiz available",
-    Message: `A new quiz is available in the group "${Item.name}". Sign in to view it.`,
-  }));
+  let response;
+  try {
+    response = await sns.send(new PublishCommand({
+      TopicArn: arn,
+      Subject: "New quiz available",
+      Message: `A new quiz is available in the group "${Item.name}". Sign in to view it.`,
+    }));
+  } catch {
+    throw new Error("Quiz notification publish failed");
+  }
   // Check that the SNS publish returned a message ID.
   if (!response.MessageId) throw new Error("SNS publish returned no message ID");
   return { status: "published" };

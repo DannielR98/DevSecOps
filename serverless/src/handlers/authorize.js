@@ -13,8 +13,8 @@ export const handler = async (event) => {
     if (error instanceof HttpError && error.status === 401) {
       return { isAuthorized: false };
     }
-    // For any other errors, log them and rethrow to indicate an unexpected failure.
-    console.error("Authorizer error:", error);
-    throw error;
+    // The original error may contain credentials; do not attach it as a cause.
+    // eslint-disable-next-line preserve-caught-error
+    throw new Error("Authorizer failed");
   }
 };
