@@ -9,11 +9,13 @@ function App() {
 
   useEffect(() => {
     const getToken = async () => {
-      if (!isAuthenticated) {return;}
+      if (!isAuthenticated) {
+        return;
+      }
 
       try {
-        const token = await getAccessTokenSilently();
-        console.log("SUPABASE AUTH TOKEN:", token);
+        //const token = await getAccessTokenSilently();
+        //console.log("SUPABASE AUTH TOKEN:", token);
       } catch (err) {
         console.error("Token error:", err);
       }

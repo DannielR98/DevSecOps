@@ -27,6 +27,7 @@ FROM nginx:1.31.7-alpine3.24
 # nginx-module-xslt (och libxslt) behövs inte för statiska filer och har öppna CVE:er
 RUN apk del --no-cache nginx-module-xslt && \
     apk add --no-cache libcap \
+      libxml2=2.13.9-r3 \
       alpine-release=3.24.4-r0 \
       brotli-libs=1.2.1-r0 \
       curl=8.23.0-r0 \
