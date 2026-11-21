@@ -1,0 +1,88 @@
+{
+  "name": "Member authentication",
+  "item": [
+    {
+      "name": "Register member",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+                "// Verify the member profile is safe to return and save its ID.",
+                "pm.test('member is registered', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('member registration does not expose password', () => pm.expect(body.user).not.to.have.property('password'));",
+              "pm.collectionVariables.set('memberId', body.user.user_id);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "description": "Register the second account that joins and takes the quiz.",
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"auth_id\":\"{{memberAuthId}}\",\"firstname\":\"Postman\",\"surname\":\"Member\",\"username\":\"{{memberUsername}}\",\"email\":\"{{memberEmail}}\",\"password\":\"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/register"
+      },
+      "auth": {
+        "type": "noauth"
+      }
+    },
+    {
+      "name": "Login member",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+                "// Verify login returns the registered member and retain the member JWT.",
+                "pm.test('member login succeeds', () => pm.response.to.have.status(200));",
+              "const body = pm.response.json();",
+              "pm.test('member login returns the registered profile', () => pm.expect(body.user.user_id).to.eql(pm.collectionVariables.get('memberId')));",
+              "pm.collectionVariables.set('memberToken', body.token);",
+              "pm.collectionVariables.set('accessToken', body.token);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "description": "Log in the member and retain the issued application JWT.",
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"user\":\"{{memberUsername}}\",\"password\":\"{{password}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/login"
+      },
+      "auth": {
+        "type": "noauth"
+      }
+    }
+  ]
+}

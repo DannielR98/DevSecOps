@@ -10,6 +10,8 @@ const tableNames = {
   GroupsTable: "local-groups",
   GroupMembersTable: "local-group-members",
   QuizzesTable: "local-quizzes",
+  OutboxTable: "local-outbox",
+  NotificationLockTable: "local-notification-locks",
   QuizResultsTable: "local-quiz-results",
 };
 

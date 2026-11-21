@@ -1,10 +1,10 @@
-import { HttpError, route } from "../lib/http.js";
+import { HttpError, notificationMutationRoute } from "../lib/http.js";
 import { groupMembers, groups } from "../lib/repo.js";
 import { publicGroup } from "../lib/shapes.js";
 
 // Normalize invite codes before lookup; the repository rejects duplicate
 // memberships using a deterministic group/user key.
-export const handler = route(async ({ body, user }) => {
+export const handler = notificationMutationRoute(async ({ body, user }) => {
   const code = body.invite_code;
   if (typeof code !== "string" || code.trim() === "") {
     throw new HttpError(400, "Invite code is required");

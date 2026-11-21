@@ -1,0 +1,44 @@
+{
+  "name": "Groups",
+  "item": [
+    {
+      "name": "Create group as owner",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+                "// Verify group creation and save its ID and invite code for later requests.",
+                "pm.test('group is created', () => pm.response.to.have.status(201));",
+              "const body = pm.response.json();",
+              "pm.test('group owner matches the authenticated owner', () => pm.expect(body.group.owner_id).to.eql(pm.collectionVariables.get('ownerId')));",
+              "pm.collectionVariables.set('groupId', body.group.id);",
+              "pm.collectionVariables.set('inviteCode', body.group.invite_code);"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "description": "Create a group as the logged-in owner.",
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"name\":\"Postman integration group\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/groups"
+      }
+    }
+  ]
+}

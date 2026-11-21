@@ -65,6 +65,15 @@ const header = (event, name) => {
   return key ? headers[key] : undefined;
 };
 
+// Extracts the bearer token from the Authorization header. Throws an error if the header is missing or malformed.
+export const bearerToken = (event) => {
+  const auth = header(event, "authorization");
+  if (typeof auth !== "string" || !auth.startsWith("Bearer ")) {
+    throw new HttpError(401, "Authorization header is required");
+  }
+  return auth.slice(7);
+};
+
 // Supabase subject IDs use auth_id; application tokens can carry a local UUID.
 // Email is a final lookup fallback if neither identifier finds a profile.
 const findUser = async (rawId, email) => {
@@ -108,17 +117,13 @@ const provision = async (payload, rawId, email) => {
   return null;
 };
 
-/** Verifies the bearer token and returns the matching database user. */
+// Verifies the bearer token and returns the matching database user.
 export const authenticate = async (event) => {
-  const auth = header(event, "authorization");
-  if (!auth?.startsWith("Bearer ")) {
-    throw new HttpError(401, "Authorization header is required");
-  }
   // Verify the token and extract the payload.
-  const payload = await verifyToken(auth.slice(7));
+  const payload = await verifyToken(bearerToken(event));
   const rawId = payload.sub || payload.id || payload.user_id;
   const email = payload.email;
-
+  // Ensure that at least one identifier is available for user lookup or provisioning.
   if (!rawId && !email) {
     throw new HttpError(401, "Invalid authentication token");
   }
@@ -126,6 +131,7 @@ export const authenticate = async (event) => {
   const user =
     (await findUser(rawId, email)) ?? (rawId ? await provision(payload, rawId, email) : null);
 
+  // If no user was found or provisioned, throw an authentication error.
   if (!user) throw new HttpError(401, "User not found for this token");
   return user;
 };
