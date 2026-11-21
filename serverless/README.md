@@ -158,10 +158,22 @@ Run `npm run lint` to check the serverless JavaScript, or `npm run lint:fix` to 
 
 `npm test` runs the handler lifecycle, authentication, HTTP parsing, and DynamoDB repository tests using in-memory or mocked dependencies. These tests do not deploy resources or verify AWS IAM, API Gateway, CORS, or real DynamoDB behavior.
 
+Postman requests are split into `postman/requests/` files by responsibility.
+The test script assembles those files into a temporary collection, then runs
+it through Newman against SAM Local and an isolated DynamoDB Local Docker
+container. It creates and removes its own Docker network/container and uses
+dummy AWS credentials and local JWT secrets; it does not contact AWS. SNS and
+EventBridge notifications are explicitly disabled/not emulated, so this tests
+the HTTP API, Lambda authorizer, authentication, group membership, quiz
+creation/submission, results, access controls and leave flow, but not actual
+email delivery. Newman is invoked at a pinned version with `npx` rather than
+being added to the application's dependency tree.
+
 ## Behaviour changes compared to the Express backend
 
 Both backends expose `GET /api/quizzes/{id}/results?view=mine` for the authenticated user's attempts and `?view=leaderboard` for each participant's best percentage and `attempt_count` (all completed attempts, including those after the best result). Only current group members and the owner may access either view. The leaderboard includes former participants' saved results; individual attempts are private.
 
+- `GET /api/quizzes?group_id=...` checks current membership directly; nonmembers, including users who just left, receive `403`.
 - Both backends use `POST /api/groups/join` to join a group by invite code. The former `/api/group-members/join` endpoint has been removed.
 - `GET /api/users` and `GET /api/user/:user_id` now require authentication and never return password hashes.
 - The "any token containing `test`" bypass in the old auth middleware is not carried over.

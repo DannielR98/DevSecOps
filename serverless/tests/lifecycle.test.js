@@ -406,8 +406,7 @@ describe("groups, members and quizzes", () => {
       token: carol.token,
       query: { group_id: group.id },
     });
-    expect(filtered.status).toBe(200);
-    expect(filtered.body.quizzes).toEqual([]);
+    expect(filtered.status).toBe(403);
 
     const submit = await call(takeQuiz, {
       token: alice.token,
@@ -432,6 +431,14 @@ describe("groups, members and quizzes", () => {
     expect(
       (await call(leaveGroup, { token: bob.token, params: { groupId: group.id } })).status,
     ).toBe(200);
+    expect(
+      (
+        await call(getQuizzes, {
+          token: bob.token,
+          query: { group_id: group.id },
+        })
+      ).status,
+    ).toBe(403);
     // Bob rejoins so that the group has data to cascade over.
     await call(joinGroup, { token: bob.token, body: { invite_code: group.invite_code } });
 
