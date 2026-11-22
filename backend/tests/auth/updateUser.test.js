@@ -4,14 +4,21 @@ import { createTestApp } from "../helpers/testApp.js";
 
 const VALID_USER_UUID = "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44";
 const OTHER_USER_UUID = "e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a55";
+const TEST_AUTH_ID = "test-auth-id";
 
-const { findByPkMock } = vi.hoisted(() => ({
+const { findByPkMock, findOneMock } = vi.hoisted(() => ({
   findByPkMock: vi.fn(),
+  findOneMock: vi.fn(),
 }));
 
 vi.mock("../../middleware/verifyJWT.js", () => ({
   default: (req, _res, next) => {
-    req.user = { id: VALID_USER_UUID, user_id: VALID_USER_UUID };
+    req.user = {
+      id: VALID_USER_UUID,
+      user_id: VALID_USER_UUID,
+      auth_id: TEST_AUTH_ID,
+      sub: TEST_AUTH_ID,
+    };
     next();
   },
 }));
@@ -19,6 +26,7 @@ vi.mock("../../middleware/verifyJWT.js", () => ({
 vi.mock("../../models/User.js", () => ({
   default: {
     findByPk: findByPkMock,
+    findOne: findOneMock,
   },
 }));
 
@@ -29,6 +37,10 @@ const app = createTestApp(updateUserRoute);
 describe("Auth > update user", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+
+    findOneMock.mockResolvedValue({
+      user_id: VALID_USER_UUID,
+    });
   });
 
   describe("authorization", () => {
@@ -42,12 +54,16 @@ describe("Auth > update user", () => {
     });
 
     it("returns 403 when updating another user", async () => {
-      const res = await request(app).put(`/api/update-user/${OTHER_USER_UUID}`).send({
-        firstname: "John",
-      });
+      const res = await request(app)
+        .put(`/api/update-user/${OTHER_USER_UUID}`)
+        .send({
+          firstname: "John",
+        });
 
       expect(res.status).toBe(403);
-      expect(res.body.message).toBe("You are not authorized to update this user");
+      expect(res.body.message).toBe(
+        "You are not authorized to update this user",
+      );
     });
   });
 
@@ -55,9 +71,11 @@ describe("Auth > update user", () => {
     it("returns 404 when user does not exist", async () => {
       findByPkMock.mockResolvedValue(null);
 
-      const res = await request(app).put(`/api/update-user/${VALID_USER_UUID}`).send({
-        firstname: "John",
-      });
+      const res = await request(app)
+        .put(`/api/update-user/${VALID_USER_UUID}`)
+        .send({
+          firstname: "John",
+        });
 
       expect(res.status).toBe(404);
       expect(res.body.message).toBe("User not found");
@@ -74,9 +92,11 @@ describe("Auth > update user", () => {
         update: vi.fn().mockRejectedValue(uniqueConstraintError),
       });
 
-      const res = await request(app).put(`/api/update-user/${VALID_USER_UUID}`).send({
-        email: "taken@example.com",
-      });
+      const res = await request(app)
+        .put(`/api/update-user/${VALID_USER_UUID}`)
+        .send({
+          email: "taken@example.com",
+        });
 
       expect(res.status).toBe(409);
       expect(res.body.message).toBe("Email or username already exists");
@@ -103,15 +123,20 @@ describe("Auth > update user", () => {
 
       findByPkMock.mockResolvedValue(userInstance);
 
-      const res = await request(app).put(`/api/update-user/${VALID_USER_UUID}`).send({
-        firstname: "NewName",
-      });
+      const res = await request(app)
+        .put(`/api/update-user/${VALID_USER_UUID}`)
+        .send({
+          firstname: "NewName",
+        });
 
       expect(res.status).toBe(200);
       expect(res.body.success).toBe(true);
       expect(res.body.user.firstname).toBe("NewName");
+
       expect(userInstance.update).toHaveBeenCalledWith(
-        expect.objectContaining({ firstname: "NewName" }),
+        expect.objectContaining({
+          firstname: "NewName",
+        }),
       );
     });
   });
@@ -120,12 +145,16 @@ describe("Auth > update user", () => {
     it("returns 500 when update fails", async () => {
       findByPkMock.mockResolvedValue({
         user_id: VALID_USER_UUID,
-        update: vi.fn().mockRejectedValue(new Error("unexpected update failure")),
+        update: vi
+          .fn()
+          .mockRejectedValue(new Error("unexpected update failure")),
       });
 
-      const res = await request(app).put(`/api/update-user/${VALID_USER_UUID}`).send({
-        firstname: "NewName",
-      });
+      const res = await request(app)
+        .put(`/api/update-user/${VALID_USER_UUID}`)
+        .send({
+          firstname: "NewName",
+        });
 
       expect(res.status).toBe(500);
       expect(res.body.message).toBe("Failed to update user");
