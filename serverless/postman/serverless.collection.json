@@ -1,0 +1,28 @@
+{
+  "info": {
+    "_postman_id": "bd0f98a9-c750-4b13-95b9-602a226dbbe2",
+    "name": "Serverless API integration tests",
+    "description": "Shared Postman collection settings. Request scenarios are in requests/ and build-collection.mjs assembles them for Newman.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{accessToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://127.0.0.1:3001/api"
+    },
+    {
+      "key": "password",
+      "value": "postman-test-password-123"
+    }
+  ]
+}

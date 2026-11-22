@@ -283,6 +283,10 @@ describe("Groups Join & Update Endpoints", () => {
   });
 
   describe("POST /api/groups/join", () => {
+    it("does not expose the removed member join endpoint", async () => {
+      const res = await request(app).post("/api/group-members/join").send({ invite_code: "CODE123" });
+      expect(res.status).toBe(404);
+    });
     it("returns 400 when invite code is missing", async () => {
       const res = await request(app).post("/api/groups/join").send({});
 

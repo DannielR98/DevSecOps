@@ -1,6 +1,8 @@
 import { HttpError } from "./errors.js";
 import { authenticate } from "./auth.js";
 import { isUUID, requireUUID } from "./http-utils.js";
+import { users } from "./repo.js";
+import { withNotificationLock } from "./notificationLock.js";
 
 export { HttpError, isUUID, requireUUID };
 
@@ -67,6 +69,7 @@ export const route =
           statusCode: 204,
           body: "",
         };
+
       }
       try {
         const ctx = {
@@ -75,6 +78,7 @@ export const route =
           body: parseBody(event),
           user: null,
         };
+
         // Authenticate the user if required.
         if (auth) {
           ctx.user = await authenticate(event);
@@ -90,8 +94,17 @@ export const route =
             ...error.extra,
           });
         }
-        // Log unexpected details on the server without exposing them to clients.
-        console.error("Unhandled error:", error);
+        console.error("Unhandled request error");
         return respond(500, { success: false, message: "Internal server error" });
       }
     };
+
+// Serialize membership/profile changes with SNS reconciliation and refresh the
+// authenticated profile after acquiring the lock.
+export const notificationMutationRoute = (fn) => route((ctx) =>
+  withNotificationLock(async () => {
+    const user = await users.get(ctx.user.user_id);
+    if (!user) throw new HttpError(401, "User no longer exists");
+    return fn({ ...ctx, user });
+  }),
+);

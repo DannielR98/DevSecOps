@@ -18,7 +18,7 @@ import { HttpError } from "./errors.js";
 const now = () => new Date().toISOString();
 
 const get = async (TableName, Key) =>
-  (await doc.send(new GetCommand({ TableName, Key }))).Item ?? null;
+  (await doc.send(new GetCommand({ TableName, Key, ConsistentRead: true }))).Item ?? null;
 
 // DynamoDB may return only one page even for an indexed query. Continue with
 // LastEvaluatedKey so callers do not accidentally omit later records.
@@ -392,10 +392,23 @@ export const quizzes = {
       ScanIndexForward: false,
     }),
 
-  // Creates a new quiz with a unique ID and timestamp.
+  // Persist the event in the same transaction so registration cannot be lost.
   async create(data) {
     const quiz = { ...data, id: randomUUID(), createdAt: now() };
-    await doc.send(new PutCommand({ TableName: table.quizzes, Item: quiz }));
+    const event = {
+      id: randomUUID(),
+      type: "QuizCreated",
+      quiz_id: quiz.id,
+      group_id: quiz.group_id,
+      createdAt: quiz.createdAt,
+    };
+    // Persist the quiz and the corresponding event in a single transaction to ensure consistency.
+    await doc.send(new TransactWriteCommand({
+      TransactItems: [
+        put(table.quizzes, quiz, "attribute_not_exists(id)"),
+        put(table.outbox, event, "attribute_not_exists(id)"),
+      ],
+    }));
     return quiz;
   },
 
@@ -418,6 +431,7 @@ export const quizzes = {
       table.results,
       results.map((r) => ({ id: r.id })),
     );
+    // After deleting all results, remove the quiz itself. This ensures that no orphaned results remain.
     await doc.send(
       new DeleteCommand({ TableName: table.quizzes, Key: { id: quiz.id } }),
     );
