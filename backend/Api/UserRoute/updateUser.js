@@ -1,4 +1,4 @@
-import express from "express";
+/* import express from "express";
 import { z } from "zod";
 import bcrypt from "bcrypt";
 
@@ -111,6 +111,154 @@ router.put("/update-user/:user_id", verifyJWT, async (req, res) => {
     await user.update(profileFields);
 
     // Remove sensitive fields from response
+    const userData = user.toJSON();
+
+    delete userData.password;
+    delete userData.passwordHash;
+    delete userData.password_hash;
+
+    return res.status(200).json({
+      success: true,
+      message: "User updated successfully",
+      user: userData,
+    });
+  } catch (error) {
+    if (error.name === "SequelizeUniqueConstraintError") {
+      return res.status(409).json({
+        success: false,
+        message: "Email or username already exists",
+      });
+    }
+
+    if (error.name === "SequelizeValidationError") {
+      return res.status(400).json({
+        success: false,
+        message: "User validation failed",
+        errors: error.errors.map((item) => item.message),
+      });
+    }
+
+    console.error("Update user error:", error.message);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update user",
+    });
+  }
+});
+
+export default router;
+ */
+
+import express from "express";
+import { z } from "zod";
+import bcrypt from "bcrypt";
+
+import User from "../../models/User.js";
+import verifyJWT from "../../middleware/verifyJWT.js";
+
+const router = express.Router();
+
+// Validate fields allowed for profile updates
+const updateUserSchema = z
+  .object({
+    firstname: z.string().trim().min(1).max(100).optional(),
+
+    surname: z.string().trim().min(1).max(100).optional(),
+
+    username: z.string().trim().min(3).max(30).optional(),
+
+    email: z.string().trim().email().max(254).optional(),
+
+    password: z.string().min(8).optional(),
+  })
+  .strict()
+  .refine((data) => Object.keys(data).length > 0, {
+    message: "Provide at least one field to update",
+  });
+
+// PUT /update-user/:user_id
+router.put("/update-user/:user_id", verifyJWT, async (req, res) => {
+  try {
+    // Step 1: Validate user ID
+    const idValidation = z.uuid().safeParse(req.params.user_id);
+
+    if (!idValidation.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user ID",
+      });
+    }
+
+    // Step 2: Validate request body
+    const validation = updateUserSchema.safeParse(req.body);
+
+    if (!validation.success) {
+      return res.status(400).json({
+        success: false,
+        message: "Validation failed",
+        errors: validation.error.issues.map((issue) => ({
+          field: issue.path.join(".") || "body",
+          message: issue.message,
+        })),
+      });
+    }
+
+    // Step 3: Get verified Supabase user ID from JWT
+    const authId = req.user?.auth_id || req.user?.sub;
+
+    if (!authId) {
+      return res.status(401).json({
+        success: false,
+        message: "Invalid authentication token",
+      });
+    }
+
+    // Step 4: Find authenticated user in database
+    const authenticatedUser = await User.findOne({
+      where: {
+        auth_id: authId,
+      },
+      attributes: ["user_id"],
+    });
+
+    if (!authenticatedUser) {
+      return res.status(404).json({
+        success: false,
+        message: "User account not found",
+      });
+    }
+
+    // Step 5: Users can update only their own profile
+    if (String(authenticatedUser.user_id) !== String(idValidation.data)) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to update this user",
+      });
+    }
+
+    // Step 6: Find the user's database record
+    const user = await User.findByPk(authenticatedUser.user_id);
+
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        message: "User not found",
+      });
+    }
+
+    // Step 7: Prepare validated update data
+    const { password, ...profileFields } = validation.data;
+
+    // Hash password if supplied
+    if (password !== undefined) {
+      profileFields.password = await bcrypt.hash(password, 12);
+    }
+
+    // Step 8: Update permitted fields
+    await user.update(profileFields);
+
+    // Step 9: Remove sensitive fields from response
     const userData = user.toJSON();
 
     delete userData.password;
