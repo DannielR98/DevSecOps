@@ -10,7 +10,7 @@ const { findByPkMock, findOneMock, mockDestroy } = vi.hoisted(() => ({
 
 const VALID_USER_UUID = "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44";
 const OTHER_USER_UUID = "e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a55";
-const TEST_AUTH_ID = "test-auth-id";
+//const TEST_AUTH_ID = "test-auth-id";
 
 // Mock JWT middleware
 vi.mock("../../middleware/verifyJWT.js", () => ({
