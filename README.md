@@ -205,6 +205,22 @@ docker-compose up -d --build
 - **Frontend Applikation**: `http://localhost:3000/`
 - **Backend Express API**: `http://localhost:5000/api/`
 
+Produktionsbilden för frontend byggs med Docker BuildKit. Ange den publika
+Supabase anon- eller publishable-nyckeln som en build secret och bygg om
+bundlingssteget utan cache när nyckeln kan ha ändrats:
+
+```bash
+docker buildx build --load --tag quiz-frontend:local --no-cache-filter frontend-bundle \
+  --secret id=supabase_anon_key,env=VITE_SUPABASE_ANON_KEY \
+  --build-arg VITE_SUPABASE_URL="$VITE_SUPABASE_URL" \
+  --build-arg VITE_API_URL="$VITE_API_URL" \
+  -f frontend/quiz/Dockerfile.prod frontend/quiz
+```
+
+Vite bäddar in nyckeln i JavaScript som skickas till webbläsaren. Den är
+därför inte hemlig även om den skickas via en build secret; använd aldrig
+en Supabase service-role-nyckel eller någon annan hemlig nyckel här.
+
 Express-API:et kräver en verifierad token för användarlistning, profilsynkronisering och profilrutter. Profiländringar gäller applikationens databas; de ändrar inte e-postadress eller lösenord i Supabase Auth. Quiz-inlämning accepterar svarstext som frontend skickar samt äldre svar i form av alternativens index.
 
 Varje quiz har grafer för dina egna försök och deltagarnas bästa resultat, rangordnade efter andel rätt. Topplistan visar även varje deltagares totala antal genomförda försök, inklusive försök efter det bästa resultatet. Endast nuvarande gruppmedlemmar och gruppägaren kan se dem; individuella försök visas bara för den som gjorde dem. Topplistan inkluderar även sparade resultat från tidigare medlemmar.
