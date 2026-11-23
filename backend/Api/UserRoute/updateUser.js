@@ -155,21 +155,16 @@ import { z } from "zod";
 import bcrypt from "bcrypt";
 
 import User from "../../models/User.js";
-import verifyJWT from "../../middleware/verifyJWT.js";
+import { checkJwt } from "../../middleware/supabaseAuth.js";
 
 const router = express.Router();
 
-// Validate fields allowed for profile updates
 const updateUserSchema = z
   .object({
     firstname: z.string().trim().min(1).max(100).optional(),
-
     surname: z.string().trim().min(1).max(100).optional(),
-
     username: z.string().trim().min(3).max(30).optional(),
-
     email: z.string().trim().email().max(254).optional(),
-
     password: z.string().min(8).optional(),
   })
   .strict()
@@ -178,9 +173,9 @@ const updateUserSchema = z
   });
 
 // PUT /update-user/:user_id
-router.put("/update-user/:user_id", verifyJWT, async (req, res) => {
+router.put("/update-user/:user_id", checkJwt, async (req, res) => {
   try {
-    // Step 1: Validate user ID
+    // 1. Validate requested user ID
     const idValidation = z.uuid().safeParse(req.params.user_id);
 
     if (!idValidation.success) {
@@ -190,7 +185,7 @@ router.put("/update-user/:user_id", verifyJWT, async (req, res) => {
       });
     }
 
-    // Step 2: Validate request body
+    // 2. Validate request body
     const validation = updateUserSchema.safeParse(req.body);
 
     if (!validation.success) {
@@ -204,7 +199,7 @@ router.put("/update-user/:user_id", verifyJWT, async (req, res) => {
       });
     }
 
-    // Step 3: Get verified Supabase user ID from JWT
+    // 3. Get authenticated Supabase user ID
     const authId = req.user?.auth_id || req.user?.sub;
 
     if (!authId) {
@@ -214,31 +209,8 @@ router.put("/update-user/:user_id", verifyJWT, async (req, res) => {
       });
     }
 
-    // Step 4: Find authenticated user in database
-    const authenticatedUser = await User.findOne({
-      where: {
-        auth_id: authId,
-      },
-      attributes: ["user_id"],
-    });
-
-    if (!authenticatedUser) {
-      return res.status(404).json({
-        success: false,
-        message: "User account not found",
-      });
-    }
-
-    // Step 5: Users can update only their own profile
-    if (String(authenticatedUser.user_id) !== String(idValidation.data)) {
-      return res.status(403).json({
-        success: false,
-        message: "You are not authorized to update this user",
-      });
-    }
-
-    // Step 6: Find the user's database record
-    const user = await User.findByPk(authenticatedUser.user_id);
+    // 4. Find requested user by local database UUID
+    const user = await User.findByPk(idValidation.data);
 
     if (!user) {
       return res.status(404).json({
@@ -247,18 +219,26 @@ router.put("/update-user/:user_id", verifyJWT, async (req, res) => {
       });
     }
 
-    // Step 7: Prepare validated update data
+    // 5. Verify that the requested account belongs to the authenticated user
+    if (String(user.auth_id) !== String(authId)) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to update this user",
+      });
+    }
+
+    // 6. Prepare validated update data
     const { password, ...profileFields } = validation.data;
 
-    // Hash password if supplied
+    // 7. Hash password if supplied
     if (password !== undefined) {
       profileFields.password = await bcrypt.hash(password, 12);
     }
 
-    // Step 8: Update permitted fields
+    // 8. Update user
     await user.update(profileFields);
 
-    // Step 9: Remove sensitive fields from response
+    // 9. Remove sensitive fields from response
     const userData = user.toJSON();
 
     delete userData.password;

@@ -2,26 +2,24 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 import request from "supertest";
 import { createTestApp } from "../helpers/testApp.js";
 
-const { findByPkMock, findOneMock, mockDestroy } = vi.hoisted(() => ({
+const VALID_USER_UUID = "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44";
+const OTHER_USER_UUID = "e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a55";
+const TEST_AUTH_ID = "test-auth-id";
+
+const { findByPkMock, mockDestroy } = vi.hoisted(() => ({
   findByPkMock: vi.fn(),
-  findOneMock: vi.fn(),
   mockDestroy: vi.fn(),
 }));
 
-const VALID_USER_UUID = "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44";
-const OTHER_USER_UUID = "e0eebc99-9c0b-4ef8-bb6d-6bb9bd380a55";
-//const TEST_AUTH_ID = "test-auth-id";
-
-// Mock JWT middleware
-vi.mock("../../middleware/verifyJWT.js", () => ({
-  default: (req, _res, next) => {
+// Mock the middleware used by deleteUser.js
+vi.mock("../../middleware/supabaseAuth.js", () => ({
+  checkJwt: (req, _res, next) => {
     req.user = {
-      id: "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44",
-      user_id: "d0eebc99-9c0b-4ef8-bb6d-6bb9bd380a44",
-      auth_id: "test-auth-id",
-      sub: "test-auth-id",
+      id: VALID_USER_UUID,
+      user_id: VALID_USER_UUID,
+      auth_id: TEST_AUTH_ID,
+      sub: TEST_AUTH_ID,
     };
-
     next();
   },
 }));
@@ -30,11 +28,9 @@ vi.mock("../../middleware/verifyJWT.js", () => ({
 vi.mock("../../models/User.js", () => ({
   default: {
     findByPk: findByPkMock,
-    findOne: findOneMock,
   },
 }));
 
-// Import route after mocks
 import deleteUserRouter from "../../Api/UserRoute/deleteUser.js";
 
 const app = createTestApp(deleteUserRouter);
@@ -43,12 +39,14 @@ describe("Auth > delete user", () => {
   beforeEach(() => {
     vi.clearAllMocks();
 
-    // Map the authenticated Supabase user to the local database user.
-    findOneMock.mockResolvedValue({
-      user_id: VALID_USER_UUID,
-    });
-
     mockDestroy.mockResolvedValue(undefined);
+
+    // Default: authenticated user's own account
+    findByPkMock.mockResolvedValue({
+      user_id: VALID_USER_UUID,
+      auth_id: TEST_AUTH_ID,
+      destroy: mockDestroy,
+    });
   });
 
   it("returns 400 when user ID is not a valid UUID", async () => {
@@ -57,18 +55,7 @@ describe("Auth > delete user", () => {
     expect(res.status).toBe(400);
     expect(res.body.success).toBe(false);
     expect(res.body.message).toBe("Invalid user ID");
-  });
 
-  it("returns 403 when deleting another user's account", async () => {
-    const res = await request(app).delete(
-      `/api/delete-user/${OTHER_USER_UUID}`,
-    );
-
-    expect(res.status).toBe(403);
-    expect(res.body.success).toBe(false);
-    expect(res.body.message).toBe("You are not authorized to delete this user");
-
-    expect(findOneMock).toHaveBeenCalled();
     expect(findByPkMock).not.toHaveBeenCalled();
   });
 
@@ -84,11 +71,25 @@ describe("Auth > delete user", () => {
     expect(res.body.message).toBe("User not found");
   });
 
-  it("returns 500 when destroy throws", async () => {
+  it("returns 403 when deleting another user's account", async () => {
     findByPkMock.mockResolvedValue({
+      user_id: OTHER_USER_UUID,
+      auth_id: "another-auth-id",
       destroy: mockDestroy,
     });
 
+    const res = await request(app).delete(
+      `/api/delete-user/${OTHER_USER_UUID}`,
+    );
+
+    expect(res.status).toBe(403);
+    expect(res.body.success).toBe(false);
+    expect(res.body.message).toBe("You are not authorized to delete this user");
+
+    expect(mockDestroy).not.toHaveBeenCalled();
+  });
+
+  it("returns 500 when destroy throws", async () => {
     mockDestroy.mockRejectedValue(new Error("Database error"));
 
     const res = await request(app).delete(
@@ -100,11 +101,7 @@ describe("Auth > delete user", () => {
     expect(res.body.message).toBe("Failed to delete user");
   });
 
-  it("returns 200 when user is deleted", async () => {
-    findByPkMock.mockResolvedValue({
-      destroy: mockDestroy,
-    });
-
+  it("returns 200 when user deletes their own account", async () => {
     const res = await request(app).delete(
       `/api/delete-user/${VALID_USER_UUID}`,
     );

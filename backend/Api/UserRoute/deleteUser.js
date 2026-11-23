@@ -67,15 +67,15 @@ export default router; */
 import express from "express";
 import { z } from "zod";
 import User from "../../models/User.js";
-import verifyJWT from "../../middleware/verifyJWT.js";
+import { checkJwt } from "../../middleware/supabaseAuth.js";
 
 const router = express.Router();
 
 const userIdSchema = z.uuid();
 
-router.delete("/delete-user/:user_id", verifyJWT, async (req, res) => {
+router.delete("/delete-user/:user_id", checkJwt, async (req, res) => {
   try {
-    // Step 1: Validate the requested user ID
+    // 1. Validate requested user ID
     const validation = userIdSchema.safeParse(req.params.user_id);
 
     if (!validation.success) {
@@ -85,7 +85,7 @@ router.delete("/delete-user/:user_id", verifyJWT, async (req, res) => {
       });
     }
 
-    // Step 2: Get the verified Supabase user ID from JWT
+    // 2. Get authenticated Supabase user ID
     const authId = req.user?.auth_id || req.user?.sub;
 
     if (!authId) {
@@ -95,41 +95,26 @@ router.delete("/delete-user/:user_id", verifyJWT, async (req, res) => {
       });
     }
 
-    // Step 3: Find the authenticated user in the database
-    const authenticatedUser = await User.findOne({
-      where: {
-        auth_id: authId,
-      },
-      attributes: ["user_id"],
-    });
+    // 3. Find the requested account by its local UUID
+    const requestedUser = await User.findByPk(validation.data);
 
-    if (!authenticatedUser) {
-      return res.status(404).json({
-        success: false,
-        message: "User account not found",
-      });
-    }
-
-    // Step 4: Allow users to delete only their own accounts
-    if (String(authenticatedUser.user_id) !== String(validation.data)) {
-      return res.status(403).json({
-        success: false,
-        message: "You are not authorized to delete this user",
-      });
-    }
-
-    // Step 5: Find the user's database account
-    const user = await User.findByPk(authenticatedUser.user_id);
-
-    if (!user) {
+    if (!requestedUser) {
       return res.status(404).json({
         success: false,
         message: "User not found",
       });
     }
 
-    // Step 6: Delete the account
-    await user.destroy();
+    // 4. Check whether this account belongs to the authenticated user
+    if (String(requestedUser.auth_id) !== String(authId)) {
+      return res.status(403).json({
+        success: false,
+        message: "You are not authorized to delete this user",
+      });
+    }
+
+    // 5. Delete the account
+    await requestedUser.destroy();
 
     return res.status(200).json({
       success: true,
