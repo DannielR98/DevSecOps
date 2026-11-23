@@ -1,0 +1,16 @@
+import { notificationMutationRoute, parseWith } from "../lib/http.js";
+import { createGroupSchema } from "../lib/validation.js";
+import { groups } from "../lib/repo.js";
+import { publicGroup } from "../lib/shapes.js";
+
+// The repository creates the group, owner membership and invite-code lock in
+// one transaction. The owner is taken from the verified token, not the body.
+export const handler = notificationMutationRoute(async ({ body, user }) => {
+  const { name } = parseWith(createGroupSchema, body);
+  const group = await groups.createWithOwner(name, user.user_id);
+
+  return [
+    201,
+    { success: true, message: "Group created successfully", group: publicGroup(group) },
+  ];
+});

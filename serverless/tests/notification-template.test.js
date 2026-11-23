@@ -49,6 +49,20 @@ describe("notification infrastructure", () => {
     const output = doc.getIn(["Outputs", "OperationsAlarmTopicArn", "Value"], true);
     expect(output).toMatchObject({ tag: "!Ref", value: "OperationsAlarmTopic" });
     const policy = resources.OperationsAlarmTopicPolicy.Properties.PolicyDocument.Statement;
+    expect(policy[0]).toMatchObject({
+      Sid: "AccountAccess",
+      Effect: "Allow",
+      Action: [
+        "sns:GetTopicAttributes",
+        "sns:SetTopicAttributes",
+        "sns:AddPermission",
+        "sns:RemovePermission",
+        "sns:DeleteTopic",
+        "sns:Subscribe",
+        "sns:ListSubscriptionsByTopic",
+        "sns:Publish",
+      ],
+    });
     expect(policy[1]).toMatchObject({
       Principal: { Service: "cloudwatch.amazonaws.com" },
       Action: "sns:Publish",
