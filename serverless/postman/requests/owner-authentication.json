@@ -9,8 +9,9 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-                "// Generate unique owner and member identities for this isolated test run.",
-                "const stamp = Date.now().toString();",
+              "// Generate unique owner and member identities for this isolated test run.",
+              "// Later registration and login requests reuse these collection variables.",
+              "const stamp = Date.now().toString();",
               "pm.collectionVariables.set('ownerUsername', `pm_owner_${stamp}`);",
               "pm.collectionVariables.set('ownerEmail', `pm_owner_${stamp}@example.test`);",
               "pm.collectionVariables.set('ownerAuthId', `postman-owner-${stamp}`);",
@@ -25,20 +26,21 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-                "// Verify registration succeeds, does not expose a password, and save the owner ID.",
-                "pm.test('owner is registered', () => pm.response.to.have.status(201));",
+              "// Verify registration succeeds, does not expose a password, and save the owner ID.",
+              "pm.test('owner is registered', () => pm.response.to.have.status(201));",
               "const body = pm.response.json();",
               "pm.test('registration returns safe profile fields', () => {",
               "  pm.expect(body.user.username).to.eql(pm.collectionVariables.get('ownerUsername'));",
               "  pm.expect(body.user).not.to.have.property('password');",
               "});",
+              "// Group and quiz tests use this ID to verify ownership and attribution.",
               "pm.collectionVariables.set('ownerId', body.user.user_id);"
             ]
           }
         }
       ],
       "request": {
-        "description": "Register the owner account used to create the test group and quiz.",
+        "description": "Generate unique owner and member identities for this run, then register the owner without authentication. Expect HTTP 201 and a profile without a password; save the owner ID for later ownership checks.",
         "method": "POST",
         "header": [
           {
@@ -69,9 +71,10 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-                "// Store the owner's token for later owner-authorized requests.",
-                "pm.test('owner login succeeds', () => pm.response.to.have.status(200));",
+              "// Store the owner's token for later owner-authorized requests.",
+              "pm.test('owner login succeeds', () => pm.response.to.have.status(200));",
               "const body = pm.response.json();",
+              "// accessToken supplies the collection-level bearer authentication.",
               "pm.collectionVariables.set('ownerToken', body.token);",
               "pm.collectionVariables.set('accessToken', body.token);",
               "pm.test('login returns a bearer token', () => pm.expect(body.token).to.be.a('string').and.not.empty);"
@@ -80,7 +83,7 @@
         }
       ],
       "request": {
-        "description": "Log in the owner and retain the issued application JWT.",
+        "description": "Log in with the generated owner credentials without prior authentication. Expect HTTP 200 and a non-empty token; save it both as ownerToken and as the collection's current accessToken for group creation.",
         "method": "POST",
         "header": [
           {

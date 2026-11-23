@@ -1,6 +1,8 @@
 #!/bin/bash
+# Stop on command errors, unset variables and failures within a pipeline.
 set -euo pipefail
 
+# Extract the registry and repository from either a tagged or digest image.
 registry="${IMAGE%%/*}"
 if [[ "$IMAGE" == *@* ]]; then
   repository="${IMAGE%@*}"
@@ -8,6 +10,7 @@ else
   repository="${IMAGE%:*}"
 fi
 
+# Authenticate to ECR and pull the requested image before changing containers.
 aws ecr get-login-password --region "$REGION" |
   docker login --username AWS --password-stdin "$registry"
 docker pull "$IMAGE"
@@ -26,10 +29,12 @@ for container in $containers $published; do
   esac
 done
 
+# Remove the verified containers once each, even if both filters matched it.
 for container in $(printf '%s\n' $containers $published | sort -u); do
   docker rm -f "$container"
 done
 
+# Start the replacement and verify that it uses the image that was pulled.
 docker run -d --name quiz-frontend --restart unless-stopped -p 80:80 "$IMAGE"
 expected="$(docker image inspect --format '{{.Id}}' "$IMAGE")"
 actual="$(docker inspect --format '{{.Image}}' quiz-frontend)"
@@ -38,6 +43,7 @@ if [ "$actual" != "$expected" ]; then
   exit 1
 fi
 
+# Wait for the frontend to respond; report container logs if it never does.
 for attempt in $(seq 1 30); do
   if curl --fail --silent --output /dev/null http://127.0.0.1/; then
     echo "Frontend is responding on port 80 using $IMAGE."

@@ -1,5 +1,10 @@
+# Dependabot configuration format.
 version: 2
+# Each entry checks weekly, waits seven days after a release before proposing
+# version updates, and groups matching dependencies for that ecosystem.
+# The cooldown applies to version updates, not security updates.
 updates:
+  # Update and group npm dependencies for the frontend.
   - package-ecosystem: npm
     directory: /frontend/quiz
     schedule:
@@ -11,6 +16,7 @@ updates:
         patterns:
           - "*"
 
+  # Update and group npm dependencies for the Express backend.
   - package-ecosystem: npm
     directory: /backend
     schedule:
@@ -22,6 +28,7 @@ updates:
         patterns:
           - "*"
 
+  # Update and group npm dependencies for the serverless backend.
   - package-ecosystem: npm
     directory: /serverless
     schedule:
@@ -33,6 +40,7 @@ updates:
         patterns:
           - "*"
 
+  # Update and group GitHub Actions referenced by repository workflows.
   - package-ecosystem: github-actions
     directory: /
     schedule:
@@ -44,6 +52,7 @@ updates:
         patterns:
           - "*"
 
+  # Update and group Docker image dependencies in the frontend directory.
   - package-ecosystem: docker
     directory: /frontend/quiz
     schedule:
@@ -55,6 +64,7 @@ updates:
         patterns:
           - "*"
 
+  # Update and group Docker image dependencies in the backend directory.
   - package-ecosystem: docker
     directory: /backend
     schedule:

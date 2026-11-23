@@ -1,3 +1,4 @@
+# CloudFormation template version and SAM transform for serverless resources.
 AWSTemplateFormatVersion: "2010-09-09"
 Transform: AWS::Serverless-2016-10-31
 Description: Quiz app backend - API Gateway HTTP API, Lambda functions and DynamoDB
@@ -37,6 +38,7 @@ Parameters:
     Type: String
     Default: arm64
     AllowedValues: [arm64, x86_64]
+  # Default Lambda timeout in seconds; individual functions may override it.
   FunctionTimeout:
     Type: Number
     Default: 10
@@ -47,6 +49,7 @@ Parameters:
 # SAM Local overrides selected environment variables for its local database.
 Globals:
   Function:
+    # Default runtime, architecture and resource limits for every Lambda.
     Runtime: nodejs22.x
     Architectures: [!Ref FunctionArchitecture]
     MemorySize: 256
@@ -55,6 +58,7 @@ Globals:
     CodeUri: dist/
     Environment:
       Variables:
+        # Resource names and notification settings shared by the handlers.
         USERS_TABLE: !Ref UsersTable
         GROUPS_TABLE: !Ref GroupsTable
         MEMBERS_TABLE: !Ref GroupMembersTable
@@ -68,6 +72,7 @@ Globals:
         UNIQUES_TABLE: !Ref UniqueKeysTable
         # An empty endpoint uses AWS; local startup overrides it for DynamoDB Local.
         DYNAMODB_ENDPOINT: ""
+        # Token verification and signing configuration.
         JWT_SECRET: !Ref JwtSecret
         SUPABASE_URL: !Ref SupabaseUrl
         SUPABASE_JWT_SECRET: !Ref SupabaseJwtSecret
@@ -79,6 +84,7 @@ Resources:
     Type: AWS::Serverless::HttpApi
     Properties:
       StageName: !Ref Stage
+      # Allow the configured frontend origin to send API requests.
       CorsConfiguration:
         AllowOrigins: [!Ref AllowedOrigin]
         AllowMethods: [GET, POST, PUT, DELETE, OPTIONS]
@@ -90,23 +96,28 @@ Resources:
         ThrottlingBurstLimit: 50
         ThrottlingRateLimit: 25
       Auth:
+        # All routes inherit this authorizer unless they explicitly opt out.
         DefaultAuthorizer: TokenAuthorizer
         Authorizers:
           TokenAuthorizer:
             FunctionArn: !GetAtt TokenAuthorizerFunction.Arn
             AuthorizerPayloadFormatVersion: "2.0"
+            # The authorizer returns an isAuthorized boolean.
             EnableSimpleResponses: true
             EnableFunctionDefaultPermissions: true
             Identity:
               Headers: [Authorization]
+              # Disable authorizer result caching; a missing header is rejected
+              # by API Gateway before the authorizer is invoked.
               ReauthorizeEvery: 0
 
   # ---------------------------------------------------------------- IAM
-  # The shared Lambda role grants access to the named tables and their query
-  # indexes; the full-table scan permission is limited to the users table.
+  # The API Lambda role grants access to the named tables, indexes and
+  # group notification subscriptions used by the handlers.
   FunctionRole:
     Type: AWS::IAM::Role
     Properties:
+      # Only Lambda may assume this role.
       AssumeRolePolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -121,6 +132,7 @@ Resources:
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
+              # CRUD operations and indexed queries for application data.
               - Effect: Allow
                 Action:
                   - dynamodb:GetItem
@@ -142,22 +154,27 @@ Resources:
                   - !GetAtt QuizResultsTable.Arn
                   - !Sub "${QuizResultsTable.Arn}/index/*"
                   - !GetAtt UniqueKeysTable.Arn
+              # Quiz creation writes an outbox event with the quiz.
               - Effect: Allow
                 Action: dynamodb:PutItem
                 Resource: !GetAtt OutboxTable.Arn
+              # Scans support user, group and membership operations.
               - Effect: Allow
                 Action: dynamodb:Scan
                 Resource:
                   - !GetAtt UsersTable.Arn
                   - !GetAtt GroupsTable.Arn
                   - !GetAtt GroupMembersTable.Arn
+              # The notification lock coordinates profile and membership changes.
               - Effect: Allow
                 Action: [dynamodb:PutItem, dynamodb:DeleteItem]
                 Resource: !GetAtt NotificationLockTable.Arn
+              # API mutations can clean up group notification subscriptions.
               - Effect: Allow
                 Action: [sns:ListSubscriptionsByTopic, sns:Unsubscribe, sns:DeleteTopic]
                 Resource: !Sub "arn:${AWS::Partition}:sns:${AWS::Region}:${AWS::AccountId}:${AWS::StackName}-quiz-group-*"
 
+  # Separate role for the outbox relay, reconciliation and notification Lambdas.
   NotificationRole:
     Type: AWS::IAM::Role
     Properties:
@@ -174,6 +191,7 @@ Resources:
           PolicyDocument:
             Version: "2012-10-17"
             Statement:
+              # Read notification inputs, remove relayed events and use the lock.
               - Effect: Allow
                 Action: [dynamodb:Scan, dynamodb:GetItem]
                 Resource:
@@ -187,9 +205,11 @@ Resources:
               - Effect: Allow
                 Action: [dynamodb:PutItem, dynamodb:DeleteItem]
                 Resource: !GetAtt NotificationLockTable.Arn
+              # Publish outbox events to the application's EventBridge bus.
               - Effect: Allow
                 Action: events:PutEvents
                 Resource: !GetAtt QuizEventBus.Arn
+              # Listing topics is account-wide; topic mutations are prefix-scoped.
               - Effect: Allow
                 Action: sns:ListTopics
                 Resource: "*"
@@ -202,6 +222,7 @@ Resources:
                   - sns:Unsubscribe
                   - sns:Publish
                 Resource: !Sub "arn:${AWS::Partition}:sns:${AWS::Region}:${AWS::AccountId}:${AWS::StackName}-quiz-group-*"
+              # Lambda asynchronous failures are sent to the failure queue.
               - Effect: Allow
                 Action: sqs:SendMessage
                 Resource: !GetAtt NotificationFailureQueue.Arn
@@ -211,6 +232,7 @@ Resources:
   # recovery. Secondary indexes below support repository lookup patterns.
   # PAY_PER_REQUEST avoids configuring provisioned read/write capacity.
   # AttributeDefinitions lists key attributes, not every stored item field.
+  # Store user profiles by user_id.
   UsersTable:
     Type: AWS::DynamoDB::Table
     DeletionPolicy: Retain
@@ -315,6 +337,7 @@ Resources:
       KeySchema:
         - { AttributeName: id, KeyType: HASH }
 
+  # Persistent lock serializes notification reconciliation and related mutations.
   NotificationLockTable:
     Type: AWS::DynamoDB::Table
     DeletionPolicy: Retain
@@ -327,11 +350,13 @@ Resources:
       KeySchema:
         - { AttributeName: id, KeyType: HASH }
 
+  # Dedicated event bus receives quiz-created events from the outbox relay.
   QuizEventBus:
     Type: AWS::Events::EventBus
     Properties:
       Name: !Sub "${AWS::StackName}-quiz-events"
 
+  # Store failed notification events for 14 days with SQS-managed encryption.
   # Trivy does not recognize SqsManagedSseEnabled in CloudFormation; the template test enforces it.
   #trivy:ignore:AWS-0096
   NotificationFailureQueue:
@@ -340,6 +365,7 @@ Resources:
       MessageRetentionPeriod: 1209600
       SqsManagedSseEnabled: true
 
+  # Allow the listed EventBridge rules to deliver failures to the queue.
   NotificationFailureQueuePolicy:
     Type: AWS::SQS::QueuePolicy
     Properties:
@@ -358,6 +384,7 @@ Resources:
                   - !GetAtt ReconciliationSchedule.Arn
                   - !GetAtt QuizCreatedRule.Arn
 
+  # Retain and rotate the key used to encrypt operational SNS alarm messages.
   OperationsAlarmKey:
     Type: AWS::KMS::Key
     DeletionPolicy: Retain
@@ -368,24 +395,28 @@ Resources:
       KeyPolicy:
         Version: "2012-10-17"
         Statement:
+          # Enable account IAM policies to grant key access.
           - Sid: EnableAccountIAMPermissions
             Effect: Allow
             Principal:
               AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
             Action: kms:*
             Resource: "*"
+          # CloudWatch needs these operations to publish encrypted alarms.
           - Sid: AllowCloudWatchAlarms
             Effect: Allow
             Principal: { Service: cloudwatch.amazonaws.com }
             Action: [kms:Decrypt, "kms:GenerateDataKey*"]
             Resource: "*"
 
+  # Encrypted topic for operational alarms, separate from group notifications.
   OperationsAlarmTopic:
     Type: AWS::SNS::Topic
     Properties:
       TopicName: !Sub "${AWS::StackName}-operations"
       KmsMasterKeyId: !GetAtt OperationsAlarmKey.Arn
 
+  # Permit account management and publishing from the specific CloudWatch alarm.
   OperationsAlarmTopicPolicy:
     Type: AWS::SNS::TopicPolicy
     Properties:
@@ -419,6 +450,7 @@ Resources:
               ArnEquals:
                 aws:SourceArn: !Sub "arn:${AWS::Partition}:cloudwatch:${AWS::Region}:${AWS::AccountId}:alarm:${AWS::StackName}-notification-failure"
 
+  # Alarm when at least one failure message is visible in the queue.
   NotificationFailureAlarm:
     Type: AWS::CloudWatch::Alarm
     DependsOn: OperationsAlarmTopicPolicy
@@ -432,12 +464,14 @@ Resources:
         - Name: QueueName
           Value: !GetAtt NotificationFailureQueue.QueueName
       Statistic: Maximum
+      # Evaluate a one-minute period; missing metrics do not trigger the alarm.
       Period: 60
       EvaluationPeriods: 1
       Threshold: 1
       ComparisonOperator: GreaterThanOrEqualToThreshold
       TreatMissingData: notBreaching
 
+  # Send pending outbox events to EventBridge, with only one concurrent relay.
   OutboxRelayFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -445,6 +479,7 @@ Resources:
       Role: !GetAtt NotificationRole.Arn
       Timeout: 900
       ReservedConcurrentExecutions: 1
+      # After asynchronous retries are exhausted, send the invocation to SQS.
       EventInvokeConfig:
         MaximumRetryAttempts: 2
         DestinationConfig:
@@ -452,6 +487,7 @@ Resources:
             Type: SQS
             Destination: !GetAtt NotificationFailureQueue.Arn
 
+  # Reconcile group SNS topics and subscriptions with current membership.
   ReconcileNotificationsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -466,6 +502,7 @@ Resources:
             Type: SQS
             Destination: !GetAtt NotificationFailureQueue.Arn
 
+  # Publish a quiz-created notification to the corresponding group SNS topic.
   NotifyQuizCreatedFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -478,6 +515,7 @@ Resources:
             Type: SQS
             Destination: !GetAtt NotificationFailureQueue.Arn
 
+  # Run the relay every minute; failed EventBridge deliveries go to SQS.
   OutboxSchedule:
     Type: AWS::Events::Rule
     DependsOn: QuizCreatedRulePermission
@@ -489,6 +527,7 @@ Resources:
           Arn: !GetAtt OutboxRelayFunction.Arn
           DeadLetterConfig: { Arn: !GetAtt NotificationFailureQueue.Arn }
 
+  # Reconcile topics and subscriptions every five minutes.
   ReconciliationSchedule:
     Type: AWS::Events::Rule
     Properties:
@@ -499,6 +538,7 @@ Resources:
           Arn: !GetAtt ReconcileNotificationsFunction.Arn
           DeadLetterConfig: { Arn: !GetAtt NotificationFailureQueue.Arn }
 
+  # Route matching quiz-created events on the dedicated bus to the notifier.
   QuizCreatedRule:
     Type: AWS::Events::Rule
     Properties:
@@ -511,6 +551,7 @@ Resources:
           Arn: !GetAtt NotifyQuizCreatedFunction.Arn
           DeadLetterConfig: { Arn: !GetAtt NotificationFailureQueue.Arn }
 
+  # Allow the outbox schedule to invoke the relay Lambda.
   OutboxSchedulePermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -519,6 +560,7 @@ Resources:
       Principal: events.amazonaws.com
       SourceArn: !GetAtt OutboxSchedule.Arn
 
+  # Allow the reconciliation schedule to invoke the reconciliation Lambda.
   ReconciliationSchedulePermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -527,6 +569,7 @@ Resources:
       Principal: events.amazonaws.com
       SourceArn: !GetAtt ReconciliationSchedule.Arn
 
+  # Allow the quiz-created rule to invoke the notification Lambda.
   QuizCreatedRulePermission:
     Type: AWS::Lambda::Permission
     Properties:
@@ -558,6 +601,7 @@ Resources:
   # Each HTTP event connects an API method/path to the named bundled handler.
   # Protected routes are checked by API Gateway and again by application code.
   # Handler names refer to exports in the modules generated by build.mjs.
+  # Verify bearer tokens at API Gateway before protected handlers are invoked.
   TokenAuthorizerFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -595,6 +639,7 @@ Resources:
             Auth:
               Authorizer: NONE
 
+  # Authenticate credentials and issue an application token without prior auth.
   LoginUserFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -611,6 +656,7 @@ Resources:
               Authorizer: NONE
 
   # Profile routes require authentication; update and delete check user identity.
+  # List user profiles without exposing password hashes.
   GetUsersFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -624,6 +670,7 @@ Resources:
             Path: /api/users
             Method: GET
 
+  # Return or provision the profile identified by the verified token.
   SyncUserFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -637,6 +684,7 @@ Resources:
             Path: /api/sync-user
             Method: POST
 
+  # Retrieve a user profile by its user_id.
   GetUserByIdFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -650,6 +698,7 @@ Resources:
             Path: /api/user/{user_id}
             Method: GET
 
+  # Update the authenticated user's own profile.
   UpdateUserFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -663,6 +712,7 @@ Resources:
             Path: /api/update-user/{user_id}
             Method: PUT
 
+  # Delete the authenticated user's own profile.
   DeleteUserFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -677,6 +727,7 @@ Resources:
             Method: DELETE
 
   # Group routes cover creation, listing, lookup, owner updates and deletion.
+  # Create a group and its owner's membership.
   CreateGroupFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -690,6 +741,7 @@ Resources:
             Path: /api/groups
             Method: POST
 
+  # List groups available to the authenticated user.
   GetGroupsFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -703,6 +755,7 @@ Resources:
             Path: /api/groups
             Method: GET
 
+  # Retrieve a group by its ID.
   GetGroupByIdFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -716,6 +769,7 @@ Resources:
             Path: /api/groups/{groupId}
             Method: GET
 
+  # Update a group; the handler checks ownership.
   UpdateGroupFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -729,6 +783,7 @@ Resources:
             Path: /api/groups/{groupId}
             Method: PUT
 
+  # Delete a group; the handler checks ownership.
   DeleteGroupFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -757,6 +812,7 @@ Resources:
             Method: POST
 
   # Member listing, individual lookup and leaving have separate route handlers.
+  # List memberships for a group.
   GetGroupMembersFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -770,6 +826,7 @@ Resources:
             Path: /api/groups/{groupId}/members
             Method: GET
 
+  # Retrieve a particular group membership.
   GetGroupMemberByIdFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -783,6 +840,7 @@ Resources:
             Path: /api/groups/{groupId}/members/{memberId}
             Method: GET
 
+  # Remove the authenticated user's membership from a group.
   LeaveGroupFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -797,6 +855,7 @@ Resources:
             Method: DELETE
 
   # Quiz routes cover creation, listing, retrieval, updates and deletion.
+  # Create a quiz for a group after checking the caller's membership.
   CreateQuizFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -810,6 +869,8 @@ Resources:
             Path: /api/quizzes
             Method: POST
 
+  # List quizzes for groups where the caller is a member or owner; optionally
+  # restrict the results to one accessible group.
   GetQuizzesFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -823,6 +884,7 @@ Resources:
             Path: /api/quizzes
             Method: GET
 
+  # Retrieve a quiz by ID if the caller is a group member or owner.
   GetQuizByIdFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -836,6 +898,7 @@ Resources:
             Path: /api/quizzes/{id}
             Method: GET
 
+  # Update a quiz if the caller is its creator.
   UpdateQuizFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -849,6 +912,7 @@ Resources:
             Path: /api/quizzes/{id}
             Method: PUT
 
+  # Delete a quiz and its saved results if the caller is its creator.
   DeleteQuizFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -877,20 +941,25 @@ Resources:
             Method: POST
 
 
+# Export the API URL and resource identifiers needed for operations.
 Outputs:
   # Include the stage and /api/ prefix so the frontend can append route paths.
   ApiUrl:
     Description: Base URL for the frontend (set VITE_API_URL to this value)
     Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.${AWS::URLSuffix}/${Stage}/api/"
+  # Queue to inspect and replay failed notification work.
   NotificationFailureQueueUrl:
     Description: Failure queue for notification targets and asynchronous Lambda invocations
     Value: !Ref NotificationFailureQueue
+  # Lock table used when investigating a stuck notification lock.
   NotificationLockTableName:
     Description: Persistent lock table for notification reconciliation and membership changes
     Value: !Ref NotificationLockTable
+  # Event bus receiving quiz creation events.
   NotificationEventBusName:
     Description: Event bus receiving quiz creation events
     Value: !Ref QuizEventBus
+  # Operators must subscribe and confirm an endpoint to receive alarms.
   OperationsAlarmTopicArn:
     Description: SNS topic for operational alarms; subscribe and confirm an email endpoint
     Value: !Ref OperationsAlarmTopic
