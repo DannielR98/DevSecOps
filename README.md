@@ -310,25 +310,32 @@ Projektet använder **GitHub Actions** för CI/CD
 
 Dependabot söker varje vecka efter uppdateringar för npm-beroenden, GitHub Actions och Docker-basbilder enligt [konfigurationen](./.github/dependabot.yml). Nya versioner har en väntetid på sju dagar innan de föreslås; säkerhetsuppdateringar omfattas inte av väntetiden. Uppdateringarna föreslås som pull requests och ska granskas och testas innan de mergas. Dependabot kan bara uppdatera filer som finns i Git-repot; backendens lokala `Dockerfile` är ignorerad och dess `Dockerfile.example` uppdateras i stället.
 
-### CI-delen (Continuous Integration)
+### CI-delen (Continuous Integration & Security)
 
-Vid varje push eller pull request körs följande steg:
+Vid varje push eller pull request körs jobbet `ci` med följande steg i ordning:
 
 | Steg | Beskrivning | Syfte |
 |------|-------------|-------|
-| **Checkout** | Hämta kod från repo |  |
-| **Node.js setup** | Installera Node.js 22 + npm-caching |  |
-| **Frontend Audit (SCA)** | `npm audit --audit-level=high` | Upptäck sårbara beroenden |
-| **Frontend Lint** | `npm run lint` | Kontrollera frontend-kod |
-| **Frontend Build** | `npm run build` | Verifiera att bygget lyckas |
-| **Backend Audit (SCA)** | `npm audit --audit-level=high` | Upptäck sårbara beroenden |
-| **Backend Test** | `npm test` | Kör enhetstester |
-| **Backend Build** | `npm run build` | Verifiera att bygget lyckas |
-| **Serverless Audit och lint** | `npm audit --audit-level=high`, `npm run lint` | Kontrollera beroenden och kod |
+| **Checkout** | Hämta kod från repo (`fetch-depth: 0`) | Underlag för kod- och historikskanning |
+| **Test EC2 deploy script** | `bash .github/scripts/test-deploy-frontend.sh` | Verifiera driftsättningsskriptets felhantering |
+| **Secret Scanning (Gitleaks)** | `gitleaks-action` med `.gitleaks.toml` | Stoppa läckta hemligheter, API-nycklar och tokens |
+| **Node.js setup** | Installera Node.js 22 + npm-caching | Bygg- och testmiljö |
+| **Frontend Audit (SCA)** | `npm audit --audit-level=high` | Upptäck sårbara beroenden i frontend |
+| **Frontend Lint** | `npm run lint` | Kontrollera kodkvalitet i frontend |
+| **Frontend Test** | `npm test` (`vitest run`) | Kör enhetstester i frontend |
+| **Frontend Build** | `npm run build` | Verifiera att frontend-bygget lyckas |
+| **Backend Audit (SCA)** | `npm audit --audit-level=high` | Upptäck sårbara beroenden i Express-backend |
+| **Backend Lint** | `npm run lint` | Kontrollera kodkvalitet i Express-backend |
+| **Backend Test** | `npm test` | Kör enhets- och integrationstester i Express-backend |
+| **Backend Build** | `npm run build` | Verifiera att Express-backend-bygget lyckas |
+| **Serverless Audit och lint** | `npm audit --audit-level=high`, `npm run lint` | Kontrollera beroenden och kod i Lambda-backend |
 | **Serverless test och build** | `npm test`, `npm run build` | Kör tester och bygg Lambda-handlers |
-| **Semgrep SAST** | Statisk kodanalys | Upptäck säkerhetsbrister i koden |
+| **Semgrep SAST** | `semgrep scan --config auto --error .` | Statisk kodanalys för att upptäcka säkerhetsbrister |
+| **Trivy Filesystem Scan** | `trivy-action` (`vuln,misconfig`, `HIGH,CRITICAL`) | Skanna beroenden, IaC och Dockerfiles efter sårbarheter och felkonfiguration |
+| **Trivy Container Image Scan** | Bygg och skanna frontend Docker-images (`dev` & `prod`) | Stoppa sårbarheter (`HIGH,CRITICAL`) i containerbasbilder före publicering |
+| **Playwright BDD & E2E** | `npx bddgen && npx playwright test` | Kör automatiserade BDD- och E2E-scenarier mot applikationen |
 
-Frontend-teststeget är för närvarande utkommenterat i workflowet.
+Frontend-enhetstester (`npm test`), BDD/E2E-tester (`npx playwright test`) samt alla säkerhetsgrindar (Gitleaks, `npm audit`, Semgrep och Trivy) körs automatiskt som en blockerande kvalitetsgrind i CI/CD-pipelinen (`needs: ci`) innan publicering och driftsättning tillåts.
 
 ### CD-delen (Continuous Deployment)
 
