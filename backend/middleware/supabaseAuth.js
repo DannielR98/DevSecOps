@@ -48,7 +48,11 @@ export const checkJwt = async (req, res, next) => {
       try {
         const { payload } = await jwtVerify(token, jwks);
         req.auth = { payload };
-        req.user = payload;
+        //req.user = payload;
+        req.user = {
+          ...payload,
+          auth_id: payload.sub,
+        };
         return next();
       } catch (_jwksErr) {
         // Fall through to other verification strategies
@@ -61,7 +65,11 @@ export const checkJwt = async (req, res, next) => {
       try {
         const decoded = jwt.verify(token, secret);
         req.auth = { payload: decoded };
-        req.user = decoded;
+        //req.user = decoded;
+        req.user = {
+          ...decoded,
+          auth_id: decoded.sub,
+        };
         return next();
       } catch (_hmacErr) {
         // Fall through
@@ -82,7 +90,12 @@ export const checkJwt = async (req, res, next) => {
             ...(user.user_metadata || {}),
           };
           req.auth = { payload };
-          req.user = payload;
+
+          //req.user = payload;
+          req.user = {
+            ...payload,
+            auth_id: user.id,
+          };
           return next();
         }
       } catch (_apiErr) {

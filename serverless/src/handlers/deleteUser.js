@@ -1,7 +1,11 @@
-import { HttpError, notificationMutationRoute, requireUUID } from "../lib/http.js";
+import {
+  HttpError,
+  notificationMutationRoute,
+  requireUUID,
+} from "../lib/http.js";
 import { users } from "../lib/repo.js";
 import { removeUserSubscriptions } from "../lib/notificationMembership.js";
-
+// test
 // The route may only remove the authenticated user's own profile and unique
 // keys. This operation does not delete the Supabase account.
 export const handler = notificationMutationRoute(async ({ params, user }) => {
