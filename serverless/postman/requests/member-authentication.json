@@ -44,6 +44,45 @@
       }
     },
     {
+      "name": "Login rejects incorrect password",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Incorrect credentials must not issue an application token.",
+              "pm.test('incorrect password is rejected', () => pm.response.to.have.status(401));",
+              "pm.test('failed login does not return a token', () => pm.expect(pm.response.json()).not.to.have.property('token'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "description": "Attempt to log in as the registered member with an incorrect password. Expect HTTP 401 and no token.",
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"user\":\"{{memberUsername}}\",\"password\":\"{{password}}-wrong\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/login",
+        "auth": {
+          "type": "noauth"
+        }
+      }
+    },
+    {
       "name": "Login member",
       "event": [
         {

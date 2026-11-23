@@ -2,6 +2,42 @@
   "name": "Group membership",
   "item": [
     {
+      "name": "Join group rejects missing invite code",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// A member must provide an invite code before joining.",
+              "pm.test('missing invite code is rejected', () => pm.response.to.have.status(400));",
+              "pm.test('response explains the missing code', () => pm.expect(pm.response.json().message).to.eql('Invite code is required'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "description": "Try to join with the authenticated member but no invite code. Expect HTTP 400 before the valid join request.",
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/groups/join"
+      }
+    },
+    {
       "name": "Join group as member",
       "event": [
         {
@@ -36,6 +72,51 @@
           }
         },
         "url": "{{baseUrl}}/groups/join"
+      }
+    },
+    {
+      "name": "Duplicate group membership is rejected",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Reusing the invite must not create another membership.",
+              "pm.test('duplicate membership is rejected', () => pm.response.to.have.status(409));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "description": "Join the same group again with the member token and saved invite code. Expect HTTP 409 because the membership already exists.",
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"invite_code\":\"{{inviteCode}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/groups/join",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{memberToken}}",
+              "type": "string"
+            }
+          ]
+        }
       }
     },
     {

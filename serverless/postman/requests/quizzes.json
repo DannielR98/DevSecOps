@@ -64,6 +64,97 @@
       }
     },
     {
+      "name": "Member cannot update owner's quiz",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Group membership alone does not permit editing another user's quiz.",
+              "pm.test('non-creator cannot update quiz', () => pm.response.to.have.status(403));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "description": "Attempt to update the owner's quiz using the joined member's token. Expect HTTP 403 because only the creator may edit it.",
+        "method": "PUT",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\"title\":\"Unauthorized change\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/quizzes/{{quizId}}",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{memberToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "name": "Quiz submission rejects missing answers",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Invalid submissions must not create an attempt.",
+              "pm.test('missing answers are rejected', () => pm.response.to.have.status(400));",
+              "pm.test('response identifies missing answers', () => pm.expect(pm.response.json().message).to.eql('Answers array is required'));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "description": "Submit a quiz without an answers array using the member token. Expect HTTP 400; the later results check should still contain only the valid attempt.",
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "url": "{{baseUrl}}/quizzes/{{quizId}}/submit",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "{{memberToken}}",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
       "name": "Member submits quiz",
       "event": [
         {

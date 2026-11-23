@@ -62,6 +62,36 @@
       }
     },
     {
+      "name": "Protected route rejects invalid token",
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "// Gateway and handler implementations can return 403 or 401 for a rejected token.",
+              "pm.test('invalid bearer token is rejected', () => pm.expect([401, 403]).to.include(pm.response.code));"
+            ]
+          }
+        }
+      ],
+      "request": {
+        "description": "Call a protected route with a malformed bearer token. Expect 401 or 403 and never a successful response.",
+        "method": "GET",
+        "url": "{{baseUrl}}/groups",
+        "auth": {
+          "type": "bearer",
+          "bearer": [
+            {
+              "key": "token",
+              "value": "not-a-valid-jwt",
+              "type": "string"
+            }
+          ]
+        }
+      }
+    },
+    {
       "name": "Protected route rejects missing token",
       "event": [
         {
