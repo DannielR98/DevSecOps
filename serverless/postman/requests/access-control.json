@@ -16,7 +16,7 @@
         }
       ],
       "request": {
-        "description": "Remove the member's own group membership.",
+        "description": "Use the member token to leave the saved group. Expect HTTP 200; the next request checks that this token no longer grants access to the group's quizzes.",
         "method": "DELETE",
         "url": "{{baseUrl}}/groups/{{groupId}}/members/leave"
       },
@@ -39,14 +39,14 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "// Verify a former member immediately loses access to this group's quizzes.",
+              "// The same member token must no longer grant access after leaving.",
               "pm.test('former member is forbidden', () => pm.response.to.have.status(403));"
             ]
           }
         }
       ],
       "request": {
-        "description": "Check access is denied after the member has left the group.",
+        "description": "Reuse the former member's token to request the saved group's quizzes after leaving. Expect HTTP 403 rather than access to the list.",
         "method": "GET",
         "url": "{{baseUrl}}/quizzes?group_id={{groupId}}"
       },
@@ -69,7 +69,7 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-              "// Remove the collection token so this protected request exercises unauthenticated access.",
+              "// Clear the inherited token; this request also explicitly opts out of authentication.",
               "pm.collectionVariables.set('accessToken', '');"
             ]
           }
@@ -86,7 +86,7 @@
         }
       ],
       "request": {
-        "description": "Verify protected endpoints reject requests with no token.",
+        "description": "Clear the collection's current accessToken and explicitly disable authentication for this request. Expect HTTP 401 when requesting the protected group list without a bearer token.",
         "method": "GET",
         "url": "{{baseUrl}}/groups",
         "auth": {

@@ -9,15 +9,16 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-                "// Confirm the member joined the group identified by the saved invite code.",
-                "pm.test('member joins the group', () => pm.response.to.have.status(200));",
+              "// This request inherits the member token set by the preceding login.",
+              "// Confirm the saved invite code joins the intended group.",
+              "pm.test('member joins the group', () => pm.response.to.have.status(200));",
               "pm.test('join response identifies the target group', () => pm.expect(pm.response.json().group.id).to.eql(pm.collectionVariables.get('groupId')));"
             ]
           }
         }
       ],
       "request": {
-        "description": "Join the owner's group using its invite code.",
+        "description": "Use the member token inherited from the collection and the saved invite code to join the owner's group. Expect HTTP 200 and a group ID matching the created group.",
         "method": "POST",
         "header": [
           {
@@ -45,15 +46,15 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-                "// Confirm current members may query quizzes and the new group starts empty.",
-                "pm.test('member can list quizzes in joined group', () => pm.response.to.have.status(200));",
+              "// Confirm current members may query quizzes and the new group starts empty.",
+              "pm.test('member can list quizzes in joined group', () => pm.response.to.have.status(200));",
               "pm.test('new group initially has no quizzes', () => pm.expect(pm.response.json().quizzes).to.be.an('array').that.is.empty);"
             ]
           }
         }
       ],
       "request": {
-        "description": "Check the joined member can access the group's quiz list.",
+        "description": "Use the saved member token to list quizzes in the joined group before any quiz is created. Expect HTTP 200 and an empty quizzes array.",
         "method": "GET",
         "url": "{{baseUrl}}/quizzes?group_id={{groupId}}"
       },

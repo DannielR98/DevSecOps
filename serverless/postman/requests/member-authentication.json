@@ -9,17 +9,18 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-                "// Verify the member profile is safe to return and save its ID.",
-                "pm.test('member is registered', () => pm.response.to.have.status(201));",
+              "// Verify the member profile is safe to return and save its ID.",
+              "pm.test('member is registered', () => pm.response.to.have.status(201));",
               "const body = pm.response.json();",
               "pm.test('member registration does not expose password', () => pm.expect(body.user).not.to.have.property('password'));",
+              "// The login and quiz-result checks compare their user ID with this value.",
               "pm.collectionVariables.set('memberId', body.user.user_id);"
             ]
           }
         }
       ],
       "request": {
-        "description": "Register the second account that joins and takes the quiz.",
+        "description": "Register the member identity generated during owner registration without authentication. Expect HTTP 201 and no password in the profile; save the member ID for login and quiz-result checks.",
         "method": "POST",
         "header": [
           {
@@ -50,10 +51,11 @@
           "script": {
             "type": "text/javascript",
             "exec": [
-                "// Verify login returns the registered member and retain the member JWT.",
-                "pm.test('member login succeeds', () => pm.response.to.have.status(200));",
+              "// Verify login returns the registered member and retain the member JWT.",
+              "pm.test('member login succeeds', () => pm.response.to.have.status(200));",
               "const body = pm.response.json();",
               "pm.test('member login returns the registered profile', () => pm.expect(body.user.user_id).to.eql(pm.collectionVariables.get('memberId')));",
+              "// Preserve the member token and use it for subsequent inherited authentication.",
               "pm.collectionVariables.set('memberToken', body.token);",
               "pm.collectionVariables.set('accessToken', body.token);"
             ]
@@ -61,7 +63,7 @@
         }
       ],
       "request": {
-        "description": "Log in the member and retain the issued application JWT.",
+        "description": "Log in with the generated member credentials without prior authentication. Expect HTTP 200 and the previously registered member ID; save the token and select it as the collection's current accessToken for joining the group.",
         "method": "POST",
         "header": [
           {
