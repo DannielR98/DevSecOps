@@ -397,7 +397,16 @@ Resources:
             Effect: Allow
             Principal:
               AWS: !Sub "arn:${AWS::Partition}:iam::${AWS::AccountId}:root"
-            Action: sns:*
+            # Restrict the topic policy to actions supported on an SNS topic.
+            Action:
+              - sns:GetTopicAttributes
+              - sns:SetTopicAttributes
+              - sns:AddPermission
+              - sns:RemovePermission
+              - sns:DeleteTopic
+              - sns:Subscribe
+              - sns:ListSubscriptionsByTopic
+              - sns:Publish
             Resource: !Ref OperationsAlarmTopic
           - Sid: AllowFailureAlarm
             Effect: Allow
