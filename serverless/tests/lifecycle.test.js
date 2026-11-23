@@ -829,8 +829,9 @@ describe("groups, members and quizzes", () => {
     expect(db.__data[TABLES.quizzes].size).toBe(0);
   });
 });
- */
 
+ */
+////////////////
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 // Handler-level lifecycle tests use the real repository against an in-memory
