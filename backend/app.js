@@ -26,7 +26,6 @@ import deleteQuiz from "./Api/Routes/Quizzes/deleteQuiz.js";
 import takeQuiz from "./Api/Routes/Quizzes/takeQuiz.js";
 
 // import group remember
-import joinGroupMember from "./Api/Routes/GroupMember/joinGroup.js";
 import getGroupMembers from "./Api/Routes/GroupMember/getGroupMembers.js";
 import getGroupMemberById from "./Api/Routes/GroupMember/getGroupMemberById.js";
 import leaveGroup from "./Api/Routes/GroupMember/leaveGroup.js";
@@ -67,7 +66,6 @@ app.use("/api", deleteQuiz);
 app.use("/api", takeQuiz);
 
 // api group remember
-app.use("/api", joinGroupMember);
 app.use("/api", getGroupMembers);
 app.use("/api", getGroupMemberById);
 app.use("/api", leaveGroup);
@@ -114,7 +112,6 @@ import joinGroup from "./Api/Groups/joinGroup.js";
 
 import getGroupMembersRouter from "./Api/GroupMember/getGroupMembers.js";
 import getGroupMemberByIdRouter from "./Api/GroupMember/getGroupMemberById.js";
-import joinGroupMemberRouter from "./Api/GroupMember/joinGroup.js";
 import leaveGroupRouter from "./Api/GroupMember/leaveGroup.js";
 
 // api for  Quiz
@@ -157,7 +154,6 @@ app.use("/api", joinGroup);
 
 app.use("/api", getGroupMembersRouter);
 app.use("/api", getGroupMemberByIdRouter);
-app.use("/api", joinGroupMemberRouter);
 app.use("/api", leaveGroupRouter);
 
 // api for  Quiz

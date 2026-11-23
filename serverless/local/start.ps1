@@ -93,6 +93,9 @@ try {
       GROUPS_TABLE = "local-groups"
       MEMBERS_TABLE = "local-group-members"
       QUIZZES_TABLE = "local-quizzes"
+      OUTBOX_TABLE = "local-outbox"
+      NOTIFICATION_LOCK_TABLE = "local-notification-locks"
+      NOTIFICATIONS_DISABLED = "true"
       RESULTS_TABLE = "local-quiz-results"
       DYNAMODB_ENDPOINT = "http://dynamodb:8000"
       JWT_SECRET = $localSecret
