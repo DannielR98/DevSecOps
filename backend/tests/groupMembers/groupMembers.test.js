@@ -7,18 +7,14 @@ const VALID_MEMBER_UUID = "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22";
 
 const {
   findOneUserMock,
-  findOneGroupMock,
   findByPkGroupMock,
   findAllMemberMock,
   findOneMemberMock,
-  createMemberMock,
 } = vi.hoisted(() => ({
   findOneUserMock: vi.fn(),
-  findOneGroupMock: vi.fn(),
   findByPkGroupMock: vi.fn(),
   findAllMemberMock: vi.fn(),
   findOneMemberMock: vi.fn(),
-  createMemberMock: vi.fn(),
 }));
 
 vi.mock("../../middleware/verifyJWT.js", () => ({
@@ -37,7 +33,6 @@ vi.mock("../../models/User.js", () => ({
 
 vi.mock("../../models/Group.js", () => ({
   default: {
-    findOne: findOneGroupMock,
     findByPk: findByPkGroupMock,
   },
 }));
@@ -46,19 +41,16 @@ vi.mock("../../models/GroupMember.js", () => ({
   default: {
     findAll: findAllMemberMock,
     findOne: findOneMemberMock,
-    create: createMemberMock,
   },
 }));
 
 import getGroupMembersRoute from "../../Api/GroupMember/getGroupMembers.js";
 import getGroupMemberByIdRoute from "../../Api/GroupMember/getGroupMemberById.js";
-import joinGroupMemberRoute from "../../Api/GroupMember/joinGroup.js";
 import leaveGroupRoute from "../../Api/GroupMember/leaveGroup.js";
 
 const app = createTestApp(
   getGroupMembersRoute,
   getGroupMemberByIdRoute,
-  joinGroupMemberRoute,
   leaveGroupRoute,
 );
 
@@ -181,61 +173,6 @@ describe("GroupMember Endpoints", () => {
     });
   });
 
-  describe("POST /api/group-members/join", () => {
-    it("returns 400 when invite code is missing", async () => {
-      const res = await request(app).post("/api/group-members/join").send({});
-      expect(res.status).toBe(400);
-      expect(res.body.message).toBe("Invite code is required");
-    });
-
-    it("returns 404 when group is not found with invite code", async () => {
-      findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
-      findOneGroupMock.mockResolvedValue(null);
-
-      const res = await request(app)
-        .post("/api/group-members/join")
-        .send({ invite_code: "INVALID" });
-
-      expect(res.status).toBe(404);
-      expect(res.body.message).toBe("Invalid invite code");
-    });
-
-    it("returns 409 when user is already a member", async () => {
-      findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
-      findOneGroupMock.mockResolvedValue({ id: VALID_GROUP_UUID });
-      findOneMemberMock.mockResolvedValue({ id: VALID_MEMBER_UUID });
-
-      const res = await request(app)
-        .post("/api/group-members/join")
-        .send({ invite_code: "CODE123" });
-
-      expect(res.status).toBe(409);
-      expect(res.body.message).toBe("You are already a member of this group");
-    });
-
-    it("returns 201 and joins group successfully", async () => {
-      const createdMember = {
-        id: VALID_MEMBER_UUID,
-        group_id: VALID_GROUP_UUID,
-        user_id: "user-1",
-        role: "member",
-        createdAt: new Date().toISOString(),
-      };
-      findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
-      findOneGroupMock.mockResolvedValue({ id: VALID_GROUP_UUID });
-      findOneMemberMock.mockResolvedValue(null);
-      createMemberMock.mockResolvedValue(createdMember);
-
-      const res = await request(app)
-        .post("/api/group-members/join")
-        .send({ invite_code: "CODE123" });
-
-      expect(res.status).toBe(201);
-      expect(res.body.member.id).toBe(VALID_MEMBER_UUID);
-      expect(res.body.member.role).toBe("member");
-    });
-  });
-
   describe("DELETE /api/groups/:groupId/members/leave", () => {
     it("returns 400 when group owner attempts to leave", async () => {
       findOneUserMock.mockResolvedValue({ user_id: "user-1", id: "user-1" });
@@ -288,19 +225,15 @@ const VALID_MEMBER_UUID = "b0eebc99-9c0b-4ef8-bb6d-6bb9bd380a22";
 const {
   findOneUserMock,
   findByPkUserMock,
-  findOneGroupMock,
   findByPkGroupMock,
   findAllMemberMock,
   findOneMemberMock,
-  createMemberMock,
 } = vi.hoisted(() => ({
   findOneUserMock: vi.fn(),
   findByPkUserMock: vi.fn(),
-  findOneGroupMock: vi.fn(),
   findByPkGroupMock: vi.fn(),
   findAllMemberMock: vi.fn(),
   findOneMemberMock: vi.fn(),
-  createMemberMock: vi.fn(),
 }));
 
 const authenticatedUser = {
@@ -337,7 +270,6 @@ vi.mock("../../models/User.js", () => ({
 
 vi.mock("../../models/Group.js", () => ({
   default: {
-    findOne: findOneGroupMock,
     findByPk: findByPkGroupMock,
   },
 }));
@@ -346,19 +278,16 @@ vi.mock("../../models/GroupMember.js", () => ({
   default: {
     findAll: findAllMemberMock,
     findOne: findOneMemberMock,
-    create: createMemberMock,
   },
 }));
 
 import getGroupMembersRoute from "../../Api/GroupMember/getGroupMembers.js";
 import getGroupMemberByIdRoute from "../../Api/GroupMember/getGroupMemberById.js";
-import joinGroupMemberRoute from "../../Api/GroupMember/joinGroup.js";
 import leaveGroupRoute from "../../Api/GroupMember/leaveGroup.js";
 
 const app = createTestApp(
   getGroupMembersRoute,
   getGroupMemberByIdRoute,
-  joinGroupMemberRoute,
   leaveGroupRoute,
 );
 
@@ -642,76 +571,6 @@ describe("GroupMember Endpoints", () => {
       expect(res.status).toBe(200);
       expect(res.body.member.id).toBe(VALID_MEMBER_UUID);
       expect(res.body.member.user).toBeNull();
-    });
-  });
-
-  describe("POST /api/group-members/join", () => {
-    it("returns 400 when invite code is missing", async () => {
-      const res = await request(app).post("/api/group-members/join").send({});
-
-      expect(res.status).toBe(400);
-      expect(res.body.message).toBe("Invite code is required");
-    });
-
-    it("returns 404 when group is not found with invite code", async () => {
-      findOneGroupMock.mockResolvedValue(null);
-
-      const res = await request(app).post("/api/group-members/join").send({
-        invite_code: "INVALID",
-      });
-
-      expect(res.status).toBe(404);
-      expect(res.body.message).toBe("Invalid invite code");
-    });
-
-    it("returns 409 when user is already a member", async () => {
-      findOneGroupMock.mockResolvedValue({
-        id: VALID_GROUP_UUID,
-      });
-
-      findOneMemberMock.mockResolvedValue({
-        id: VALID_MEMBER_UUID,
-      });
-
-      const res = await request(app).post("/api/group-members/join").send({
-        invite_code: "CODE123",
-      });
-
-      expect(res.status).toBe(409);
-      expect(res.body.message).toBe("You are already a member of this group");
-    });
-
-    it("returns 201 and joins group successfully", async () => {
-      const createdMember = {
-        id: VALID_MEMBER_UUID,
-        group_id: VALID_GROUP_UUID,
-        user_id: "user-1",
-        role: "member",
-        createdAt: new Date().toISOString(),
-      };
-
-      findOneGroupMock.mockResolvedValue({
-        id: VALID_GROUP_UUID,
-      });
-
-      findOneMemberMock.mockResolvedValue(null);
-      createMemberMock.mockResolvedValue(createdMember);
-
-      const res = await request(app).post("/api/group-members/join").send({
-        invite_code: " code123 ",
-      });
-
-      expect(res.status).toBe(201);
-      expect(res.body.success).toBe(true);
-      expect(res.body.message).toBe("Joined group successfully");
-      expect(res.body.member.id).toBe(VALID_MEMBER_UUID);
-      expect(res.body.member.role).toBe("member");
-
-      expect(findOneGroupMock).toHaveBeenCalledWith({
-        where: {
-          invite_code: "CODE123",
-        },
-      });
     });
   });
 

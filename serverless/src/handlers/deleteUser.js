@@ -1,5 +1,6 @@
-import { HttpError, requireUUID, route } from "../lib/http.js";
+import { HttpError, notificationMutationRoute, requireUUID } from "../lib/http.js";
 import { users } from "../lib/repo.js";
+import { removeUserSubscriptions } from "../lib/notificationMembership.js";
 
 // Users can only delete their own profile and unique keys.
 // This does not delete the Supabase Auth account.

@@ -1,7 +1,8 @@
 import bcrypt from "bcryptjs";
 import { z } from "zod";
-import { HttpError, parseWith, publicUser, requireUUID, route } from "../lib/http.js";
+import { HttpError, notificationMutationRoute, parseWith, publicUser, requireUUID } from "../lib/http.js";
 import { users } from "../lib/repo.js";
+import { removeUserSubscriptions } from "../lib/notificationMembership.js";
 
 // Schema for validating user profile updates. All fields are optional but at least one must be provided.
 const updateUserSchema = z
@@ -24,7 +25,7 @@ const updateUserSchema = z
 
 // Only the authenticated user may update their profile. Hash a supplied
 // password before the repository updates the profile and uniqueness locks.
-export const handler = route(async ({ params, body, user }) => {
+export const handler = notificationMutationRoute(async ({ params, body, user }) => {
   const id = requireUUID(params.user_id, "Invalid user ID");
   const { password, ...fields } = parseWith(updateUserSchema, body);
 
@@ -36,6 +37,9 @@ export const handler = route(async ({ params, body, user }) => {
     fields.password = await bcrypt.hash(password, 12);
   }
 
+  if (fields.email && fields.email.toLowerCase() !== user.email.toLowerCase()) {
+    await removeUserSubscriptions(user);
+  }
   const updated = await users.update(user, fields);
 
   return [
