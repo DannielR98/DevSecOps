@@ -45,7 +45,7 @@ router.delete("/delete-user/:user_id", verifyJWT, async (req, res) => {
       });
     }
 
-    // Delete the user
+    //   Delete the user
     await user.destroy();
 
     return res.status(200).json({
