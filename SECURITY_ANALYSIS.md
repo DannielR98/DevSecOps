@@ -37,7 +37,7 @@ flowchart TB
 
     subgraph TB5["Trust Boundary 5: CI/CD & Leveranskedja (GitHub Actions)"]
         GHA["GitHub Actions (Gitleaks, npm audit, ESLint, Vitest, Semgrep, Playwright)"]
-        Registries["GHCR & Amazon ECR (Docker Images)"]
+        Registries["Amazon ECR (Docker Images)"]
         Deploy["AWS SAM Deploy & SSM Run Command (OIDC AssumeRole)"]
     end
 
@@ -74,7 +74,7 @@ flowchart TB
 | **Quizinnehåll och facit** | Frågor, svarsalternativ och `correctAnswer` i `Quizzes` / `quizzes` | Medel | Hög | Medel |
 | **Quizresultat och topplistor** | Poäng, procent, antal försök (`attempt_count`), `user_id`, `quiz_id` och tidsstämpel i `QuizResults` | Hög | Hög | Medel |
 | **Databas och driftkonfiguration** | DynamoDB-tabeller (med PITR), `template.yaml`, Dockerfiles, EC2/Nginx-konfiguration | Hög | Mycket hög | Hög |
-| **Källkod och CI/CD-leveranskedja** | GitHub-repo, `.github/workflows/ci-cd.yaml`, npm-beroenden, GHCR- och ECR-images | Medel | Mycket hög | Hög |
+| **Källkod och CI/CD-leveranskedja** | GitHub-repo, `.github/workflows/ci-cd.yaml`, npm-beroenden och ECR-images | Medel | Mycket hög | Hög |
 
 ---
 

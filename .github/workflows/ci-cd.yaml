@@ -244,60 +244,7 @@ jobs:
       #       frontend/quiz/playwright-report/
       #     retention-days: 7
 
-  cd:
-    name: Continuous Deployment (Docker)
-    needs: ci
-    runs-on: ubuntu-24.04
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
-
-    permissions:
-      contents: read
-      packages: write
-      id-token: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
-
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@8aa5831fb8d48d8f76594c7ddde61ae58019f550 # v4.8.0
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Extract metadata (tags, labels) for Frontend
-        id: meta-frontend
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ghcr.io/${{ github.repository }}-frontend
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
-
-      - name: Install Cosign
-        uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
-
-      # Build and push the frontend image to GHCR (the image is scanned in CI).
-      - name: Build and push Frontend Docker image
-        id: build-frontend
-        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-        with:
-          context: ./frontend/quiz
-          cache-from: type=gha,scope=frontend
-          push: true
-          tags: ${{ steps.meta-frontend.outputs.tags }}
-          labels: ${{ steps.meta-frontend.outputs.labels }}
-
-      - name: Sign GHCR frontend image
-        env:
-          DIGEST: ${{ steps.build-frontend.outputs.digest }}
-        run: |
-          test -n "$DIGEST"
-          cosign sign --yes "ghcr.io/${GITHUB_REPOSITORY,,}-frontend@$DIGEST"
-
-  # AWS deployment runs only after CI passes on a push to main. It is separate
-  # from the GHCR image-publishing job above.
+  # AWS deployment runs only after CI passes on a push to main.
   deploy-backend-aws:
     name: Deploy serverless backend (AWS SAM)
     needs: ci
