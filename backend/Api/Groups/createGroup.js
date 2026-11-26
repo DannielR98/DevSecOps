@@ -151,7 +151,6 @@ export default router;
 
 import express from "express";
 import { randomBytes } from "node:crypto";
-import { Op } from "sequelize";
 
 import Group from "../../models/Group.js";
 import GroupMember from "../../models/GroupMember.js";
@@ -181,12 +180,10 @@ router.post("/groups", checkJwt, async (req, res) => {
 
     // 2. Get the authenticated Supabase user
     const authId = req.auth?.payload?.sub;
-    const tokenEmail = req.auth?.payload?.email ?? req.user?.email;
-
-    if (!authId && !tokenEmail) {
+    if (!authId) {
       return res.status(401).json({
         success: false,
-        message: "JWT does not contain a user ID or email",
+        message: "JWT does not contain a user ID",
       });
     }
 
@@ -196,17 +193,6 @@ router.post("/groups", checkJwt, async (req, res) => {
     if (authId) {
       user = await User.findOne({
         where: { auth_id: authId },
-      });
-    }
-
-    // Fallback to email
-    if (!user && tokenEmail) {
-      user = await User.findOne({
-        where: {
-          email: {
-            [Op.iLike]: tokenEmail,
-          },
-        },
       });
     }
 

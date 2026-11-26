@@ -108,7 +108,6 @@ export default router;
  */
 
 import express from "express";
-import { Op } from "sequelize";
 
 import Quiz from "../../models/Quiz.js";
 import Group from "../../models/Group.js";
@@ -136,12 +135,9 @@ router.post("/quizzes", checkJwt, async (req, res) => {
 
     // 2. Get the authenticated Supabase user
     const authId = req.auth?.payload?.sub;
-    const tokenEmail = req.auth?.payload?.email ?? req.user?.email;
-
     console.log("Supabase auth ID:", authId);
-    console.log("Token email:", tokenEmail);
 
-    if (!authId && !tokenEmail) {
+    if (!authId) {
       return res.status(401).json({
         success: false,
         code: "AUTH_USER_MISSING",
@@ -155,17 +151,6 @@ router.post("/quizzes", checkJwt, async (req, res) => {
     if (authId) {
       user = await User.findOne({
         where: { auth_id: authId },
-      });
-    }
-
-    // Fall back to email if auth_id did not match
-    if (!user && tokenEmail) {
-      user = await User.findOne({
-        where: {
-          email: {
-            [Op.iLike]: tokenEmail,
-          },
-        },
       });
     }
 

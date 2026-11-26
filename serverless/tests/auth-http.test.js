@@ -120,6 +120,60 @@ describe("authentication", () => {
     expect(await users.list()).toHaveLength(1);
   });
 
+  it("rejects unverified existing identity claims and email collisions", async () => {
+    vi.stubEnv("SUPABASE_JWT_SECRET", otherSecret);
+    const claimed = await users.create({
+      auth_id: "victim-subject",
+      email: "attacker@example.com",
+      username: "attacker",
+      password: "old-password-hash",
+    });
+    const victimToken = await new SignJWT({ sub: "victim-subject", email: "victim@example.com" })
+      .setProtectedHeader({ alg: "HS256" }).sign(encode(otherSecret));
+    await expect(authenticate({ headers: { authorization: `Bearer ${victimToken}` } }))
+      .rejects.toMatchObject({ status: 403 });
+
+    const otherToken = await new SignJWT({ sub: "other-subject", email: claimed.email })
+      .setProtectedHeader({ alg: "HS256" }).sign(encode(otherSecret));
+    await expect(authenticate({ headers: { authorization: `Bearer ${otherToken}` } }))
+      .rejects.toMatchObject({ status: 409 });
+    expect(await users.list()).toHaveLength(1);
+  });
+
+  it("does not treat a Supabase subject as a local user ID or use email fallback", async () => {
+    vi.stubEnv("SUPABASE_JWT_SECRET", otherSecret);
+    const local = await users.create({
+      auth_id: "legacy-local", email: "local@example.com", username: "local",
+    });
+    const token = await new SignJWT({ sub: local.user_id, email: local.email })
+      .setProtectedHeader({ alg: "HS256" }).sign(encode(otherSecret));
+    await expect(authenticate({ headers: { authorization: `Bearer ${token}` } }))
+      .rejects.toMatchObject({ status: 409 });
+  });
+
+  it("uses only the local user ID in application tokens", async () => {
+    const local = await users.create({
+      auth_id: "legacy-local", email: "local@example.com", username: "local",
+    });
+    await users.create({
+      auth_id: local.user_id, email: "attacker@example.com", username: "attacker",
+    });
+    const valid = await createJWT(local);
+    await expect(authenticate({ headers: { authorization: `Bearer ${valid}` } }))
+      .resolves.toMatchObject({ user_id: local.user_id });
+    const token = await createJWT({ user_id: "missing-user", email: local.email, username: local.username });
+    await expect(authenticate({ headers: { authorization: `Bearer ${token}` } }))
+      .rejects.toMatchObject({ status: 401 });
+  });
+
+  it("rejects ambiguous shared secrets", async () => {
+    vi.stubEnv("SUPABASE_JWT_SECRET", secret);
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const token = await createJWT({ user_id: "user-1", email: "a@example.com", username: "alice" });
+    await expect(verifyToken(token)).rejects.toThrow("Supabase and application JWT secrets must be different");
+    expect(log).toHaveBeenCalledWith("Supabase and application JWT secrets must be different");
+  });
+
   // Tests for handling missing or invalid bearer tokens.
   it("rejects missing bearer headers and tokens without an identity", async () => {
     await expect(authenticate({ headers: {} })).rejects.toMatchObject({ status: 401 });

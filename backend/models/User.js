@@ -14,6 +14,10 @@ const User = sequelize.define(
       allowNull: false,
       unique: true,
     },
+    identity_provider: {
+      type: DataTypes.STRING(20),
+      allowNull: true,
+    },
     firstname: {
       type: DataTypes.STRING(100),
       allowNull: false,

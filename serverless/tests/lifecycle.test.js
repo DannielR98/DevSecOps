@@ -65,7 +65,6 @@ const questions = [
 const signUp = async (name) => {
   const reg = await call(registerUser, {
     body: {
-      auth_id: `auth-${name}`,
       firstname: name,
       surname: "Tester",
       username: name,
@@ -120,13 +119,27 @@ describe("users", () => {
     expect(list.body.users[0].password).toBeUndefined();
   });
 
+  it("does not allow public registration to claim a Supabase identity", async () => {
+    const body = {
+      firstname: "Alice", surname: "Tester", username: "alice",
+      email: "alice@example.com", password: "password123",
+    };
+    const claimed = await call(registerUser, { body: { ...body, auth_id: "supabase-subject" } });
+    expect(claimed.status).toBe(400);
+
+    const registered = await call(registerUser, { body: { ...body, identity_provider: "supabase" } });
+    expect(registered.status).toBe(201);
+    expect(registered.body.user.auth_id).toMatch(/^local:/);
+    expect(registered.body.user.identity_provider).toBeUndefined();
+    expect(db.__data[TABLES.users].get(registered.body.user.user_id).identity_provider).toBe("local");
+  });
+
   // Test that duplicate registrations, bad passwords, and unauthenticated calls are rejected.
   it("rejects duplicates, bad passwords and unauthenticated calls", async () => {
     await signUp("alice");
 
     const dup = await call(registerUser, {
       body: {
-        auth_id: "other",
         firstname: "A",
         surname: "B",
         username: "alice",
@@ -195,7 +208,6 @@ describe("users", () => {
 
     const registeredAgain = await call(registerUser, {
       body: {
-        auth_id: "auth-alice",
         firstname: "Alice",
         surname: "Tester",
         username: "alice",

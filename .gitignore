@@ -19,6 +19,9 @@ serverless/.aws-sam/
 serverless/samconfig.toml
 serverless/local/config.json
 
+# Local database reset script
+/clearTables.sh
+
 # Private keys and certificates
 *.pem
 *.key

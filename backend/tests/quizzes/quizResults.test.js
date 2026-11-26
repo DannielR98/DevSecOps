@@ -15,7 +15,7 @@ vi.mock("../../middleware/supabaseAuth.js", () => ({
     if (!req.headers.authorization) {
       return res.status(401).json({ message: "Authorization required" });
     }
-    req.auth = { payload: { sub: "auth-user" } };
+    req.auth = { payload: { sub: "auth-user", email: "victim@example.com" } };
     next();
   },
 }));
@@ -50,6 +50,15 @@ beforeEach(() => {
 });
 
 describe("quiz results", () => {
+  it("does not resolve a missing subject by email", async () => {
+    mocks.user.mockResolvedValueOnce(null).mockResolvedValueOnce({ user_id: "victim" });
+    const response = await auth(request(app).get(`${path}?view=mine`));
+    expect(response.status).toBe(401);
+    expect(mocks.user).toHaveBeenCalledTimes(1);
+    expect(mocks.user).toHaveBeenCalledWith({ where: { auth_id: "auth-user" } });
+    expect(mocks.quiz).not.toHaveBeenCalled();
+  });
+
   it("checks authentication, parameters, quiz existence and membership", async () => {
     expect((await request(app).get(`${path}?view=mine`)).status).toBe(401);
     expect(
