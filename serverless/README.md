@@ -4,6 +4,25 @@ Alternative to the Express/PostgreSQL `backend/`, which remains available. The A
 
 Protected API routes use an API Gateway Lambda authorizer to verify bearer tokens before invoking the endpoint. Login and registration remain public. The endpoint handlers also verify tokens and enforce their own permissions; the authorizer uses the same Supabase JWKS, legacy Supabase HS256, and application HS256 verification as the handlers. Authorizer caching is disabled so expiry is checked for each request. SAM Local can invoke Lambda authorizers, but local emulation does not replace testing the deployed API Gateway configuration.
 
+Public registration creates a local account with a server-generated `auth_id`;
+clients must not supply one. Local tokens identify the stored user by `user_id`.
+Supabase tokens identify a profile only by their verified `sub`, and newly
+provisioned profiles are marked as Supabase identities. Accounts are never
+automatically linked by email. A conflicting email prevents provisioning and
+requires an administrator to resolve the conflict. If both HS256 secrets are
+configured, `JWT_SECRET` and `SUPABASE_JWT_SECRET` must be different.
+
+**Existing deployment migration:** profiles created before this change have no
+trusted identity-provider marker. Local password login continues to use their
+user IDs, but Supabase sign-in for an unmarked matching profile is denied. Before
+deploying, review existing profiles individually against trusted Supabase records
+and investigate possible pre-hijacking; do not bulk-mark existing `auth_id`
+values as trusted. Resolve ownership and any local passwords or conflicting
+email addresses before an administrator marks a verified profile's
+`identity_provider` as `supabase`. Until then, affected Supabase users cannot
+access their existing profiles. This change does not remediate past unauthorized
+access or exposed signing secrets.
+
 ## Layout
 
 - `src/handlers/` – one Lambda handler per endpoint

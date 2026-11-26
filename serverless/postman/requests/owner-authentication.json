@@ -14,10 +14,9 @@
               "const stamp = Date.now().toString();",
               "pm.collectionVariables.set('ownerUsername', `pm_owner_${stamp}`);",
               "pm.collectionVariables.set('ownerEmail', `pm_owner_${stamp}@example.test`);",
-              "pm.collectionVariables.set('ownerAuthId', `postman-owner-${stamp}`);",
               "pm.collectionVariables.set('memberUsername', `pm_member_${stamp}`);",
               "pm.collectionVariables.set('memberEmail', `pm_member_${stamp}@example.test`);",
-              "pm.collectionVariables.set('memberAuthId', `postman-member-${stamp}`);"
+              "// The server assigns local authentication IDs."
             ]
           }
         },
@@ -50,7 +49,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\"auth_id\":\"{{ownerAuthId}}\",\"firstname\":\"Postman\",\"surname\":\"Owner\",\"username\":\"{{ownerUsername}}\",\"email\":\"{{ownerEmail}}\",\"password\":\"{{password}}\"}",
+          "raw": "{\"firstname\":\"Postman\",\"surname\":\"Owner\",\"username\":\"{{ownerUsername}}\",\"email\":\"{{ownerEmail}}\",\"password\":\"{{password}}\"}",
           "options": {
             "raw": {
               "language": "json"

@@ -1,7 +1,6 @@
 import { createRemoteJWKSet, jwtVerify, SignJWT } from "jose";
 
 import { HttpError } from "./errors.js";
-import { isUUID } from "./http-utils.js";
 import { users } from "./repo.js";
 
 const encoder = new TextEncoder();
@@ -34,23 +33,29 @@ export const createJWT = (user) => {
     .sign(encoder.encode(secret));
 };
 
-// Try Supabase's asymmetric public keys first, then the legacy Supabase and
-// application HS256 secrets. Only verified payloads are used for identification.
-export const verifyToken = async (token) => {
+// Keep the verified token's source so identities from different issuers cannot
+// be used interchangeably, even when their identifiers happen to match.
+const verifyIdentity = async (token) => {
+  const supabaseSecret = process.env.SUPABASE_JWT_SECRET;
+  const appSecret = process.env.JWT_SECRET;
+  if (supabaseSecret && supabaseSecret === appSecret) {
+    console.error("Supabase and application JWT secrets must be different");
+    throw new Error("Supabase and application JWT secrets must be different");
+  }
+
   const keyset = getJwks();
   if (keyset) {
     try {
-      return (await jwtVerify(token, keyset)).payload;
+      return { payload: (await jwtVerify(token, keyset)).payload, source: "supabase" };
     } catch {
       // fall through to shared-secret verification
     }
   }
-  // If the remote key set is not available or verification fails, try the shared secrets.
-  for (const secret of [process.env.SUPABASE_JWT_SECRET, process.env.JWT_SECRET]) {
+  for (const [source, secret] of [["supabase", supabaseSecret], ["local", appSecret]]) {
     if (!secret) continue;
     try {
-      return (await jwtVerify(token, encoder.encode(secret), { algorithms: ["HS256"] }))
-        .payload;
+      const { payload } = await jwtVerify(token, encoder.encode(secret), { algorithms: ["HS256"] });
+      return { payload, source };
     } catch {
       // try next secret
     }
@@ -58,6 +63,8 @@ export const verifyToken = async (token) => {
 
   throw new HttpError(401, "Invalid or expired token");
 };
+
+export const verifyToken = async (token) => (await verifyIdentity(token)).payload;
 // Helper to retrieve a header value case-insensitively.
 const header = (event, name) => {
   const headers = event.headers ?? {};
@@ -74,23 +81,16 @@ export const bearerToken = (event) => {
   return auth.slice(7);
 };
 
-// Supabase subject IDs use auth_id; application tokens can carry a local UUID.
-// Email is a final lookup fallback if neither identifier finds a profile.
-const findUser = async (rawId, email) => {
-  if (rawId) {
-    const byAuth = await users.byAuthId(String(rawId));
-    if (byAuth) return byAuth;
-    if (isUUID(String(rawId))) {
-      const byId = await users.get(String(rawId));
-      if (byId) return byId;
-    }
+const findSupabaseUser = async (subject) => {
+  const user = await users.byAuthId(subject);
+  if (user && user.identity_provider !== "supabase") {
+    throw new HttpError(403, "Existing profile requires identity verification");
   }
-  return email ? users.byEmail(email) : null;
+  return user;
 };
 
 // Create a local profile on first use. On a uniqueness conflict, re-check for
-// an existing profile (including concurrent creation), then try a suffixed
-// username. Defaults fill metadata not present in the verified payload.
+// a concurrently created profile for the same verified Supabase subject.
 const provision = async (payload, rawId, email) => {
   const meta = payload.user_metadata ?? {};
   const base = (
@@ -99,6 +99,7 @@ const provision = async (payload, rawId, email) => {
   // Construct the base profile object with required fields.
   const profile = {
     auth_id: String(rawId),
+    identity_provider: "supabase",
     email: email || `${rawId}@example.com`,
     firstname: meta.firstname || meta.first_name || "User",
     surname: meta.surname || meta.last_name || "Member",
@@ -110,26 +111,24 @@ const provision = async (payload, rawId, email) => {
       return await users.create({ ...profile, username });
     } catch (error) {
       if (!(error instanceof HttpError) || error.status !== 409) throw error;
-      const existing = await findUser(rawId, email);
+      const existing = await findSupabaseUser(rawId);
       if (existing) return existing;
     }
   }
-  return null;
+  throw new HttpError(409, "Unable to provision profile due to a conflicting account");
 };
 
 // Verifies the bearer token and returns the matching database user.
 export const authenticate = async (event) => {
   // Verify the token and extract the payload.
-  const payload = await verifyToken(bearerToken(event));
-  const rawId = payload.sub || payload.id || payload.user_id;
-  const email = payload.email;
-  // Ensure that at least one identifier is available for user lookup or provisioning.
-  if (!rawId && !email) {
+  const { payload, source } = await verifyIdentity(bearerToken(event));
+  const id = source === "supabase" ? payload.sub : payload.user_id;
+  if (typeof id !== "string" || !id) {
     throw new HttpError(401, "Invalid authentication token");
   }
-  // Look up the user by the raw ID or email, or provision a new profile if necessary.
-  const user =
-    (await findUser(rawId, email)) ?? (rawId ? await provision(payload, rawId, email) : null);
+  const user = source === "supabase"
+    ? (await findSupabaseUser(id)) ?? await provision(payload, id, payload.email)
+    : await users.get(id);
 
   // If no user was found or provisioned, throw an authentication error.
   if (!user) throw new HttpError(401, "User not found for this token");

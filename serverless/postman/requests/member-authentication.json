@@ -30,7 +30,7 @@
         ],
         "body": {
           "mode": "raw",
-          "raw": "{\"auth_id\":\"{{memberAuthId}}\",\"firstname\":\"Postman\",\"surname\":\"Member\",\"username\":\"{{memberUsername}}\",\"email\":\"{{memberEmail}}\",\"password\":\"{{password}}\"}",
+          "raw": "{\"firstname\":\"Postman\",\"surname\":\"Member\",\"username\":\"{{memberUsername}}\",\"email\":\"{{memberEmail}}\",\"password\":\"{{password}}\"}",
           "options": {
             "raw": {
               "language": "json"
