@@ -24,13 +24,9 @@ router.get("/quizzes/:id/results", checkJwt, async (req, res) => {
     }
 
     const authId = req.auth?.payload?.sub;
-    const email = req.auth?.payload?.email ?? req.user?.email;
-    let user = authId
+    const user = authId
       ? await User.findOne({ where: { auth_id: authId } })
       : null;
-    if (!user && email) {
-      user = await User.findOne({ where: { email: { [Op.iLike]: email } } });
-    }
     if (!user) {
       return res.status(401).json({ message: "User not found for this JWT" });
     }

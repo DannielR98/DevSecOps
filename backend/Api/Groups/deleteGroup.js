@@ -151,9 +151,7 @@ router.delete("/groups/:id", checkJwt, async (req, res) => {
 
     // 2. Get the authenticated Supabase user
     const authId = req.auth?.payload?.sub;
-    const tokenEmail = req.auth?.payload?.email ?? req.user?.email;
-
-    if (!authId && !tokenEmail) {
+    if (!authId) {
       return res.status(401).json({
         success: false,
         message: "User information is missing from JWT",
@@ -166,17 +164,6 @@ router.delete("/groups/:id", checkJwt, async (req, res) => {
     if (authId) {
       user = await User.findOne({
         where: { auth_id: authId },
-      });
-    }
-
-    // Fallback to email
-    if (!user && tokenEmail) {
-      user = await User.findOne({
-        where: {
-          email: {
-            [Op.iLike]: tokenEmail,
-          },
-        },
       });
     }
 

@@ -223,6 +223,23 @@ en Supabase service-role-nyckel eller någon annan hemlig nyckel här.
 
 Express-API:et kräver en verifierad token för användarlistning, profilsynkronisering och profilrutter. Profiländringar gäller applikationens databas; de ändrar inte e-postadress eller lösenord i Supabase Auth. Quiz-inlämning accepterar svarstext som frontend skickar samt äldre svar i form av alternativens index.
 
+### Express-identiteter
+
+Express-koden utgår från en ny PostgreSQL-databas. En äldre databas behöver
+uppdateras separat eftersom `sequelize.sync()` inte lägger till kolumnen
+`identity_provider` i en befintlig tabell.
+
+Nya profiler skapas med `identity_provider = 'supabase'` från en verifierad
+Supabase-token vid `POST /api/sync-user`; det anropet måste lyckas innan en ny
+användare kan använda övriga skyddade Express-rutter. Befintliga profiler utan
+markering nekas åtkomst tills en administratör har verifierat deras ägarskap och granskat eventuell tidigare
+kapning. Varken matchande e-postadress eller `auth_id` är ensamt bevis för
+ägarskap. Ta bort eventuella lokala lösenord innan en verifierad profil
+markeras som `supabase`; markera inte alla gamla profiler automatiskt.
+Konton med e-postkonflikter måste lösas manuellt, eftersom profiler inte länkas
+automatiskt via e-post. `SUPABASE_JWT_SECRET` och `JWT_SECRET` måste vara olika
+om båda används.
+
 Varje quiz har grafer för dina egna försök och deltagarnas bästa resultat, rangordnade efter andel rätt. Topplistan visar även varje deltagares totala antal genomförda försök, inklusive försök efter det bästa resultatet. Endast nuvarande gruppmedlemmar och gruppägaren kan se dem; individuella försök visas bara för den som gjorde dem. Topplistan inkluderar även sparade resultat från tidigare medlemmar.
 
 ---

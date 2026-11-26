@@ -1,10 +1,10 @@
 import express from "express";
 import User from "../../models/User.js";
-import checkJwt from "../../middleware/supabaseAuth.js";
+import { checkJwtForSync } from "../../middleware/supabaseAuth.js";
 
 const router = express.Router();
 
-router.post("/sync-user", checkJwt, async (req, res) => {
+router.post("/sync-user", checkJwtForSync, async (req, res) => {
   try {
     const { name, nickname } = req.body;
     const { sub: auth_id, email } = req.auth.payload;
@@ -16,24 +16,12 @@ router.post("/sync-user", checkJwt, async (req, res) => {
       });
     }
 
-    let user = await User.findOne({
-      where: { auth_id },
-    });
-
-    if (!user && email) {
-      user = await User.findOne({
-        where: { email },
-      });
-
-      if (user) {
-        user.auth_id = auth_id;
-        await user.save();
-      }
-    }
+    let user = req.dbUser;
 
     if (!user) {
       user = await User.create({
         auth_id,
+        identity_provider: "supabase",
         email: email || `${auth_id}@user.local`,
         username: nickname || name || email || auth_id,
         firstname: name ? name.split(" ")[0] : "User",
@@ -53,6 +41,22 @@ router.post("/sync-user", checkJwt, async (req, res) => {
       user: userData,
     });
   } catch (error) {
+    if (error.name === "SequelizeUniqueConstraintError") {
+      try {
+        const existing = await User.findOne({
+          where: { auth_id: req.auth.payload.sub },
+        });
+        if (existing?.identity_provider === "supabase") {
+          const userData = existing.toJSON();
+          delete userData.password;
+          return res.status(200).json({ success: true, message: "User synced successfully", user: userData });
+        }
+      } catch (lookupError) {
+        console.error("Error resolving profile conflict:", lookupError.message);
+        return res.status(500).json({ success: false, message: "Failed to sync user" });
+      }
+      return res.status(409).json({ success: false, message: "Profile conflicts with an existing account" });
+    }
     console.error("Error syncing user:", error.message);
 
     return res.status(500).json({

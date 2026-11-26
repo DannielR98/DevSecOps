@@ -148,6 +148,13 @@ const token = jwt.sign(
 
 beforeEach(() => {
   vi.resetAllMocks();
+  vi.unstubAllEnvs();
+  findOne.mockResolvedValue({
+    user_id: id,
+    auth_id: "supabase-user",
+    identity_provider: "supabase",
+    username: "alice",
+  });
 });
 
 describe("profile authentication", () => {
@@ -172,7 +179,7 @@ describe("profile authentication", () => {
 
   it("excludes passwords from authenticated user queries", async () => {
     findAll.mockResolvedValue([]);
-    findOne.mockResolvedValue({ user_id: id, username: "alice" });
+    findOne.mockResolvedValue({ user_id: id, auth_id: "supabase-user", identity_provider: "supabase", username: "alice" });
 
     expect(
       (await request(app).get("/api/users").auth(token, { type: "bearer" }))
@@ -200,6 +207,7 @@ describe("profile authentication", () => {
 
   it("uses the verified identity instead of the request body when syncing", async () => {
     findOne.mockResolvedValue({
+      identity_provider: "supabase",
       toJSON: () => ({
         user_id: id,
         auth_id: "supabase-user",
@@ -221,6 +229,86 @@ describe("profile authentication", () => {
     expect(findOne).toHaveBeenCalledWith({
       where: { auth_id: "supabase-user" },
     });
+  });
+
+  it("rejects an unverified existing subject on both sync and protected routes", async () => {
+    findOne.mockResolvedValue({ user_id: id, auth_id: "supabase-user", identity_provider: null });
+    const sync = await request(app).post("/api/sync-user").auth(token, { type: "bearer" }).send({});
+    const protectedRoute = await request(app).get("/api/users").auth(token, { type: "bearer" });
+    expect(sync.status).toBe(403);
+    expect(protectedRoute.status).toBe(403);
+    expect(create).not.toHaveBeenCalled();
+    expect(findAll).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when the identity lookup fails", async () => {
+    findOne.mockRejectedValue(new Error("database unavailable"));
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const res = await request(app).get("/api/users").auth(token, { type: "bearer" });
+      expect(res.status).toBe(500);
+      expect(findAll).not.toHaveBeenCalled();
+      expect(log).toHaveBeenCalled();
+    } finally {
+      log.mockRestore();
+    }
+  });
+
+  it("provisions a new identity from the verified token, not request identity fields", async () => {
+    findOne.mockResolvedValue(null);
+    create.mockResolvedValue({
+      toJSON: () => ({ user_id: id, auth_id: "supabase-user" }),
+    });
+    const res = await request(app).post("/api/sync-user").auth(token, { type: "bearer" })
+      .send({ auth_id: "other", email: "other@example.com", identity_provider: "local" });
+    expect(res.status).toBe(200);
+    expect(create).toHaveBeenCalledWith(expect.objectContaining({
+      auth_id: "supabase-user",
+      email: "alice@example.com",
+      identity_provider: "supabase",
+    }));
+  });
+
+  it("does not link an existing account by email on provisioning conflict", async () => {
+    findOne.mockResolvedValue(null);
+    create.mockRejectedValue(Object.assign(new Error("conflict"), { name: "SequelizeUniqueConstraintError" }));
+    const res = await request(app).post("/api/sync-user").auth(token, { type: "bearer" }).send({});
+    expect(res.status).toBe(409);
+    expect(findOne).toHaveBeenCalledTimes(2);
+    expect(findOne).toHaveBeenNthCalledWith(1, { where: { auth_id: "supabase-user" } });
+    expect(findOne).toHaveBeenNthCalledWith(2, { where: { auth_id: "supabase-user" } });
+  });
+
+  it("uses a concurrently created profile only when its subject is trusted", async () => {
+    findOne.mockResolvedValueOnce(null).mockResolvedValueOnce({
+      identity_provider: "supabase",
+      toJSON: () => ({ user_id: id, auth_id: "supabase-user", password: "hash" }),
+    });
+    create.mockRejectedValue(Object.assign(new Error("conflict"), { name: "SequelizeUniqueConstraintError" }));
+    const res = await request(app).post("/api/sync-user").auth(token, { type: "bearer" }).send({});
+    expect(res.status).toBe(200);
+    expect(res.body.user).toMatchObject({ user_id: id, auth_id: "supabase-user" });
+    expect(res.body.user).not.toHaveProperty("password");
+  });
+
+  it("does not accept an application-signed token as a Supabase identity", async () => {
+    vi.stubEnv("JWT_SECRET", "different-local-secret");
+    const localToken = jwt.sign({ sub: "supabase-user" }, "different-local-secret");
+    const res = await request(app).get("/api/users").auth(localToken, { type: "bearer" });
+    expect(res.status).toBe(401);
+    expect(findOne).not.toHaveBeenCalled();
+  });
+
+  it("rejects a shared local and Supabase signing secret", async () => {
+    vi.stubEnv("JWT_SECRET", "profile-test-signing-secret");
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      const res = await request(app).get("/api/users").auth(token, { type: "bearer" });
+      expect(res.status).toBe(500);
+      expect(findOne).not.toHaveBeenCalled();
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it("permits updating only the authenticated user's profile", async () => {
