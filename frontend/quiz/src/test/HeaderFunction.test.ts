@@ -84,7 +84,8 @@ describe("apiRequest", () => {
 });
  */
 
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import axios from "axios";
 
 const { mockAxiosRequest, mockRequestUse, mockResponseUse } = vi.hoisted(() => {
   const mockAxiosRequest = vi.fn();
@@ -119,6 +120,34 @@ vi.mock("axios", () => ({
 const { apiRequest } = await vi.importActual<
   typeof import("../utilities/HeaderFunction")
 >("../utilities/HeaderFunction");
+
+describe("API base URL", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it.each([undefined, ""])("defaults to the local serverless API when VITE_API_URL is %s", async (value) => {
+    vi.stubEnv("VITE_API_URL", value);
+    vi.resetModules();
+
+    await vi.importActual("../utilities/HeaderFunction");
+
+    expect(axios.create).toHaveBeenCalledWith(
+      expect.objectContaining({ baseURL: "http://localhost:3001/api/" }),
+    );
+  });
+
+  it("uses the configured API URL", async () => {
+    vi.stubEnv("VITE_API_URL", "https://api.example.test/api/");
+    vi.resetModules();
+
+    await vi.importActual("../utilities/HeaderFunction");
+
+    expect(axios.create).toHaveBeenCalledWith(
+      expect.objectContaining({ baseURL: "https://api.example.test/api/" }),
+    );
+  });
+});
 
 describe("apiRequest", () => {
   beforeEach(() => {

@@ -114,29 +114,24 @@ Logging is used to help identify application errors and monitor system activity.
 The following measures were taken:
 
 - Access-token logging was removed from `frontend/quiz/src/App.tsx`.
-- Backend `console.log` statements were removed or commented out.
 - Sensitive information should not be written to application logs.
-- Application logs can be inspected using Docker Compose.
+- Frontend logs can be inspected using Docker Compose; local API logs appear in the SAM terminal.
 - AWS CloudWatch can be used for monitoring after deployment.
 
-**Result:** Frontend access-token logging and backend `console.log` statements have been removed. Runtime log verification is still required to confirm that no sensitive information is exposed through other logging mechanisms.
+**Result:** Frontend access-token logging was removed. Runtime log verification is still required to confirm that no sensitive information is exposed through other logging mechanisms.
 
 ## 7. Containerization and Infrastructure
 
-Docker and Docker Compose are used to containerize the application and its supporting services.
+Docker Compose runs the frontend container for development. It does not start the API or database.
 
 The Docker Compose configuration includes:
 
 - Frontend container.
-- Backend container.
-- PostgreSQL database container.
-- pgAdmin container.
-- Persistent volumes for database and application dependencies.
-- Database health checks and service dependencies.
+- A named volume for frontend dependencies.
 
-Separate Dockerfiles are available for frontend development and production builds.
+Separate Dockerfiles are available for frontend development and production builds. The local serverless setup uses SAM and an in-memory DynamoDB Local container; stopping it discards the local database data.
 
-**Result:** Dockerfiles and Docker Compose configuration are implemented. A final runtime demonstration should confirm that all services start and work correctly together.
+**Result:** Dockerfiles and Docker Compose configuration are implemented. A final runtime demonstration should confirm that the frontend works with the separately started serverless API.
 
 ## 8. Linting and Code Quality
 
@@ -167,23 +162,23 @@ The tests cover:
 
 The project uses Vitest for automated testing.
 
-The latest test run reported:
+A historical test run against the removed backend reported:
 
 - 11 test files executed.
 - 10 test files passed.
 - 134 tests passed.
 - 1 test failed because it expected `console.error` to be called after a database error.
 
-The failed test needs to be reviewed. Removing `console.log` does not automatically remove `console.error`; these are separate logging methods.
+This historical result does not describe the current serverless test suite. Run the current frontend and serverless tests to verify their status.
 
-**Result:** Automated tests cover the main application functionality and security checks. The remaining failing test must be investigated, followed by another complete test run.
+**Result:** Automated tests cover application functionality and security checks.
 
 ## 10. Logging and Monitoring
 
 - Removed access-token logging from the frontend.
-- Removed unnecessary backend console.log statements.
+- Removed unnecessary logging in the former backend.
 - Checked browser console for sensitive information.
-- Checked backend Docker logs for tokens, passwords and secrets.
+- The former backend's Docker logs were checked for tokens, passwords and secrets.
 - Confirmed that sensitive information is not intentionally logged.
 
 **Result:** Logging was reviewed to reduce the risk of exposing sensitive information.
@@ -214,8 +209,8 @@ The following tasks remain part of the final security verification:
 - Verify authorization for user profiles and user-list endpoints.
 - Implement and test Quiz Admin permissions if required.
 - Run the final lint checks.
-- Fix the remaining failing automated test and rerun the complete test suite.
+- Run the current frontend and serverless test suites.
 - Verify application logs at runtime.
-- Demonstrate that Docker Compose services work correctly.
+- Demonstrate that the Compose frontend works with the serverless API.
 - Complete the AWS deployment and monitoring demonstration.
 - Perform the incident-response exercise using a leaked test token and document detection, containment and lessons learned.

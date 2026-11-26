@@ -16,18 +16,6 @@ updates:
         patterns:
           - "*"
 
-  # Update and group npm dependencies for the Express backend.
-  - package-ecosystem: npm
-    directory: /backend
-    schedule:
-      interval: weekly
-    cooldown:
-      default-days: 7
-    groups:
-      backend-dependencies:
-        patterns:
-          - "*"
-
   # Update and group npm dependencies for the serverless backend.
   - package-ecosystem: npm
     directory: /serverless
@@ -61,17 +49,5 @@ updates:
       default-days: 7
     groups:
       frontend-docker:
-        patterns:
-          - "*"
-
-  # Update and group Docker image dependencies in the backend directory.
-  - package-ecosystem: docker
-    directory: /backend
-    schedule:
-      interval: weekly
-    cooldown:
-      default-days: 7
-    groups:
-      backend-docker:
         patterns:
           - "*"

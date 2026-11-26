@@ -45,7 +45,6 @@ jobs:
           cache: npm
           cache-dependency-path: |
             frontend/quiz/package-lock.json
-            backend/package-lock.json
             serverless/package-lock.json
 
       # =========================
@@ -78,39 +77,7 @@ jobs:
         run: npm run build
 
       # =========================
-      # 2. BACKEND: LINT, AUDIT & TEST
-      # =========================
-
-      - name: Install backend dependencies
-        working-directory: backend
-        run: npm ci
-
-      - name: Backend Audit (SCA)
-        working-directory: backend
-        run: npm audit --audit-level=high
-
-      - name: Backend Lint
-        working-directory: backend
-        run: npm run lint
-
-      - name: Backend Lint and Fix
-        working-directory: backend
-        run: npm run lint -- --fix
-
-      #  - name: Backend Lint
-      #   working-directory: backend
-      #  run: npm run lint
-
-      - name: Run backend Test
-        working-directory: backend
-        run: npm test
-
-      - name: Build backend
-        working-directory: backend
-        run: npm run build
-
-      # =========================
-      # 2b. SERVERLESS BACKEND (Lambda + DynamoDB): LINT, AUDIT, TEST & BUILD
+      # 2. SERVERLESS BACKEND (Lambda + DynamoDB): LINT, AUDIT, TEST & BUILD
       # =========================
 
       - name: Install serverless dependencies
@@ -166,7 +133,7 @@ jobs:
           scanners: vuln,misconfig
           severity: HIGH,CRITICAL
           ignore-unfixed: true
-          skip-dirs: node_modules,frontend/quiz/node_modules,backend/node_modules,serverless/node_modules
+          skip-dirs: node_modules,frontend/quiz/node_modules,serverless/node_modules
           exit-code: "1"
 
       # =========================
@@ -203,16 +170,6 @@ jobs:
           secrets: |
             "supabase_anon_key=${{ secrets.SUPABASE_ANON_KEY }}"
 
-# Uncomment this to build Express backend image for Trivy scanning
-#      - name: Build Backend image
-#        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-#        with:
-#          context: ./backend
-#          load: true
-#          tags: quiz-scan-backend:${{ github.sha }}
-#          cache-from: type=gha,scope=backend
-#          cache-to: type=gha,scope=backend,mode=max
-
       - name: Trivy scan Frontend image (dev)
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
         env:
@@ -236,19 +193,6 @@ jobs:
           severity: HIGH,CRITICAL
           ignore-unfixed: true
           exit-code: "1"
-
-# Uncomment this block to scan Express backend image for vulnerabilities with Trivy
-#      - name: Trivy scan Backend image
-#        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25
-#        env:
-#          TRIVY_SKIP_VERSION_CHECK: "true"
-#        with:
-#          version: v0.76.2
-#          image-ref: quiz-scan-backend:${{ github.sha }}
-#          scanners: vuln
-#          severity: HIGH,CRITICAL
-#          ignore-unfixed: true
-#          exit-code: "1"
 
       # =========================
       # 4. BDD & E2E TESTING (Playwright)
@@ -328,19 +272,13 @@ jobs:
         with:
           images: ghcr.io/${{ github.repository }}-frontend
 
-      - name: Extract metadata (tags, labels) for Backend
-        id: meta-backend
-        uses: docker/metadata-action@dc802804100637a589fabce1cb79ff13a1411302 # v6.2.0
-        with:
-          images: ghcr.io/${{ github.repository }}-backend
-
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
 
       - name: Install Cosign
         uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
 
-      # Build and push Docker images to GHCR (images are scanned in CI)
+      # Build and push the frontend image to GHCR (the image is scanned in CI).
       - name: Build and push Frontend Docker image
         id: build-frontend
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
@@ -357,16 +295,6 @@ jobs:
         run: |
           test -n "$DIGEST"
           cosign sign --yes "ghcr.io/${GITHUB_REPOSITORY,,}-frontend@$DIGEST"
-
-# Uncomment the following block to build and push the Express Backend Docker image
-#      - name: Build and push Backend Docker image
-#        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
-#        with:
-#          context: ./backend
-#          cache-from: type=gha,scope=backend
-#          push: true
-#          tags: ${{ steps.meta-backend.outputs.tags }}
-#          labels: ${{ steps.meta-backend.outputs.labels }}
 
   # AWS deployment runs only after CI passes on a push to main. It is separate
   # from the GHCR image-publishing job above.

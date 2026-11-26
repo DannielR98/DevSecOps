@@ -11,6 +11,7 @@ commits = [
 paths = [
   '''^\.env$''',
   '''^\.env\.example$''',
+  # Retained for scans of historical commits.
   '''^backend/\.env\.example$''',
   '''^frontend/quiz/\.env\.example$''',
   '''^README\.md$''',

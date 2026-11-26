@@ -1,6 +1,6 @@
 # DevSecOps Quiz-plattform
 
-Quiz-plattform byggd med **React** och **Supabase Auth** för DevSecOps-kursen. Projektet har två alternativa backends: **Express/PostgreSQL** och **AWS Lambda/DynamoDB**. Båda finns kvar i projektet.
+Quiz-plattform byggd med **React**, **Supabase Auth** och en serverless-backend med **AWS Lambda och DynamoDB** för DevSecOps-kursen.
 
 ---
 
@@ -8,58 +8,32 @@ Quiz-plattform byggd med **React** och **Supabase Auth** för DevSecOps-kursen. 
 
 ### Systemöversikt
 
-Lokalt använder Docker Compose Express-backenden:
-
-```
-┌─────────────────┐      ┌─────────────────────┐      ┌─────────────────┐
-│   Frontend      │      │      Backend        │      │                 │
-│   React (Vite)  │─────▶│   Express API       │─────▶│   PostgreSQL    │
-│   Port: 3000    │ JWT  │   Port: 5000        │ ORM  │   Database      │
-└────────┬────────┘      └──────────┬──────────┘      └─────────────────┘
-         │                          │
-         │ Auth                     │ JWT Secret
-         ▼                          ▼
-┌─────────────────┐      ┌─────────────────────┐
-│   Supabase      │      │   Docker Compose    │
-│   Auth          │      │   Orchestration     │
-│                 │      │                     │
-└─────────────────┘      └─────────────────────┘
-```
-
-Serverless-alternativet använder i stället:
-
 ```text
 Frontend (React) → API Gateway → Lambda-funktioner → DynamoDB
         ↕                           ↕
     Supabase Auth              JWT-verifiering
 ```
 
-Frontend använder en backend åt gången. Backend-alternativen har separata databaser: PostgreSQL-data migreras inte automatiskt till DynamoDB.
-
 ### Komponentbeskrivning
 
 | Komponent | Teknologi | Ansvar |
 |-----------|-----------|--------|
 | **Frontend** | React + Vite + TypeScript | Användargränssnitt, Supabase Auth-inloggning, JWT-hantering |
-| **Express-backend** | Express.js + Node.js | REST API, JWT-verifiering, affärslogik |
-| **Express-databas** | PostgreSQL + Sequelize ORM | Persistens av användare, grupper, quiz och resultat |
-| **Serverless-backend** | API Gateway + AWS Lambda + Node.js | Alternativt REST API och affärslogik, definierat med AWS SAM |
-| **Serverless-databas** | DynamoDB | Separat persistens för användare, grupper, quiz och resultat |
+| **Backend** | API Gateway + AWS Lambda + Node.js | REST API och affärslogik, definierat med AWS SAM |
+| **Databas** | DynamoDB | Persistens för användare, grupper, quiz och resultat |
 | **Supabase** | Supabase Auth (JWT) | Autentisering, säker lösenordshantering, JWT-utfärdande |
-| **Docker** | Docker Compose | Containerisering (Frontend, Backend, PostgreSQL) |
+| **Lokal miljö** | SAM CLI + Docker + DynamoDB Local | Lokal emulering av API och databas |
 
 
 ### Dataflöde - Autentisering
 
-Följande beskriver Express-alternativet. Serverless-backenden kan verifiera Supabase-token med JWKS eller en konfigurerad HS256-hemlighet och skapar en användarprofil i DynamoDB vid första användningen. Se [serverless-dokumentationen](./serverless/README.md) för detaljer och skillnader.
-
 1. Användare klickar på "Logga in" eller "Skapa konto" i frontend
 2. Användare autentiserar sig via Supabase Auth Modal (e-post och lösenord)
-3. Supabase returnerar JWT (Access Token & Session) till frontend
+3. Supabase returnerar en session med JWT till frontend efter eventuell e-postbekräftelse
 4. Frontend sparar session och inkluderar JWT i `Authorization: Bearer <token>`-headern
-5. Backend validerar JWT med Supabase JWT Secret
-6. Vid giltig token synkroniseras användarprofilen till PostgreSQL-databasen (`users`)
-7. Backend returnerar skyddad data till frontend
+5. API Gateway och Lambda verifierar token med Supabase JWKS eller en konfigurerad äldre HS256-hemlighet
+6. Lambda hittar eller skapar en DynamoDB-profil utifrån den verifierade Supabase-identiteten
+7. Lambda kontrollerar åtkomst och returnerar data till frontend
 
 
 
@@ -69,35 +43,24 @@ Följande beskriver Express-alternativet. Serverless-backenden kan verifiera Sup
 
 | Fördel | Beskrivning |
 |--------|-------------|
-| **Inga lösenord lokalt** | Vi lagrar inga känsliga lösenord i databasen - allt hanteras säkert av Supabase |
-| **Standard JWT** | Snabb och säker tokenverifiering i backend via JWT Secret |
+| **Hanterad inloggning** | Supabase hanterar webbklientens lösenord och kontoregistrering |
+| **Standard JWT** | Backend verifierar Supabase-token via JWKS eller en konfigurerad äldre HS256-hemlighet |
 | **Smidig UI-upplevelse** | Inbyggd modal i frontend utan externa omdirigeringar |
 | **Enkel integration** | `@supabase/supabase-js` ger en ren och modern utvecklarupplevelse |
 
-### Varför PostgreSQL?
+### Varför DynamoDB?
 
 | Fördel | Beskrivning |
 |--------|-------------|
-| **Robust & Skalbar** | Standarddatabasmotor i produktion med stöd för relationer, transaktioner och integritet |
-| **Supabase-kompatibel** | Supabase körs direkt på PostgreSQL, vilket underlättar direkt integration eller hosting |
-| **Lokal testbarhet** | Körs smidigt i Docker Compose och fallbackar till SQLite under automatiserade enhetstester |
-
-### Varför Docker Compose?
-
-| Fördel | Beskrivning |
-|--------|-------------|
-| **Reproducerbar miljö** | Samma miljö för alla utvecklare och produktion |
-| **Enkel start** | `docker-compose up` startar hela applikationen inklusive PostgreSQL |
-| **Isolering** | Frontend, backend och databas körs i separata containrar |
-| **Volymhantering** | Databasen persisteras i Docker-volymer (`quiz-volume-postgres`) |
+| **Hanterad databas** | AWS hanterar drift och kapacitet för databasen |
+| **Transaktioner** | Unika värden och relaterade ändringar hanteras med transaktioner |
+| **Lokal testbarhet** | DynamoDB Local används för lokal API-testning |
 
 ## Säkerhet & Autentisering (Supabase Auth-integration)
 
-Projektet använder **Supabase Auth** för autentisering och användarhantering. Följande punkter beskriver Express-alternativet:
+Frontend använder **Supabase Auth** för registrering och inloggning. Skyddade API-rutter verifierar bearer-token både i API Gateways authorizer och i Lambda-handlern. Supabase-profiler kopplas till den verifierade tokenens `sub`, inte automatiskt via e-post.
 
-- **JWT-verifiering**: Backend verifierar alla inkommande tokens med Supabase JWT Secret.
-- **Inga lösenord i den lokala databasen**: Lösenord, kryptering och kontoregistrering hanteras helt av Supabase.
-- **Lokal profilsynkronisering**: Backend synkroniserar automatiskt Supabase-användarprofiler (`supabase_id`, `email`, `username`) till PostgreSQL-databasen (`users`) vid inloggning.
+API:et har även separata publika `/api/register` och `/api/login` för lokala konton. Ett angivet lösenord lagras som en bcrypt-hash och inloggningstoken signeras med `JWT_SECRET`. Supabase-flödet och de lokala kontona är separata; se [serverless-dokumentationen](./serverless/README.md) för detaljer och hantering av äldre profiler.
 
 ---
 
@@ -105,7 +68,7 @@ Projektet använder **Supabase Auth** för autentisering och användarhantering.
 
 1. **Registrera konto & logga in**: Användare autentiserar sig säkert via Supabase Auth.
 2. **Skapa grupp (Circle)**: Inloggad användare skapar en grupp och blir automatiskt ägare.
-3. **Bjuda in & gå med via kod**: Ägare genererar en unik 6-teckens inbjudningskod (t.ex. `VQQMY8`) → vän anger koden och blir medlem i gruppen.
+3. **Bjuda in & gå med via kod**: Ägare får en unik inbjudningskod → vän anger koden och blir medlem i gruppen.
 4. **Skapa quiz**: Medlem skapar ett quiz i sin grupp (kategori, frågor, valbara alternativ och rätt svar).
 5. **Delta i quiz**: Medlem öppnar ett quiz i sin grupp, svarar på frågorna och ser sitt poängresultat direkt.
 6. **Se resultat & historik**: Quiz-resultat sparas och kopplas till användarens Supabase-profil i databasen.
@@ -134,8 +97,8 @@ Feature: Kontoregistrering och inloggning via Supabase Auth
     Given jag är en ny besökare
     When jag registrerar mig i Supabase med giltig e-post och starkt lösenord
     Then ska ett konto skapas i Supabase
-    And profilen ska synkroniseras till den lokala databasen
-    And jag ska vara inloggad
+    And jag ska bekräfta min e-post om Supabase kräver det
+    And profilen ska skapas i DynamoDB när jag använder API:et
 
   Scenario: Ny användare registrerar sig och loggar in med samma uppgifter
     Given jag är på inloggningssidan
@@ -145,7 +108,7 @@ Feature: Kontoregistrering och inloggning via Supabase Auth
     When jag loggar ut från Supabase
     And jag loggar in med samma e-postadress och lösenord
     Then ska jag vara inloggad med det nyskapade kontot
-    And profilen ska synkroniseras till den lokala databasen
+    And profilen ska finnas i DynamoDB
 
 Feature: Skapa och gå med i grupp
 
@@ -153,7 +116,7 @@ Feature: Skapa och gå med i grupp
     Given jag är inloggad via Supabase
     When jag skapar en ny grupp med namnet "Fredagsquiz"
     Then ska gruppen skapas
-    And en unik 6-teckens inbjudningskod ska skapas
+    And en unik inbjudningskod ska skapas
     And jag ska bli ägare av gruppen
 
   Scenario: Gå med via inbjudningskod
@@ -178,32 +141,25 @@ Feature: Skapa och genomföra quiz
 
 ---
 
-## Snabbstart: Express och PostgreSQL (Docker)
+## Snabbstart: lokal serverless-miljö
 
-### 1. Miljövariabler (.env)
-Säkerställ att `.env` eller `docker-compose.yaml` innehåller Supabase- och PostgreSQL-inställningarna:
+Du behöver Node.js 22, PowerShell, SAM CLI och Docker Desktop med Linux-containrar. Installera beroenden i `serverless` och `frontend/quiz` med `npm ci`.
 
-```env
-# Frontend (Supabase Auth)
-VITE_SUPABASE_URL=https://your-project.supabase.co
-VITE_SUPABASE_ANON_KEY=your_supabase_anon_key_here
+Om `serverless/local/config.json` saknas, kopiera `serverless/local/config.example.json` dit och fyll i Supabase-projektets URL och publika anon-/publishable-nyckel. Använd inte en service-role-nyckel och committa inte konfigurationen.
 
-# Backend (Supabase Auth & API)
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_JWT_SECRET=your_supabase_jwt_secret_here
-PORT=5000
+Starta från `serverless`:
 
-# PostgreSQL Databas
-DATABASE_URL=postgresql://postgres:postgres_password_123@postgres:5432/quiz_devsecops
+```powershell
+npm run local
 ```
 
-### 2. Starta med Docker Compose
-```bash
-docker-compose up -d --build
-```
+Frontend finns på `http://localhost:3000/` och API:et på `http://localhost:3001/api/`. Stoppa med Ctrl+C. DynamoDB Local körs i minnet och **all lokal databasdata försvinner vid stopp**. Supabase-projektet är fortfarande externt; använd ett testprojekt vid behov. Se [serverless-dokumentationen](./serverless/README.md) för detaljer, inklusive konfiguration av äldre Supabase HS256-token.
 
-- **Frontend Applikation**: `http://localhost:3000/`
-- **Backend Express API**: `http://localhost:5000/api/`
+Docker Compose kan också starta enbart frontend. Ange `VITE_API_URL` till ett
+separat startat serverless-API samt `VITE_SUPABASE_URL` och den publika
+`VITE_SUPABASE_ANON_KEY` i `.env` eller miljön innan du kör `docker compose up --build`.
+Compose startar inte API:et. Det lokala skriptet ovan startar redan en frontend
+på port 3000, så kör inte båda samtidigt på samma port.
 
 Produktionsbilden för frontend byggs med Docker BuildKit. Ange den publika
 Supabase anon- eller publishable-nyckeln som en build secret och bygg om
@@ -221,32 +177,13 @@ Vite bäddar in nyckeln i JavaScript som skickas till webbläsaren. Den är
 därför inte hemlig även om den skickas via en build secret; använd aldrig
 en Supabase service-role-nyckel eller någon annan hemlig nyckel här.
 
-Express-API:et kräver en verifierad token för användarlistning, profilsynkronisering och profilrutter. Profiländringar gäller applikationens databas; de ändrar inte e-postadress eller lösenord i Supabase Auth. Quiz-inlämning accepterar svarstext som frontend skickar samt äldre svar i form av alternativens index.
-
-### Express-identiteter
-
-Express-koden utgår från en ny PostgreSQL-databas. En äldre databas behöver
-uppdateras separat eftersom `sequelize.sync()` inte lägger till kolumnen
-`identity_provider` i en befintlig tabell.
-
-Nya profiler skapas med `identity_provider = 'supabase'` från en verifierad
-Supabase-token vid `POST /api/sync-user`; det anropet måste lyckas innan en ny
-användare kan använda övriga skyddade Express-rutter. Befintliga profiler utan
-markering nekas åtkomst tills en administratör har verifierat deras ägarskap och granskat eventuell tidigare
-kapning. Varken matchande e-postadress eller `auth_id` är ensamt bevis för
-ägarskap. Ta bort eventuella lokala lösenord innan en verifierad profil
-markeras som `supabase`; markera inte alla gamla profiler automatiskt.
-Konton med e-postkonflikter måste lösas manuellt, eftersom profiler inte länkas
-automatiskt via e-post. `SUPABASE_JWT_SECRET` och `JWT_SECRET` måste vara olika
-om båda används.
-
 Varje quiz har grafer för dina egna försök och deltagarnas bästa resultat, rangordnade efter andel rätt. Topplistan visar även varje deltagares totala antal genomförda försök, inklusive försök efter det bästa resultatet. Endast nuvarande gruppmedlemmar och gruppägaren kan se dem; individuella försök visas bara för den som gjorde dem. Topplistan inkluderar även sparade resultat från tidigare medlemmar.
 
 ---
 
 ## Serverless: Lambda och DynamoDB
 
-Serverless-backenden är ett alternativ till Express-backenden, inte en del av Docker Compose. Den består av Lambda-funktioner bakom API Gateway och DynamoDB-tabeller, definierade i [serverless/template.yaml](./serverless/template.yaml).
+Backendens Lambda-funktioner, API Gateway och DynamoDB-tabeller definieras i [serverless/template.yaml](./serverless/template.yaml).
 
 För att kontrollera och bygga den lokalt:
 
@@ -260,7 +197,7 @@ npm run build
 
 Testerna använder mockade eller minnesbaserade beroenden och kräver inte AWS-åtkomst. De verifierar inte en faktisk AWS-deploy.
 
-Deploy kräver AWS-behörighet och SAM CLI. Se [serverless/README.md](./serverless/README.md) för deploy, parametrar, datamodell och skillnader mot Express. Efter deploy används stackens `ApiUrl` som frontendens `VITE_API_URL` vid bygge; utan variabeln används det lokala Express-API:t. Kontrollera API- och autentiseringsskillnaderna innan ni byter backend.
+Deploy kräver AWS-behörighet och SAM CLI. Se [serverless/README.md](./serverless/README.md) för deploy, parametrar och datamodell. Efter deploy används stackens `ApiUrl` som frontendens `VITE_API_URL` vid bygge. Standardvärdet är `http://localhost:3001/api/` för den lokala serverless-miljön; ange `VITE_API_URL` för andra miljöer.
 
 ---
 
@@ -268,40 +205,7 @@ Deploy kräver AWS-behörighet och SAM CLI. Se [serverless/README.md](./serverle
 
 ```
 DevSecOps/
-├── backend/
-│   ├── Api/
-│   │   └── Routes/
-│   │       ├── auth/
-│   │       │   ├── syncUser.js        # POST /api/sync-user (Supabase-profilsynk)
-│   │       │   ├── registerUser.js    # Äldre lokal auth
-│   │       │   └── loginUser.js       # Äldre lokal auth
-│   │       ├── Groups/
-│   │       │   ├── createGroup.js     # POST /api/groups
-│   │       │   ├── getGroups.js       # GET /api/groups
-│   │       │   ├── getGroupById.js   # GET /api/groups/:id
-│   │       │   ├── updateGroup.js     # PUT /api/groups/:id
-│   │       │   ├── deleteGroup.js     # DELETE /api/groups/:id
-│   │       │   └── joinGroup.js       # POST /api/groups/join (via inbjudningskod)
-│   │       └── Quizzes/
-│   │           ├── createQuiz.js      # POST /api/quizzes
-│   │           ├── getQuizzes.js      # GET /api/quizzes
-│   │           └── takeQuiz.js        # POST /api/quizzes/:id/submit
-│   ├── database/
-│   │   ├── database.js            # Sequelize PostgreSQL-anslutning (med test-fallback)
-│   │   └── schemas/
-│   │       ├── userSchema.js      # Users-tabell (supabase_id, email, name)
-│   │       ├── groupSchema.js     # Groups-tabell (name, invite_code, owner_id)
-│   │       ├── groupMemberSchema.js # Group members & roller
-│   │       ├── quizSchema.js      # Quizzes-tabell (questions, category, group_id)
-│   │       └── quizResultSchema.js# Quiz results-tabell (score, total)
-│   ├── middleware/
-│   │   ├── supabaseAuth.js        # Supabase JWT verifierings-middleware
-│   │   └── verifyJWT.js           # Symmetrisk JWT verifiering
-│   ├── app.js                     # Express app entry point
-│   ├── Dockerfile
-│   └── package.json
-│
-├── serverless/                    # Alternativ backend: Lambda och DynamoDB
+├── serverless/                    # Backend: Lambda och DynamoDB
 │   ├── src/handlers/              # Lambda-handlers för API:et
 │   ├── src/lib/                   # Auth, databasåtkomst och gemensam logik
 │   ├── tests/                     # Serverless-tester
@@ -327,7 +231,6 @@ DevSecOps/
 │
 ├── .github/workflows/
 │   └── ci-cd.yaml                 # GitHub Actions CI/CD Pipeline
-├── docker-compose.yaml            # Docker Compose konfiguration
 └── README.md
 ```
 
@@ -341,7 +244,7 @@ Projektet använder **GitHub Actions** för CI/CD
 
 ### Beroendeuppdateringar
 
-Dependabot söker varje vecka efter uppdateringar för npm-beroenden, GitHub Actions och Docker-basbilder enligt [konfigurationen](./.github/dependabot.yml). Nya versioner har en väntetid på sju dagar innan de föreslås; säkerhetsuppdateringar omfattas inte av väntetiden. Uppdateringarna föreslås som pull requests och ska granskas och testas innan de mergas. Dependabot kan bara uppdatera filer som finns i Git-repot; backendens lokala `Dockerfile` är ignorerad och dess `Dockerfile.example` uppdateras i stället.
+Dependabot söker varje vecka efter uppdateringar för npm-beroenden, GitHub Actions och Docker-basbilder enligt [konfigurationen](./.github/dependabot.yml). Nya versioner har en väntetid på sju dagar innan de föreslås; säkerhetsuppdateringar omfattas inte av väntetiden. Uppdateringarna föreslås som pull requests och ska granskas och testas innan de mergas.
 
 ### CI-delen (Continuous Integration & Security)
 
@@ -357,10 +260,6 @@ Vid varje push eller pull request körs jobbet `ci` med följande steg i ordning
 | **Frontend Lint** | `npm run lint` | Kontrollera kodkvalitet i frontend |
 | **Frontend Test** | `npm test` (`vitest run`) | Kör enhetstester i frontend |
 | **Frontend Build** | `npm run build` | Verifiera att frontend-bygget lyckas |
-| **Backend Audit (SCA)** | `npm audit --audit-level=high` | Upptäck sårbara beroenden i Express-backend |
-| **Backend Lint** | `npm run lint` | Kontrollera kodkvalitet i Express-backend |
-| **Backend Test** | `npm test` | Kör enhets- och integrationstester i Express-backend |
-| **Backend Build** | `npm run build` | Verifiera att Express-backend-bygget lyckas |
 | **Serverless Audit och lint** | `npm audit --audit-level=high`, `npm run lint` | Kontrollera beroenden och kod i Lambda-backend |
 | **Serverless test och build** | `npm test`, `npm run build` | Kör tester och bygg Lambda-handlers |
 | **Semgrep SAST** | `semgrep scan --config auto --error .` | Statisk kodanalys för att upptäcka säkerhetsbrister |
@@ -379,9 +278,8 @@ Vid push till `main` eller `dev` byggs och publiceras Docker-images:
 | **Login to GHCR** | Autentisera mot GitHub Container Registry |  |
 | **Metadata extraction** | Generera tags och labels | Versionsmärkning |
 | **Build Frontend** | Bygg och pusha frontend-image | `ghcr.io/...-frontend` |
-| **Build Backend** | Bygg och pusha backend-image | `ghcr.io/...-backend` |
 
-Vid push till `main`, efter godkänd CI, deployar AWS-jobbet serverless-backenden med SAM till stacken `quiz-serverless`. Därefter byggs frontend med stackens API-adress, pushas till ECR och startas på EC2 via SSM. GHCR-jobbet ovan körs separat och deployar inte Express-backenden.
+Vid push till `main`, efter godkänd CI, deployar AWS-jobbet serverless-backenden med SAM till stacken `quiz-serverless`. Därefter byggs frontend med stackens API-adress, pushas till ECR och startas på EC2 via SSM. GHCR-jobbet ovan körs separat.
 
 Frontend-avbilderna som publiceras till GHCR och ECR signeras med Cosign och GitHub Actions OIDC. Signeringshändelser publiceras i Sigstores offentliga transparenslogg. Före EC2-driftsättningen verifierar CI ECR-avbildens signatur mot detta workflow på `main` och skickar den verifierade digesten till EC2. Signaturen verifieras i CI, inte på EC2; driftsättningen avbryts om signering eller verifiering misslyckas. AWS-rollen behöver rättigheter att läsa och publicera signaturartefakter i ECR-repositoryt.
 

@@ -1,6 +1,6 @@
 /* import axios from "axios";
 
-const baseURL = import.meta.env.VITE_API_URL ?? "http://localhost:5000/api/";
+const baseURL = import.meta.env.VITE_API_URL ?? "http://localhost:3001/api/";
 
 console.log("API URL:", baseURL);
 
@@ -49,7 +49,7 @@ export const apiRequest = async ({
 import axios from "axios";
 import { supabase } from "../supabase";
 
-const baseURL = import.meta.env.VITE_API_URL || "http://localhost:5000/api/";
+const baseURL = import.meta.env.VITE_API_URL || "http://localhost:3001/api/";
 
 const axiosInstance = axios.create({
   baseURL,

@@ -1,6 +1,6 @@
 # Serverless backend (AWS Lambda + DynamoDB)
 
-Alternative to the Express/PostgreSQL `backend/`, which remains available. The API uses `/api/...` routes and is implemented as one Lambda function per endpoint behind an API Gateway HTTP API, with DynamoDB for storage. Everything is defined in `template.yaml` (AWS SAM); see the behavior differences below before switching backends.
+The API uses `/api/...` routes and is implemented as one Lambda function per endpoint behind an API Gateway HTTP API, with DynamoDB for storage. Everything is defined in `template.yaml` (AWS SAM).
 
 Protected API routes use an API Gateway Lambda authorizer to verify bearer tokens before invoking the endpoint. Login and registration remain public. The endpoint handlers also verify tokens and enforce their own permissions; the authorizer uses the same Supabase JWKS, legacy Supabase HS256, and application HS256 verification as the handlers. Authorizer caching is disabled so expiry is checked for each request. SAM Local can invoke Lambda authorizers, but local emulation does not replace testing the deployed API Gateway configuration.
 
@@ -44,7 +44,7 @@ access or exposed signing secrets.
 | NotificationLock | `id` | – |
 | QuizResults | `id` | `quiz_id-index` |
 
-Uniqueness that Postgres enforced with unique constraints (email, username, auth_id, invite code) is enforced with lock items in `UniqueKeys`, written in the same transaction as the owning item. Emails are stored lowercase.
+Uniqueness for email, username, auth_id and invite code is enforced with lock items in `UniqueKeys`, written in the same transaction as the owning item. Emails are stored lowercase.
 
 ## Quiz notifications
 
@@ -171,7 +171,7 @@ sam deploy --guided \
   --parameter-overrides JwtSecret=<32+ chars> AllowedOrigin=https://your-frontend SupabaseUrl=https://<project>.supabase.co
 ```
 
-The `ApiUrl` stack output is the value for the frontend's `VITE_API_URL` (build-time variable; defaults to `http://localhost:5000/api/`).
+The `ApiUrl` stack output is the value for the frontend's `VITE_API_URL` (build-time variable; defaults to `http://localhost:3001/api/` for local development).
 
 Run `npm run lint` to check the serverless JavaScript, or `npm run lint:fix` to apply supported automatic fixes. CI runs the lint check before building and deploying.
 
@@ -188,16 +188,14 @@ creation/submission, results, access controls and leave flow, but not actual
 email delivery. Newman is invoked at a pinned version with `npx` rather than
 being added to the application's dependency tree.
 
-## Behaviour changes compared to the Express backend
+## API behaviour
 
-Both backends expose `GET /api/quizzes/{id}/results?view=mine` for the authenticated user's attempts and `?view=leaderboard` for each participant's best percentage and `attempt_count` (all completed attempts, including those after the best result). Only current group members and the owner may access either view. The leaderboard includes former participants' saved results; individual attempts are private.
+`GET /api/quizzes/{id}/results?view=mine` returns the authenticated user's attempts and `?view=leaderboard` returns each participant's best percentage and `attempt_count` (all completed attempts, including those after the best result). Only current group members and the owner may access either view. The leaderboard includes former participants' saved results; individual attempts are private.
 
 - `GET /api/quizzes?group_id=...` checks current membership directly; nonmembers, including users who just left, receive `403`.
-- Both backends use `POST /api/groups/join` to join a group by invite code. The former `/api/group-members/join` endpoint has been removed.
-- `GET /api/users` and `GET /api/user/:user_id` now require authentication and never return password hashes.
-- The "any token containing `test`" bypass in the old auth middleware is not carried over.
+- `POST /api/groups/join` joins a group by invite code.
+- `GET /api/users` and `GET /api/user/:user_id` require authentication and never return password hashes.
 - Passwords use `bcryptjs` (pure JS, compatible with existing bcrypt hashes).
-- Existing Postgres data is not migrated.
 - Deleting a group/quiz cascades in batches, not in a single transaction.
 - Secrets are passed as `NoEcho` stack parameters and end up in Lambda environment variables; move them to SSM/Secrets Manager for stricter setups.
 
